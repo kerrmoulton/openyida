@@ -277,6 +277,46 @@ describe('cdp-browser-login 工具函数', () => {
   });
 });
 
+//─ env-manager 海外登录环境─────────────────────────
+
+describe('env-manager 海外登录环境', () => {
+  test('默认环境配置包含海外 DingTalk 登录预设', () => {
+    const {
+      loadEnvsConfig,
+      INTERNATIONAL_LOGIN_URL,
+      resolveEnvNameAlias,
+    } = require('../lib/core/env-manager');
+
+    const config = loadEnvsConfig(path.join(os.tmpdir(), `openyida-env-missing-${Date.now()}`));
+
+    expect(config.environments).toHaveProperty('intl');
+    expect(config.environments.intl.baseUrl).toBe('https://www.aliwork.com');
+    expect(config.environments.intl.loginUrl).toBe(INTERNATIONAL_LOGIN_URL);
+    expect(config.environments.intl.cookieFile).toBe('cookies-intl.json');
+    expect(resolveEnvNameAlias('overseas')).toBe('intl');
+    expect(resolveEnvNameAlias('international')).toBe('intl');
+  });
+
+  test('海外 OAuth 登录 URL 使用 login.dingtalk.io 并回调到 YiDA', () => {
+    const { buildDingtalkOAuthLoginUrl } = require('../lib/core/env-manager');
+    const loginUrl = buildDingtalkOAuthLoginUrl({
+      loginOrigin: 'https://login.dingtalk.io',
+      baseUrl: 'https://www.aliwork.com',
+      lang: 'en_US',
+    });
+    const parsedUrl = new URL(loginUrl);
+    const redirectUri = parsedUrl.searchParams.get('redirect_uri');
+
+    expect(parsedUrl.origin).toBe('https://login.dingtalk.io');
+    expect(parsedUrl.pathname).toBe('/oauth2/auth');
+    expect(parsedUrl.searchParams.get('client_id')).toBe('suite9xvlxxerybljwheo');
+    expect(parsedUrl.searchParams.get('scope')).toBe('openid corpid');
+    expect(parsedUrl.searchParams.get('lang')).toBe('en_US');
+    expect(redirectUri).toContain('https://www.aliwork.com/dingtalk_sso_call_back');
+    expect(redirectUri).toContain(encodeURIComponent('https://www.aliwork.com/workPlatform'));
+  });
+});
+
 //─ interactiveLogin 浏览器优先级───────────────────────
 
 describe('interactiveLogin 浏览器优先级', () => {

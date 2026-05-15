@@ -105,6 +105,21 @@ describe('terminal QR code rendering', () => {
     });
   });
 
+  test('keeps selected environment in QR poll command', () => {
+    expect(__test__.buildCodexPollCommand('/tmp/session.json', 'ding-main', 'intl')).toBe(
+      "openyida login --agent-poll '/tmp/session.json' --env 'intl' --corp-id 'ding-main'"
+    );
+
+    const result = __test__.buildNeedQrScanResult({
+      qrUrl: 'https://login.dingtalk.io/oauth2/qr_confirm.htm?code=abc',
+      qrImageFile: null,
+      sessionFile: '/tmp/session.json',
+      targetCorpId: null,
+      envName: 'intl',
+    });
+    expect(result.poll_command).toBe("openyida login --agent-poll '/tmp/session.json' --env 'intl'");
+  });
+
   test('resolveQrcodeModule tries package name before adjacent install paths', () => {
     const qrcode = { toString: jest.fn() };
     const requireFn = jest.fn((request) => {

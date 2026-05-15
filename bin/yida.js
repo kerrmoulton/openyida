@@ -284,6 +284,39 @@ function getArgValue(cliArgs, name) {
   return cliArgs[index + 1];
 }
 
+function applyLoginEnvironmentFlags(cliArgs) {
+  const envFlagMap = {
+    '--public': 'public',
+    '--intl': 'intl',
+    '--overseas': 'intl',
+    '--international': 'intl',
+    '--global': 'intl',
+    '--alibaba': 'alibaba',
+    '--internal': 'alibaba',
+    '--intranet': 'alibaba',
+  };
+  const filteredArgs = [];
+
+  for (let index = 0; index < cliArgs.length; index++) {
+    const arg = cliArgs[index];
+    if (arg === '--env') {
+      const envName = cliArgs[index + 1];
+      if (envName && !envName.startsWith('--')) {
+        process.env.OPENYIDA_ENV = envName;
+        index++;
+      }
+      continue;
+    }
+    if (envFlagMap[arg]) {
+      process.env.OPENYIDA_ENV = envFlagMap[arg];
+      continue;
+    }
+    filteredArgs.push(arg);
+  }
+
+  return filteredArgs;
+}
+
 // 解析全局 --quiet 开关：从 args 中剔除并设置 YIDA_QUIET=1，让 chalk.js
 // 的所有装饰输出（banner/step/info/...）变 no-op，AI 即可直接 `... --quiet | jq`。
 function applyQuietFlag() {
@@ -352,40 +385,41 @@ async function main() {
 
     case 'login': {
       const { checkLoginOnly } = require('../lib/auth/login');
-      if (args.includes('--agent-poll') || args.includes('--codex-poll')) {
-        const sessionFile = getArgValue(args, '--agent-poll') || getArgValue(args, '--codex-poll');
+      const loginArgs = applyLoginEnvironmentFlags(args);
+      if (loginArgs.includes('--agent-poll') || loginArgs.includes('--codex-poll')) {
+        const sessionFile = getArgValue(loginArgs, '--agent-poll') || getArgValue(loginArgs, '--codex-poll');
         const { pollCodexQrLogin } = require('../lib/auth/qr-login');
         const result = await pollCodexQrLogin(sessionFile, {
-          corpId: getArgValue(args, '--corp-id'),
+          corpId: getArgValue(loginArgs, '--corp-id'),
         });
         printLoginResult(result);
-      } else if (args.includes('--agent-select') || args.includes('--codex-select')) {
-        const sessionFile = getArgValue(args, '--agent-select') || getArgValue(args, '--codex-select');
+      } else if (loginArgs.includes('--agent-select') || loginArgs.includes('--codex-select')) {
+        const sessionFile = getArgValue(loginArgs, '--agent-select') || getArgValue(loginArgs, '--codex-select');
         const { selectCodexQrCorp } = require('../lib/auth/qr-login');
         const result = await selectCodexQrCorp(sessionFile, {
-          corpId: getArgValue(args, '--corp-id'),
+          corpId: getArgValue(loginArgs, '--corp-id'),
         });
         printLoginResult(result);
-      } else if (args[0] === '--check-only') {
-        const result = checkLoginOnly({ includeSecrets: args.includes('--with-cookies') });
+      } else if (loginArgs[0] === '--check-only') {
+        const result = checkLoginOnly({ includeSecrets: loginArgs.includes('--with-cookies') });
         console.log(JSON.stringify(result, null, 2));
-      } else if (shouldUseCodexQrLogin(args)) {
+      } else if (shouldUseCodexQrLogin(loginArgs)) {
         const { startCodexQrLogin } = require('../lib/auth/qr-login');
-        const result = await startCodexQrLogin({ corpId: getArgValue(args, '--corp-id') });
+        const result = await startCodexQrLogin({ corpId: getArgValue(loginArgs, '--corp-id') });
         printLoginResult(result);
-      } else if (args.includes('--browser')) {
+      } else if (loginArgs.includes('--browser')) {
         const { interactiveLogin } = require('../lib/auth/login');
         const result = interactiveLogin({ force: true });
         printLoginResult(result);
-      } else if (args.includes('--qoder') || args.includes('--wukong')) {
+      } else if (loginArgs.includes('--qoder') || loginArgs.includes('--wukong')) {
         const { codexLogin } = require('../lib/auth/codex-login');
-        const result = await codexLogin({ tool: args.includes('--qoder') ? 'qoder' : 'wukong' });
+        const result = await codexLogin({ tool: loginArgs.includes('--qoder') ? 'qoder' : 'wukong' });
         printLoginResult(result);
-      } else if (args.includes('--qr')) {
+      } else if (loginArgs.includes('--qr')) {
         const { qrLogin } = require('../lib/auth/qr-login');
-        const result = await qrLogin({ corpId: getArgValue(args, '--corp-id') });
+        const result = await qrLogin({ corpId: getArgValue(loginArgs, '--corp-id') });
         console.log(JSON.stringify(result));
-      } else if (shouldUseAgentLogin(args)) {
+      } else if (shouldUseAgentLogin(loginArgs)) {
         const cachedResult = checkLoginOnly({ includeSecrets: true });
         if (cachedResult.status === 'ok') {
           printLoginResult(cachedResult);
@@ -398,17 +432,17 @@ async function main() {
             printLoginResult(browserResult);
           } else {
             const { startCodexQrLogin } = require('../lib/auth/qr-login');
-            const result = await startCodexQrLogin({ corpId: getArgValue(args, '--corp-id') });
+            const result = await startCodexQrLogin({ corpId: getArgValue(loginArgs, '--corp-id') });
             printLoginResult(result);
           }
         }
-      } else if (shouldUseBrowserHandoffLogin(args)) {
+      } else if (shouldUseBrowserHandoffLogin(loginArgs)) {
         const cachedResult = checkLoginOnly({ includeSecrets: true });
         if (cachedResult.status === 'ok') {
           printLoginResult(cachedResult);
         } else {
           const { codexLogin } = require('../lib/auth/codex-login');
-          const result = await codexLogin({ tool: args.includes('--codex') ? 'codex' : undefined });
+          const result = await codexLogin({ tool: loginArgs.includes('--codex') ? 'codex' : undefined });
           printLoginResult(result);
         }
       } else {
@@ -418,7 +452,7 @@ async function main() {
           break;
         }
         const { qrLogin } = require('../lib/auth/qr-login');
-        const result = await qrLogin({ corpId: getArgValue(args, '--corp-id') });
+        const result = await qrLogin({ corpId: getArgValue(loginArgs, '--corp-id') });
         console.log(JSON.stringify(result));
       }
       break;
@@ -437,8 +471,9 @@ async function main() {
       if (subCommand === 'status') {
         authStatus();
       } else if (subCommand === 'login') {
-        const loginType = shouldUseBrowserHandoffLogin(args) ? 'browser' : 'qrcode';
-        await authLogin({ type: loginType, corpId: getArgValue(args, '--corp-id') });
+        const authArgs = [subCommand, ...applyLoginEnvironmentFlags(args.slice(1))];
+        const loginType = shouldUseBrowserHandoffLogin(authArgs) ? 'browser' : 'qrcode';
+        await authLogin({ type: loginType, corpId: getArgValue(authArgs, '--corp-id') });
       } else if (subCommand === 'refresh') {
         authRefresh();
       } else if (subCommand === 'logout') {

@@ -100,7 +100,7 @@ describe('CLI offline smoke', () => {
     const output = runOk(['--help']);
     expect(output).toContain('OpenYida');
     expect(output).toContain('env [--json]');
-    expect(output).toContain('login [--qr|--agent-qr|--codex|--browser] [--corp-id <corpId>]');
+    expect(output).toContain('login [--qr|--agent-qr|--codex|--browser] [--env <name>|--overseas] [--corp-id <corpId>]');
     expect(output).toContain('corp-efficiency');
     expect(output).toContain('create-form');
     expect(output).toContain('list-forms');

@@ -255,9 +255,10 @@ Run `openyida --help` or `openyida <command> --help` for detailed usage.
 | Command | Description |
 |---------|-------------|
 | `openyida env [--json]` | Detect the active AI tool environment and login state |
+| `openyida env setup` | Choose a customer-friendly login environment preset: public, overseas, Alibaba intranet, or private deployment |
 | `openyida env <list\|show\|switch\|add\|remove>` | Manage public/private Yida environment profiles |
 | `openyida commands [--json]` | Emit the machine-readable command manifest |
-| `openyida login [--qr\|--agent-qr\|--codex\|--browser] [--corp-id <corpId>]` | Log in to Yida |
+| `openyida login [--qr\|--agent-qr\|--codex\|--browser] [--env <name>\|--overseas] [--corp-id <corpId>]` | Log in to Yida |
 | `openyida logout` | Log out or switch account |
 | `openyida auth <status\|login\|refresh\|logout>` | Manage login status |
 | `openyida org list` | List accessible organizations |
