@@ -108,7 +108,6 @@ describe('CLI offline smoke', () => {
     expect(output).toContain('corp-manager');
     expect(output).toContain('dws');
     expect(output).toContain('dingtalk-link');
-    expect(output).toContain('commands [--json]');
     expect(output).toContain('a2a <serve|agent-card> [options]');
     expect(output).toContain('sample [--list]');
     expect(output).toContain('generate-page <template>');

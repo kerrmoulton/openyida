@@ -3,7 +3,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { SUPPORTED_LANGUAGES } = require('../lib/core/i18n');
+const { SUPPORTED_LANGUAGES, t } = require('../lib/core/i18n');
 const {
   formatProgressBar,
   sanitizeSheetName,
@@ -121,8 +121,9 @@ describe('integration check', () => {
   });
 
   test('buildAppRows records no-abnormal and app-error rows', () => {
-    expect(buildAppRows('APP_EMPTY', [])[1][14]).toBe('未发现执行异常日志');
-    expect(buildAppRows('APP_ERR', [], [{ appType: 'APP_ERR', message: '登录态失效' }])[1][14]).toBe('应用检查失败：登录态失效');
+    expect(buildAppRows('APP_EMPTY', [])[1][14]).toBe(t('integration_check.no_abnormal'));
+    expect(buildAppRows('APP_ERR', [], [{ appType: 'APP_ERR', message: '登录态失效' }])[1][14])
+      .toBe(t('integration_check.app_failed', '登录态失效'));
   });
 
   test('all locale packs include integration check messages', () => {
