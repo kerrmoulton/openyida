@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [2026.5.18] - 2026-05-18
+
+### Highlights
+- 这是 2026-05-18 的正式版发布，新增应用级管理员设置能力，让 AI Agent 可以查询和维护单个宜搭应用的应用主管理员、数据管理员与开发成员。
+- 新增 `yida-app-permission` 子技能，面向“应用设置 → 权限管理”场景提供可复用的操作指引，便于从对话中完成应用级权限治理。
+
+### Added
+- 新增 `openyida app-permission` 命令，支持 `search-user`、`get`、`set`、`add`、`remove`，可查询人员并维护 `main`、`data`、`dev` 三类应用成员。
+- 新增 `yida-app-permission` 技能，并同步注册到根技能索引、命令清单、README 和 CLI 路由。
+- 12 种语言帮助文案补齐 `app-permission` 命令入口，保持 OpenYida 多语言命令发现一致。
+
+### Tests
+- 新增 `tests/app-permission.test.js`，覆盖权限配置查询、保存参数解析、成员配置、错误处理和命令发现。
+- 更新真实 E2E 技能覆盖矩阵，将 `yida-app-permission` 标记为离线单测覆盖，避免共享真实应用权限被 CI 修改。
+
 ## [2026.5.17-1] - 2026-05-17
 
 ### Added
