@@ -30,6 +30,7 @@ describe('create-app argument parsing', () => {
       '--name', '电商经营管理看板',
       '--desc', 'E-commerce operations management dashboard demo',
       '--theme', 'deepBlue',
+      '--locale', 'ja_JP',
     ]);
 
     expect(parsed).toMatchObject({
@@ -40,10 +41,15 @@ describe('create-app argument parsing', () => {
       iconColor: '#0089FF',
       navTheme: 'dark',
       layoutDirection: 'slide',
+      locale: 'ja_JP',
     });
   });
 
   test('rejects unknown flags instead of treating them as the app name', () => {
     expect(() => parseCreateAppArgs(['--unknown'])).toThrow('Unknown option: --unknown');
+  });
+
+  test('rejects unsupported locales', () => {
+    expect(() => parseCreateAppArgs(['--name', 'CRM', '--locale', 'ko_KR'])).toThrow('Unsupported locale: ko_KR');
   });
 });

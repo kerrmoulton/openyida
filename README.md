@@ -268,13 +268,15 @@ Run `openyida --help` or `openyida <command> --help` for detailed usage.
 
 Environment selectors such as `--env intl`, `--intl`, `--overseas`, `--global`, and `--yidaapps` can be used on login-required commands to choose the target Yida environment for that run. The `intl` preset targets Global YiDA at `https://www.yidaapps.com` and uses DingTalk International OAuth at `https://login.dingtalk.io`; use `openyida login --browser --intl` when you need cookies accepted by Global YiDA business APIs.
 
+For overseas apps, pass `--locale en_US` or `--locale ja_JP` on creation commands, or set `OPENYIDA_CONTENT_LOCALE`. OpenYida writes YiDA resource names with `zh_CN`, `en_US`, and `ja_JP` values so Global YiDA does not fall back to Chinese-only metadata.
+
 ### Applications
 
 | Command | Description |
 |---------|-------------|
 | `openyida app-list [--size N]` | List Yida applications |
 | `openyida corp-efficiency [overview\|details\|detail\|groups\|notify] [options] [--open\|--no-open]` | Query enterprise efficiency metrics, detail report entries, and related notification actions |
-| `openyida create-app "<name>"\|--name <name> [options] [--open\|--no-open]` | Create an application and output `appType` |
+| `openyida create-app "<name>"\|--name <name> [options] [--locale zh_CN\|en_US\|ja_JP] [--open\|--no-open]` | Create an application and output `appType` |
 | `openyida update-app <appType> --name "..."` | Update application metadata |
 | `openyida app-permission <get\|set\|add\|remove\|search-user> ...` | Manage app primary admins, data admins, and developer members |
 | `openyida export <appType> [output]` | Export an application migration package |
@@ -284,18 +286,18 @@ Environment selectors such as `--env intl`, `--intl`, `--overseas`, `--global`, 
 
 | Command | Description |
 |---------|-------------|
-| `openyida create-form create <appType> "<name>" <fields.json> [--open\|--no-open]` | Create a form page |
-| `openyida create-form update <appType> <formUuid> <changes.json> [--open\|--no-open]` | Update a form page |
+| `openyida create-form create <appType> "<name>" <fields.json> [--locale zh_CN\|en_US\|ja_JP] [--open\|--no-open]` | Create a form page |
+| `openyida create-form update <appType> <formUuid> <changes.json> [--locale zh_CN\|en_US\|ja_JP] [--open\|--no-open]` | Update a form page |
 | `openyida create-form add-option <appType> <formUuid> <fieldLabel> <option1> [option2] ...` | Append options to a SelectField/RadioField/CheckboxField/MultiSelectField |
 | `openyida list-forms <appType> [--keyword <text>]` | List forms in an application |
 | `openyida get-schema <appType> <formUuid\|--all> [--field <labelOrFieldId>]` | Fetch one form schema, batch export all, or pick a single field's full props |
-| `openyida create-page <appType> "<name>" [--mode dashboard] [--open\|--no-open]` | Create a custom display page; dashboard mode hides top/workbench chrome |
+| `openyida create-page <appType> "<name>" [--mode dashboard] [--locale zh_CN\|en_US\|ja_JP] [--open\|--no-open]` | Create a custom display page; dashboard mode hides top/workbench chrome |
 | `openyida generate-page <template> [--spec file]` | Generate custom page source from templates (`product-homepage`, `todo-mvc`) |
 | `openyida build-page <sourceFile> [--output file\|--write]` | Build/fix Yida-compatible page source from OpenYida authoring JSX |
 | `openyida check-page <sourceFile> [--compat] [--json]` | Check page compatibility; `.oyd.jsx` is compatibility-built before linting |
 | `openyida compile <sourceFile> [--compat]` | Compile a custom page locally; `.oyd.jsx` sources are compatibility-built first |
 | `openyida publish <sourceFile> <appType> <formUuid> [--compat] [--health-check] [--force] [--open\|--no-open]` | Compile and publish a custom display page; by default the target must be `formType=display` |
-| `openyida update-form-config <appType> <formUuid> <isRenderNav> <title>` | Update page/form display configuration |
+| `openyida update-form-config <appType> <formUuid> <isRenderNav> <title> [--locale zh_CN\|en_US\|ja_JP]` | Update page/form display configuration |
 
 ### Data, Permissions, and Sharing
 
