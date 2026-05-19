@@ -25,13 +25,16 @@ function isAgentEnvironment(env) {
     env.CODEX_THREAD_ID ||
     env.CODEX_HOME ||
     env.CLAUDE_CODE ||
+    env.CLAUDE_CODE_ENTRYPOINT ||
     env.OPENCODE ||
     env.QODER_IDE ||
     env.QODER_AGENT ||
+    env.QODERCLI_INTEGRATION_MODE ||
     env.CURSOR_TRACE_ID ||
     env.AGENT_WORK_ROOT ||
     env.OPENYIDA_AGENT_MODE ||
-    (env.__CFBundleIdentifier || '').toLowerCase().includes('codex')
+    (env.__CFBundleIdentifier || '').toLowerCase().includes('codex') ||
+    (env.__CFBundleIdentifier || '').toLowerCase().includes('qoder')
   );
 }
 
@@ -438,9 +441,19 @@ async function main() {
           if (browserResult) {
             printLoginResult(browserResult);
           } else {
-            const { startCodexQrLogin } = require('../lib/auth/qr-login');
-            const result = await startCodexQrLogin({ corpId: getArgValue(loginArgs, '--corp-id') });
-            printLoginResult(result);
+            // CDP/Playwright 失败后的兜底策略：
+            // QoderWork 有 in-app browser，优先使用 browser handoff；其余走终端二维码
+            const { detectActiveTool } = require('../lib/core/utils');
+            const activeTool = detectActiveTool();
+            if (activeTool && activeTool.tool === 'qoderwork') {
+              const { codexLogin } = require('../lib/auth/codex-login');
+              const result = await codexLogin({ tool: 'qoderwork' });
+              printLoginResult(result);
+            } else {
+              const { startCodexQrLogin } = require('../lib/auth/qr-login');
+              const result = await startCodexQrLogin({ corpId: getArgValue(loginArgs, '--corp-id') });
+              printLoginResult(result);
+            }
           }
         }
       } else if (shouldUseBrowserHandoffLogin(loginArgs)) {

@@ -497,6 +497,9 @@ describe('interactiveLogin 浏览器优先级', () => {
   function resetToolEnv() {
     delete process.env.QODER_IDE;
     delete process.env.QODER_AGENT;
+    delete process.env.QODERCLI_INTEGRATION_MODE;
+    delete process.env.CLAUDE_CODE_ENTRYPOINT;
+    delete process.env.__CFBundleIdentifier;
     delete process.env.CODEX_SHELL;
     delete process.env.CODEX_CI;
     delete process.env.CODEX_THREAD_ID;
@@ -713,9 +716,11 @@ describe('findProjectRoot 环境检测', () => {
     originalCwd = process.cwd();
     // 清除所有 AI 工具环境变量，确保测试不受当前运行环境影响
     delete process.env.CLAUDE_CODE;
+    delete process.env.CLAUDE_CODE_ENTRYPOINT;
     delete process.env.OPENCODE;
     delete process.env.QODER_IDE;
     delete process.env.QODER_AGENT;
+    delete process.env.QODERCLI_INTEGRATION_MODE;
     delete process.env.CODEX_SHELL;
     delete process.env.CODEX_CI;
     delete process.env.CODEX_THREAD_ID;
@@ -868,9 +873,11 @@ describe('detectActiveTool', () => {
     originalEnv = { ...process.env };
     // 清除所有 AI 工具环境变量，确保测试不受当前运行环境影响
     delete process.env.CLAUDE_CODE;
+    delete process.env.CLAUDE_CODE_ENTRYPOINT;
     delete process.env.OPENCODE;
     delete process.env.QODER_IDE;
     delete process.env.QODER_AGENT;
+    delete process.env.QODERCLI_INTEGRATION_MODE;
     delete process.env.CODEX_SHELL;
     delete process.env.CODEX_CI;
     delete process.env.CODEX_THREAD_ID;
@@ -884,6 +891,37 @@ describe('detectActiveTool', () => {
 
   afterEach(() => {
     process.env = originalEnv;
+  });
+
+  test('QoderWork 桌面客户端环境识别（QODERCLI_INTEGRATION_MODE）', () => {
+    process.env.QODERCLI_INTEGRATION_MODE = 'qoder_work';
+    const { detectActiveTool: detectTool } = require('../lib/core/utils');
+
+    const tool = detectTool();
+    expect(tool).not.toBeNull();
+    expect(tool.tool).toBe('qoderwork');
+    expect(tool.displayName).toBe('QoderWork');
+    expect(tool.dirName).toBe('.qoderwork');
+  });
+
+  test('QoderWork 桌面客户端环境识别（__CFBundleIdentifier）', () => {
+    process.env.__CFBundleIdentifier = 'com.qoder.work';
+    const { detectActiveTool: detectTool } = require('../lib/core/utils');
+
+    const tool = detectTool();
+    expect(tool).not.toBeNull();
+    expect(tool.tool).toBe('qoderwork');
+    expect(tool.displayName).toBe('QoderWork');
+  });
+
+  test('QoderWork 优先级高于 Claude Code（CLAUDE_CODE_ENTRYPOINT 共存时）', () => {
+    process.env.QODERCLI_INTEGRATION_MODE = 'qoder_work';
+    process.env.CLAUDE_CODE_ENTRYPOINT = 'sdk-ts';
+    const { detectActiveTool: detectTool } = require('../lib/core/utils');
+
+    const tool = detectTool();
+    expect(tool).not.toBeNull();
+    expect(tool.tool).toBe('qoderwork');
   });
 
   test('Qoder 环境识别', () => {

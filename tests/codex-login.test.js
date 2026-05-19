@@ -22,9 +22,11 @@ describe('codexLogin', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.CLAUDE_CODE;
+    delete process.env.CLAUDE_CODE_ENTRYPOINT;
     delete process.env.OPENCODE;
     delete process.env.QODER_IDE;
     delete process.env.QODER_AGENT;
+    delete process.env.QODERCLI_INTEGRATION_MODE;
     delete process.env.CURSOR_TRACE_ID;
     delete process.env.AGENT_WORK_ROOT;
     delete process.env.TERM_PROGRAM;

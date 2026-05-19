@@ -315,9 +315,11 @@ describe('detectActiveTool', () => {
   beforeEach(() => {
     // 清除所有 AI 工具环境变量，确保测试不受当前运行环境影响
     delete process.env.CLAUDE_CODE;
+    delete process.env.CLAUDE_CODE_ENTRYPOINT;
     delete process.env.OPENCODE;
     delete process.env.QODER_IDE;
     delete process.env.QODER_AGENT;
+    delete process.env.QODERCLI_INTEGRATION_MODE;
     delete process.env.CODEX_SHELL;
     delete process.env.CODEX_CI;
     delete process.env.CODEX_THREAD_ID;
@@ -371,8 +373,10 @@ describe('detectActiveTool', () => {
 
   test('AGENT_WORK_ROOT 包含 .real 时检测为悟空', () => {
     delete process.env.CLAUDE_CODE;
+    delete process.env.CLAUDE_CODE_ENTRYPOINT;
     delete process.env.OPENCODE;
     delete process.env.QODER_IDE;
+    delete process.env.QODERCLI_INTEGRATION_MODE;
     delete process.env.CODEX_SHELL;
     delete process.env.CURSOR_TRACE_ID;
     process.env.AGENT_WORK_ROOT = '/home/user/.real/workspace';
@@ -396,9 +400,11 @@ describe('detectActiveTool', () => {
 
   test('TERM_PROGRAM=vscode 且有 .aone_copilot 目录时检测为 Aone Copilot', () => {
     delete process.env.CLAUDE_CODE;
+    delete process.env.CLAUDE_CODE_ENTRYPOINT;
     delete process.env.OPENCODE;
     delete process.env.QODER_IDE;
     delete process.env.QODER_AGENT;
+    delete process.env.QODERCLI_INTEGRATION_MODE;
     delete process.env.CODEX_SHELL;
     delete process.env.CODEX_CI;
     delete process.env.CODEX_THREAD_ID;
@@ -425,9 +431,11 @@ describe('detectActiveTool', () => {
 
   test('无任何 AI 工具环境变量时返回 null', () => {
     delete process.env.CLAUDE_CODE;
+    delete process.env.CLAUDE_CODE_ENTRYPOINT;
     delete process.env.OPENCODE;
     delete process.env.QODER_IDE;
     delete process.env.QODER_AGENT;
+    delete process.env.QODERCLI_INTEGRATION_MODE;
     delete process.env.CODEX_SHELL;
     delete process.env.CODEX_CI;
     delete process.env.CODEX_THREAD_ID;

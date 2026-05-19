@@ -29,6 +29,7 @@ function cliEnv() {
     // 清除可能从父进程继承的 AI 工具环境变量，避免干扰测试
     QODER_IDE: '',
     QODER_AGENT: '',
+    QODERCLI_INTEGRATION_MODE: '',
     CODEX_SHELL: '',
     CODEX_CI: '',
     CODEX_THREAD_ID: '',
@@ -40,6 +41,7 @@ function cliEnv() {
     VSCODE_GIT_ASKPASS_NODE: '',
     AGENT_WORK_ROOT: '',
     OPENYIDA_AGENT_MODE: '',
+    __CFBundleIdentifier: '',
   };
 }
 

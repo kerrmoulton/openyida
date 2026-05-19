@@ -181,9 +181,11 @@ describe('detectActiveTool Windows 路径兼容', () => {
 
   test('AGENT_WORK_ROOT 使用正斜杠路径时检测为悟空', () => {
     delete process.env.CLAUDE_CODE;
+    delete process.env.CLAUDE_CODE_ENTRYPOINT;
     delete process.env.OPENCODE;
     delete process.env.QODER_IDE;
     delete process.env.QODER_AGENT;
+    delete process.env.QODERCLI_INTEGRATION_MODE;
     delete process.env.CODEX_SHELL;
     delete process.env.CODEX_CI;
     delete process.env.CODEX_THREAD_ID;
@@ -198,9 +200,11 @@ describe('detectActiveTool Windows 路径兼容', () => {
 
   test('AGENT_WORK_ROOT 使用 Windows 反斜杠路径时检测为悟空', () => {
     delete process.env.CLAUDE_CODE;
+    delete process.env.CLAUDE_CODE_ENTRYPOINT;
     delete process.env.OPENCODE;
     delete process.env.QODER_IDE;
     delete process.env.QODER_AGENT;
+    delete process.env.QODERCLI_INTEGRATION_MODE;
     delete process.env.CODEX_SHELL;
     delete process.env.CODEX_CI;
     delete process.env.CODEX_THREAD_ID;
