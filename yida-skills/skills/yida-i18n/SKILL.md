@@ -1,6 +1,6 @@
 ---
 name: yida-i18n
-description: 应用多语言管理。查询和维护宜搭应用的语言配置、文案词条、翻译状态、一键翻译和多语言升级。适用于全球化设置 / 多语言管理页面；需要应用已开通国际化能力包，或运行在 Global YiDA 环境（含自定义二级域名）。
+description: 应用多语言管理。查询和维护宜搭应用的语言配置、文案词条、翻译状态、一键翻译和多语言升级。适用于全球化设置 / 多语言管理页面；需要应用已开通国际化能力包，或运行在 Global YiDA 环境（默认入口为 www.yidaapps.com，且支持客户自定义二级域名）。
 ---
 
 # 应用多语言管理
@@ -27,7 +27,7 @@ openyida i18n overview <appType>
 重点查看：
 
 - `ability.enabled` 是否为 `true`
-- `baseUrl` 是否为目标环境；Global YiDA 可能是平台默认域名，也可能是客户自定义二级域名
+- `baseUrl` 是否为目标环境；Global YiDA 默认入口是 `https://www.yidaapps.com`（不是裸域 `https://yidaapps.com`），但客户可能使用自定义二级域名
 - `config.defaultLanguage` 和 `config.languageList`
 - `upgraded` 是否表示应用已升级到多语言配置
 
@@ -129,7 +129,7 @@ openyida i18n upgrade <appType> --confirm
 - `config set`、`upsert`、`batch-upsert`、`delete`、`translate-all`、`upgrade` 会写入应用配置或词条；执行前说明影响范围。
 - 删除词条会取消相关多语言绑定，必须带 `--confirm`。
 - 一键翻译可能覆盖目标语言文案，必须带 `--confirm`，执行后用 `openyida i18n overview <appType>` 查看翻译任务状态。
-- 如果目标是 Global YiDA，先确认登录态 `baseUrl` 属于目标国际站环境或客户自定义二级域名，不要用国内站 Cookie 调国际站应用。
+- 如果目标是 Global YiDA，先确认登录态 `baseUrl` 属于目标国际站环境或客户自定义二级域名；默认入口是 `https://www.yidaapps.com`，不要用裸域或国内站 Cookie 调国际站应用。
 
 ## 接口映射
 
