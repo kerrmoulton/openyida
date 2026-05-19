@@ -279,6 +279,7 @@ For overseas apps, pass `--locale en_US` or `--locale ja_JP` on creation command
 | `openyida create-app "<name>"\|--name <name> [options] [--locale zh_CN\|en_US\|ja_JP] [--open\|--no-open]` | Create an application and output `appType` |
 | `openyida update-app <appType> --name "..."` | Update application metadata |
 | `openyida app-permission <get\|set\|add\|remove\|search-user> ...` | Manage app primary admins, data admins, and developer members |
+| `openyida i18n <overview\|config\|languages\|list\|upsert\|delete\|translate\|translate-all\|upgrade> <appType> ...` | Manage app multilingual copy and language configuration |
 | `openyida export <appType> [output]` | Export an application migration package |
 | `openyida import <file> [name]` | Import a migration package into a target environment |
 

@@ -35,6 +35,7 @@ const SKILL_COVERAGE = {
   'yida-formula': { level: 'offline', stages: ['offline'], commands: ['formula evaluate'] },
   'yida-formula-evaluate': { level: 'offline', stages: ['offline'], commands: ['formula evaluate --json'] },
   'yida-get-schema': { level: 'real-e2e', stages: ['form'], commands: ['get-schema', 'get-schema --all', 'get-schema --field'] },
+  'yida-i18n': { level: 'offline-unit', tests: ['tests/i18n-management.test.js'], reason: 'multilingual management writes app language config and copy entries; shared real E2E should only run read-only overview on dedicated intl apps' },
   'yida-integration': { level: 'opt-in', reason: 'creates backend automation flows; should run in a separate integration stage with cleanup/audit controls' },
   'yida-login': { level: 'real-e2e', stages: ['auth'], commands: ['login --check-only --json'] },
   'yida-logout': { level: 'offline-unit', tests: ['login/auth unit coverage'], reason: 'real logout would destroy the shared E2E session' },

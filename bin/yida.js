@@ -698,6 +698,12 @@ async function main() {
       break;
     }
 
+    case 'i18n': {
+      const { run: runI18nManagement } = require('../lib/i18n-management/i18n-management');
+      await runI18nManagement(args);
+      break;
+    }
+
     case 'data': {
       if (args.length < 2) {
         warn('用法: openyida data <action> <resource> [args] [options]');
