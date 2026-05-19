@@ -266,7 +266,7 @@ Run `openyida --help` or `openyida <command> --help` for detailed usage.
 | `openyida org list` | List accessible organizations |
 | `openyida org switch --corp-id <corpId>` | Switch organization without logging in again |
 
-Environment selectors such as `--env intl`, `--intl`, `--overseas`, `--global`, and `--yidaapps` can be used on login-required commands to choose the target Yida environment for that run. The `intl` preset targets Global YiDA at `https://www.yidaapps.com` and uses DingTalk International OAuth at `https://login.dingtalk.io`; use `openyida login --browser --intl` when you need cookies accepted by Global YiDA business APIs.
+Environment selectors such as `--env intl`, `--intl`, `--overseas`, `--global`, and `--yidaapps` can be used on login-required commands to choose the target Yida environment for that run. The `intl` preset targets the Global YiDA domain family, including custom subdomains, and uses DingTalk International OAuth at `https://login.dingtalk.io`; use `openyida login --browser --intl` when you need cookies accepted by Global YiDA business APIs.
 
 For overseas apps, pass `--locale en_US` or `--locale ja_JP` on creation commands, or set `OPENYIDA_CONTENT_LOCALE`. OpenYida writes YiDA resource names with `zh_CN`, `en_US`, and `ja_JP` values so Global YiDA does not fall back to Chinese-only metadata.
 

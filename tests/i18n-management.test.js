@@ -6,7 +6,7 @@ jest.mock('../lib/core/utils', () => ({
   extractInfoFromCookies: jest.fn(() => ({ csrfToken: 'csrf' })),
   loadCookieData: jest.fn(),
   triggerLogin: jest.fn(),
-  resolveBaseUrl: jest.fn(() => 'https://www.yidaapps.com'),
+  resolveBaseUrl: jest.fn(() => 'https://customer.yidaapps.com'),
   httpGet: jest.fn(),
   httpPost: jest.fn(),
   requestWithAutoLogin: jest.fn((requestFn, authRef) => requestFn(authRef)),
@@ -109,7 +109,7 @@ describe('i18n-management api', () => {
     expect(result).toMatchObject({
       success: true,
       appType: 'APP_1',
-      baseUrl: 'https://www.yidaapps.com',
+      baseUrl: 'https://customer.yidaapps.com',
       ability: { enabled: true },
       upgraded: true,
     });
