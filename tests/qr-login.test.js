@@ -1,5 +1,9 @@
 'use strict';
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
 jest.mock('../lib/core/i18n', () => ({
   t: (key, ...args) => args.length > 0 ? `${key}: ${args.join(', ')}` : key,
 }));
@@ -89,6 +93,93 @@ describe('terminal QR code rendering', () => {
     });
   });
 
+  test('writes a real scan-ready PNG file with the configured QR dimensions', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openyida-qr-png-'));
+    const filePath = path.join(tempDir, 'login.png');
+
+    try {
+      const result = await __test__.writeQrCodeImage('https://login.example/qr?code=abc', filePath);
+      const png = fs.readFileSync(filePath);
+
+      expect(result).toBe(true);
+      expect(png.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+      expect(png.subarray(12, 16).toString('ascii')).toBe('IHDR');
+      expect(png.readUInt32BE(16)).toBe(360);
+      expect(png.readUInt32BE(20)).toBe(360);
+      expect(png.length).toBeGreaterThan(1000);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('uses an opened PNG image on Windows terminals', async () => {
+    const toFile = jest.fn(async () => {});
+    const toString = jest.fn(async () => 'QR_CODE_TEXT');
+    const writeFn = jest.fn();
+    const warnFn = jest.fn();
+    const unref = jest.fn();
+    const spawnFn = jest.fn(() => ({ unref }));
+
+    const result = await __test__.displayQrCodeForLogin('https://login.example/qr?code=abc', {
+      qrcode: { toFile, toString },
+      platform: 'win32',
+      qrImageFile: 'C:\\tmp\\openyida-login.png',
+      spawnFn,
+      writeFn,
+      warnFn,
+    });
+
+    expect(result).toMatchObject({
+      terminalRendered: false,
+      imageWritten: true,
+      imageOpened: true,
+      imageFile: 'C:\\tmp\\openyida-login.png',
+    });
+    expect(toFile).toHaveBeenCalledWith('C:\\tmp\\openyida-login.png', 'https://login.example/qr?code=abc', {
+      type: 'png',
+      margin: 2,
+      width: 360,
+      errorCorrectionLevel: 'M',
+    });
+    expect(spawnFn).toHaveBeenCalledWith('explorer.exe', ['C:\\tmp\\openyida-login.png'], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    });
+    expect(unref).toHaveBeenCalled();
+    expect(toString).not.toHaveBeenCalled();
+    expect(writeFn).not.toHaveBeenCalled();
+    expect(warnFn).not.toHaveBeenCalled();
+    expect(__test__.shouldAutoOpenQrImageFile({ platform: 'win32' })).toBe(true);
+  });
+
+  test('keeps terminal QR rendering on non-Windows terminals', async () => {
+    const toFile = jest.fn(async () => {});
+    const toString = jest.fn(async () => 'QR_CODE_TEXT');
+    const writeFn = jest.fn();
+
+    const result = await __test__.displayQrCodeForLogin('https://login.example/qr?code=abc', {
+      qrcode: { toFile, toString },
+      platform: 'linux',
+      writeFn,
+      warnFn: jest.fn(),
+    });
+
+    expect(result).toMatchObject({
+      terminalRendered: true,
+      imageWritten: false,
+      imageOpened: false,
+      imageFile: null,
+    });
+    expect(toString).toHaveBeenCalledWith('https://login.example/qr?code=abc', {
+      type: 'terminal',
+      small: true,
+      errorCorrectionLevel: 'M',
+    });
+    expect(toFile).not.toHaveBeenCalled();
+    expect(writeFn).toHaveBeenCalledWith('QR_CODE_TEXT\n');
+  });
+
   test('builds Codex native single-select interaction for organizations', () => {
     const interaction = __test__.buildCodexCorpInteraction([
       { corpId: 'ding-main', corpName: 'Main Org', mainOrg: true },
@@ -106,9 +197,14 @@ describe('terminal QR code rendering', () => {
   });
 
   test('keeps selected environment in QR poll command', () => {
-    expect(__test__.buildCodexPollCommand('/tmp/session.json', 'ding-main', 'intl')).toBe(
+    expect(__test__.buildCodexPollCommand('/tmp/session.json', 'ding-main', 'intl', {
+      platform: 'linux',
+    })).toBe(
       "openyida login --agent-poll '/tmp/session.json' --env 'intl' --corp-id 'ding-main'"
     );
+    expect(__test__.buildCodexPollCommand('C:\\tmp\\session.json', 'ding-main', 'public', {
+      platform: 'win32',
+    })).toBe('openyida login --agent-poll "C:\\tmp\\session.json" --env "public" --corp-id "ding-main"');
 
     const result = __test__.buildNeedQrScanResult({
       qrUrl: 'https://login.dingtalk.io/oauth2/qr_confirm.htm?code=abc',
@@ -116,8 +212,25 @@ describe('terminal QR code rendering', () => {
       sessionFile: '/tmp/session.json',
       targetCorpId: null,
       envName: 'intl',
+      platform: 'linux',
     });
     expect(result.poll_command).toBe("openyida login --agent-poll '/tmp/session.json' --env 'intl'");
+    expect(result.qr_image_opened).toBe(false);
+
+    const windowsResult = __test__.buildNeedQrScanResult({
+      qrUrl: 'https://login.dingtalk.com/oauth2/qr_confirm.htm?code=abc',
+      qrImageFile: 'C:\\tmp\\openyida-login.png',
+      qrImageOpened: true,
+      sessionFile: 'C:\\tmp\\session.json',
+      targetCorpId: 'ding-main',
+      envName: 'public',
+      platform: 'win32',
+    });
+    expect(windowsResult).toMatchObject({
+      qr_image_file: 'C:\\tmp\\openyida-login.png',
+      qr_image_opened: true,
+      poll_command: 'openyida login --agent-poll "C:\\tmp\\session.json" --env "public" --corp-id "ding-main"',
+    });
   });
 
   test('resolveQrcodeModule tries package name before adjacent install paths', () => {
