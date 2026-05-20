@@ -629,24 +629,15 @@ async function main() {
     }
 
     case 'publish': {
-      // 参数顺序：<源文件路径> <appType> <formUuid>
-      // publish.js 内部读取顺序：argv[2]=appType, argv[3]=formUuid, argv[4]=sourceFile
       const passThroughFlags = new Set(['--skip-lint', '--health-check', '--check', '--open', '--no-open', '--compat', '--modern', '--force']);
-      const forwardedFlags = args.filter(arg => passThroughFlags.has(arg));
       const filteredArgs = args.filter(arg => !passThroughFlags.has(arg));
       if (filteredArgs.length < 3) {
         warn(t('cli.publish_usage'));
         warn(t('cli.publish_example'));
         process.exit(1);
       }
-      const [sourceFile, appType, formUuid] = filteredArgs;
-      process.argv = [
-        process.argv[0], process.argv[1],
-        appType, formUuid, sourceFile,
-        ...forwardedFlags
-      ];
       const publishMain = require('../lib/app/publish');
-      await publishMain();
+      await publishMain(args);
       break;
     }
 

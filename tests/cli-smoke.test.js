@@ -619,4 +619,12 @@ describe('CLI offline smoke', () => {
       expect(result.output).toContain(item.expected);
     }
   });
+
+  test('publish keeps source-first CLI order through the router', () => {
+    const sourceFile = 'pages/src/missing-publish-source.oyd.jsx';
+    const result = runAny(['publish', sourceFile, 'APP_XXX', 'FORM-XXX', '--no-open']);
+    expect(result.status).toBe(1);
+    expect(result.output).toContain(sourceFile);
+    expect(result.output).not.toContain(path.join(ROOT, 'FORM-XXX'));
+  });
 });

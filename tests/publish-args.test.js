@@ -1,0 +1,35 @@
+'use strict';
+
+const publish = require('../lib/app/publish');
+
+describe('publish argument parsing', () => {
+  test('uses source-first order for the public CLI contract', () => {
+    expect(publish.parseArgs([
+      'pages/src/home.oyd.jsx',
+      'APP_XXX',
+      'FORM-XXX',
+      '--health-check',
+      '--no-open',
+    ])).toMatchObject({
+      sourceFile: 'pages/src/home.oyd.jsx',
+      appType: 'APP_XXX',
+      formUuid: 'FORM-XXX',
+      healthCheck: true,
+      browserOpenMode: false,
+    });
+  });
+
+  test('keeps legacy direct publish.js order compatible', () => {
+    expect(publish.parseArgs([
+      'APP_XXX',
+      'FORM-XXX',
+      'pages/src/home.oyd.jsx',
+      '--force',
+    ])).toMatchObject({
+      sourceFile: 'pages/src/home.oyd.jsx',
+      appType: 'APP_XXX',
+      formUuid: 'FORM-XXX',
+      force: true,
+    });
+  });
+});
