@@ -368,6 +368,7 @@ For overseas apps, pass `--locale en_US` or `--locale ja_JP` on creation command
 | `openyida formula evaluate <formula\|file> [--schema file]` | Static-check formula syntax and field references |
 | `openyida update` | Update OpenYida through npm |
 | `openyida export-conversation [options]` | Export AI conversation history |
+| `openyida feedback <setup\|url\|dismiss\|status>` | Create a public Yida feedback form, generate privacy-safe feedback links, and manage local reminder snooze state |
 | `openyida flash-to-prd --file <path> --name "<project>"` | Convert flash notes or meeting notes into a PRD prompt |
 | `openyida ai text --prompt "..."` | Call Yida's text generation AI API |
 | `openyida ai image --file <image> --app-type APP_XXX` | Upload an image and call the image recognition connector |

@@ -206,6 +206,8 @@ function handleFirstRunGuide() {
 }
 
 function printLoginResult(result) {
+  noteLoginCommandResult(result);
+
   if (result && (result.status === 'need_qr_scan' || result.status === 'need_corp_selection')) {
     console.log(JSON.stringify(result));
     return;
@@ -246,6 +248,41 @@ function printLoginResult(result) {
     cookies_count: Array.isArray(result && result.cookies) ? result.cookies.length : 0,
   };
   console.log(JSON.stringify(summary));
+}
+
+function noteLoginCommandResult(result) {
+  try {
+    const { recordLoginEvent, printLoginLoopFeedbackHint } = require('../lib/feedback/feedback');
+    let status = 'failed';
+    let reason = 'login_failed';
+
+    if (result && (result.csrf_token || (result.status === 'ok' && result.can_auto_use))) {
+      status = 'success';
+      reason = 'login_ok';
+    } else if (result && result.status === 'need_qr_scan') {
+      status = 'need_qr_scan';
+      reason = 'need_qr_scan';
+    } else if (result && result.status === 'need_codex_browser_login') {
+      status = 'need_browser_login';
+      reason = 'need_browser_login';
+    } else if (result && result.status === 'need_corp_selection') {
+      status = 'success';
+      reason = 'need_corp_selection';
+    } else if (result && result.status) {
+      reason = result.status;
+    }
+
+    const loopStatus = recordLoginEvent(status, {
+      mode: args.join(' ') || 'default',
+      reason,
+      command: 'openyida login',
+    });
+    if (status !== 'success') {
+      printLoginLoopFeedbackHint(loopStatus);
+    }
+  } catch {
+    // Login feedback tracking is best-effort and must not affect CLI output.
+  }
 }
 
 function isAgentConversationEnvironment() {
@@ -428,7 +465,7 @@ async function main() {
       } else if (loginArgs.includes('--qr')) {
         const { qrLogin } = require('../lib/auth/qr-login');
         const result = await qrLogin({ corpId: getArgValue(loginArgs, '--corp-id') });
-        console.log(JSON.stringify(result));
+        printLoginResult(result);
       } else if (shouldUseAgentLogin(loginArgs)) {
         const cachedResult = checkLoginOnly({ includeSecrets: true });
         if (cachedResult.status === 'ok') {
@@ -473,7 +510,7 @@ async function main() {
         }
         const { qrLogin } = require('../lib/auth/qr-login');
         const result = await qrLogin({ corpId: getArgValue(loginArgs, '--corp-id') });
-        console.log(JSON.stringify(result));
+        printLoginResult(result);
       }
       break;
     }
@@ -1004,6 +1041,12 @@ async function main() {
         }
       }
       await exportConversation(options);
+      break;
+    }
+
+    case 'feedback': {
+      const { run: runFeedback } = require('../lib/feedback/feedback');
+      await runFeedback(args);
       break;
     }
 
