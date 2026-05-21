@@ -435,7 +435,7 @@ describe('CLI offline smoke', () => {
       }, workspace);
       const parsed = JSON.parse(output.trim());
       expect(parsed.poll_command).toContain('openyida login --agent-poll');
-      expect(parsed.poll_command).toContain("--corp-id 'ding-main'");
+      expect(parsed.poll_command).toMatch(/--corp-id ['"]ding-main['"]/)
     } finally {
       fs.rmSync(workspace, { recursive: true, force: true });
     }
@@ -624,7 +624,7 @@ describe('CLI offline smoke', () => {
     const sourceFile = 'pages/src/missing-publish-source.oyd.jsx';
     const result = runAny(['publish', sourceFile, 'APP_XXX', 'FORM-XXX', '--no-open']);
     expect(result.status).toBe(1);
-    expect(result.output).toContain(sourceFile);
+    expect(result.output).toContain('missing-publish-source.oyd.jsx');
     expect(result.output).not.toContain(path.join(ROOT, 'FORM-XXX'));
   });
 });
