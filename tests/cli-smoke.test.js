@@ -435,7 +435,7 @@ describe('CLI offline smoke', () => {
       }, workspace);
       const parsed = JSON.parse(output.trim());
       expect(parsed.poll_command).toContain('openyida login --agent-poll');
-      expect(parsed.poll_command).toContain("--corp-id 'ding-main'");
+      expect(parsed.poll_command).toMatch(/--corp-id ['"]ding-main['"]/);
     } finally {
       fs.rmSync(workspace, { recursive: true, force: true });
     }
