@@ -143,7 +143,7 @@ openyida copy
               ↓
 [Step 4]（按需）创建/更新表单 → openyida create-form → 获得 formUuid（表单）
               ↓
-[Step 5] 编写自定义页面代码 → yida-custom-page 规范 → pages/src/<项目名>.js
+[Step 5] 编写自定义页面代码 → 标准列表/详情/表单优先 yida-schema-render；复杂交互使用 yida-custom-page → pages/src/<项目名>.js
               ↓
 [Step 6] 发布页面 → openyida publish
               ↓
@@ -169,6 +169,7 @@ openyida copy
 | `yida-create-process` | `skills/yida-create-process/SKILL.md` | 创建流程表单并配置流程 | `openyida create-process <appType> "<表单名>" <字段JSON> <流程JSON>` |
 | `yida-get-schema` | `skills/yida-get-schema/SKILL.md` | 获取单个/全部表单 Schema，确认字段 ID | `openyida get-schema <appType> <formUuid>` |
 | `yida-custom-page` | `skills/yida-custom-page/SKILL.md` | 编写自定义页面 JSX 代码规范 | 详见 SKILL.md |
+| `yida-schema-render` | `skills/yida-schema-render/SKILL.md` | 通过 JSON Schema 生成标准数据列表、详情卡片、表单面板、统计面板和操作栏 | `openyida schema-render generate --schema <file>` |
 | `yida-publish-page` | `skills/yida-publish-page/SKILL.md` | 编译并发布自定义页面 | `openyida publish <源文件路径> <appType> <formUuid> [--health-check]` |
 | `yida-page-config` | `skills/yida-page-config/SKILL.md` | 页面公开访问/组织内分享配置 | `openyida verify-short-url <appType> <formUuid> <url>` |
 | `yida-basic-info` | `skills/yida-basic-info/SKILL.md` | 组织基本信息、资源容量、额度和域名设置查询 | `openyida basic-info overview` |
@@ -203,6 +204,17 @@ openyida copy
 | `yida-ppt` | `skills/yida-ppt/SKILL.md` | 已废弃，改用 `yida-ppt-slider` | 详见 SKILL.md |
 | `yida-batch` | — | 批量命令编排（一次登录，多命令顺序执行） | `openyida batch <file> --json` 或 `openyida batch --commands "cmd1;cmd2"` |
 | `large-file-write` | `skills/large-file-write/SKILL.md` | 大文件可靠写入辅助技能 | 详见 SKILL.md |
+
+---
+
+## 自定义页面意图决策树
+
+| 用户意图 | 首选技能 | 说明 |
+|----------|----------|------|
+| 标准数据列表、详情卡片、录入表单、轻量统计、操作栏 | `yida-schema-render` | 先生成 JSON Schema，再生成页面源码，减少手写 JSX |
+| 复杂交互、小游戏、强自定义视觉、非标准布局 | `yida-custom-page` | 手写 JSX，遵守自定义页面编码规范 |
+| 经营报表、分组聚合、趋势/占比/大数据统计 | `yida-report` | 使用服务端聚合，避免前端拉取明细聚合 |
+| 高级图表、大屏、ECharts 可视化 | `yida-chart` / `yida-dashboard` | 需要更强视觉和交互时使用 |
 
 ---
 

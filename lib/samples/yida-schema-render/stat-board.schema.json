@@ -1,0 +1,31 @@
+{
+  "type": "StatBoard",
+  "title": "客户统计",
+  "description": "轻量统计卡片，适合少量明细数据预览；大数据聚合建议使用 yida-report。",
+  "dataSource": {
+    "appType": "APP_XXX",
+    "formUuid": "FORM-YYY"
+  },
+  "metrics": [
+    {
+      "label": "客户数",
+      "aggregate": "count",
+      "suffix": "个"
+    },
+    {
+      "label": "预计金额",
+      "field": "numberField_amount",
+      "aggregate": "sum",
+      "prefix": "¥"
+    },
+    {
+      "label": "平均金额",
+      "field": "numberField_amount",
+      "aggregate": "avg",
+      "prefix": "¥"
+    }
+  ],
+  "pagination": {
+    "pageSize": 100
+  }
+}

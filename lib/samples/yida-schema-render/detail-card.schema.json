@@ -1,0 +1,25 @@
+{
+  "type": "DetailCard",
+  "title": "客户详情",
+  "description": "根据 formInstId 展示字段标签和值。",
+  "dataSource": {
+    "appType": "APP_XXX",
+    "formUuid": "FORM-YYY"
+  },
+  "formInstId": "",
+  "fields": [
+    {
+      "field": "textField_customerName",
+      "label": "客户名称"
+    },
+    {
+      "field": "selectField_status",
+      "label": "状态",
+      "render": "tag"
+    },
+    {
+      "field": "textareaField_remark",
+      "label": "备注"
+    }
+  ]
+}

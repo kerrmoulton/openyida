@@ -1,0 +1,63 @@
+{
+  "type": "DataList",
+  "title": "客户列表",
+  "description": "筛选器、表格、行操作和分页的标准数据列表。",
+  "dataSource": {
+    "appType": "APP_XXX",
+    "formUuid": "FORM-YYY"
+  },
+  "filters": [
+    {
+      "field": "textField_customerName",
+      "label": "客户名称",
+      "type": "text"
+    },
+    {
+      "field": "selectField_status",
+      "label": "状态",
+      "type": "select",
+      "options": [
+        {
+          "label": "跟进中",
+          "value": "跟进中"
+        },
+        {
+          "label": "已成交",
+          "value": "已成交"
+        }
+      ]
+    }
+  ],
+  "columns": [
+    {
+      "field": "textField_customerName",
+      "label": "客户名称",
+      "width": 180
+    },
+    {
+      "field": "selectField_status",
+      "label": "状态",
+      "render": "tag"
+    },
+    {
+      "field": "dateField_createdAt",
+      "label": "创建时间",
+      "format": "YYYY-MM-DD"
+    }
+  ],
+  "actions": [
+    {
+      "label": "查看",
+      "type": "link",
+      "action": "detail"
+    },
+    {
+      "label": "编辑",
+      "type": "link",
+      "action": "edit"
+    }
+  ],
+  "pagination": {
+    "pageSize": 20
+  }
+}

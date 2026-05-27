@@ -181,6 +181,8 @@ openyida get-schema APP_XXX --all --output-dir .cache/schemas
 openyida create-page APP_XXX "Dashboard" --mode dashboard
 openyida generate-page product-homepage --spec .cache/openyida/page-specs/home.json --output pages/src/home.oyd.jsx --compile
 openyida generate-page todo-mvc --output pages/src/todo-mvc.oyd.jsx --compile
+openyida schema-render generate APP_XXX FORM_XXX --type DataList --output project/pages/src/ --compile
+openyida schema-render preview .cache/openyida/schema-render/customer-list.json
 openyida check-page pages/src/home.oyd.jsx
 openyida compile pages/src/home.oyd.jsx
 openyida publish pages/src/home.oyd.jsx APP_XXX FORM_XXX
@@ -188,6 +190,8 @@ openyida publish pages/src/home.oyd.jsx APP_XXX FORM_XXX
 
 `generate-page` turns a structured spec into a Page IR, renders a curated React 16-compatible template, writes a `.openyida-page.json` manifest, and optionally compiles the result. The manifest makes follow-up AI edits safer because agents can update known blocks instead of rewriting a large JSX file by hand.
 Built-in templates currently include `product-homepage` for product/portal pages and `todo-mvc` for a full interaction smoke page covering events, custom state, list rendering, editing, filtering, and localStorage persistence.
+
+`schema-render` turns a declarative JSON Schema into a publishable custom page with an inline SchemaRender runtime. The generated page currently runs standalone and supports `DataList`, `DetailCard`, `FormPanel`, `StatBoard`, and `ActionBar`; the external runtime package is `@openyida/schema-render` and can replace the inline runtime once the CDN address is available.
 
 ### Workflow, Data, and Permissions
 
@@ -318,6 +322,8 @@ For overseas apps, pass `--locale en_US` or `--locale ja_JP` on creation command
 | `openyida get-schema <appType> <formUuid\|--all> [--field <labelOrFieldId>]` | Fetch one form schema, batch export all, or pick a single field's full props |
 | `openyida create-page <appType> "<name>" [--mode dashboard] [--locale zh_CN\|en_US\|ja_JP] [--open\|--no-open]` | Create a custom display page; dashboard mode hides top/workbench chrome |
 | `openyida generate-page <template> [--spec file]` | Generate custom page source from templates (`product-homepage`, `todo-mvc`) |
+| `openyida schema-render generate <appType> <formUuid> [--type DataList\|DetailCard\|FormPanel\|StatBoard\|ActionBar] [--schema file] [--output path]` | Generate a publishable custom page from declarative Schema |
+| `openyida schema-render preview <schemaFile> [--output html]` | Generate a local static SchemaRender preview |
 | `openyida build-page <sourceFile> [--output file\|--write]` | Build/fix Yida-compatible page source from OpenYida authoring JSX |
 | `openyida check-page <sourceFile> [--compat] [--json]` | Check page compatibility; `.oyd.jsx` is compatibility-built before linting |
 | `openyida compile <sourceFile> [--compat]` | Compile a custom page locally; `.oyd.jsx` sources are compatibility-built first |

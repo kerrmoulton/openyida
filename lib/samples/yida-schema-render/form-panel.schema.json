@@ -1,0 +1,41 @@
+{
+  "type": "FormPanel",
+  "title": "客户录入",
+  "description": "用声明式字段配置生成可提交表单。",
+  "dataSource": {
+    "appType": "APP_XXX",
+    "formUuid": "FORM-YYY"
+  },
+  "fields": [
+    {
+      "field": "textField_customerName",
+      "label": "客户名称",
+      "type": "text",
+      "required": true
+    },
+    {
+      "field": "selectField_status",
+      "label": "状态",
+      "type": "select",
+      "options": [
+        {
+          "label": "跟进中",
+          "value": "跟进中"
+        },
+        {
+          "label": "已成交",
+          "value": "已成交"
+        }
+      ]
+    },
+    {
+      "field": "textareaField_remark",
+      "label": "备注",
+      "type": "textarea"
+    }
+  ],
+  "submit": {
+    "label": "提交",
+    "mode": "create"
+  }
+}

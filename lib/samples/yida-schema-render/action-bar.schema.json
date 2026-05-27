@@ -1,0 +1,23 @@
+{
+  "type": "ActionBar",
+  "title": "批量操作",
+  "description": "声明式按钮组，可通过 handler 指向页面内自定义 export function。",
+  "actions": [
+    {
+      "label": "刷新",
+      "type": "primary",
+      "action": "refresh"
+    },
+    {
+      "label": "导出",
+      "type": "secondary",
+      "action": "export",
+      "handler": "handleExport"
+    },
+    {
+      "label": "新建",
+      "type": "primary",
+      "action": "create"
+    }
+  ]
+}

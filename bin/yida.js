@@ -674,6 +674,12 @@ async function main() {
       break;
     }
 
+    case 'schema-render': {
+      const { run } = require('../lib/app/schema-render');
+      await run(args);
+      break;
+    }
+
     case 'build-page': {
       const { run } = require('../lib/app/build-page');
       await run(args);
