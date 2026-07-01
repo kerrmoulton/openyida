@@ -1,6 +1,6 @@
 ---
 name: yida-custom-page
-description: 宜搭自定义页面 JSX 开发规范。React 16 宜搭原生 export function 页面模式，宜搭 JS API 调用，状态管理与编码约束。不适用于：原生表单页面开发（无需 JSX），或发布页面（编写完成后需使用 yida-publish-page 发布）。
+description: 宜搭自定义页面 JSX 开发规范。React 16 宜搭原生 export function 页面模式，宜搭 JS API 调用，状态管理与编码约束。适用于编写自定义页面代码时。
 ---
 
 # 自定义页面开发
@@ -64,15 +64,6 @@ description: 宜搭自定义页面 JSX 开发规范。React 16 宜搭原生 expo
 - 开发自定义展示页面（"自定义页面"、"JSX 页面"、"自定义组件"）
 - 需要调用 `this.utils.yida.*` 读写表单数据
 - 复杂交互逻辑（状态管理、事件处理、动态渲染）
-
-**不适用（应使用其他技能）**：
-
-| 场景 | 应使用技能 |
-|------|-----------|
-| 原生表单页面开发 | `yida-create-form-page` |
-| 发布已编写的页面 | `yida-publish-page` |
-| 批量表格录入 | `yida-table-form` |
-| PPT 幻灯片 | `yida-ppt-slider` |
 
 ## 异常处理
 
