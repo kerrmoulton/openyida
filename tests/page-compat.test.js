@@ -406,6 +406,42 @@ export function loadRows() {
     expect(result.code).toMatch(/pageSize:\s*50/);
   });
 
+  test('does not inject pageSize into setCustomState state objects that merely carry currentPage', () => {
+    const source = `
+export function renderJsx() {
+  return <div />;
+}
+export function chooseStatus(value) {
+  this.setCustomState({ statusFilter: value, openDropdown: '', currentPage: 1 });
+}
+export function goPage(page) {
+  this.setCustomState({ currentPage: page });
+}
+`;
+
+    const result = fixYidaSource(source);
+
+    expect(result.fixes.map(fix => fix.rule)).not.toContain('pagesize-default-inserted');
+    expect(result.code).not.toMatch(/pageSize:\s*50/);
+    expect(result.code).toMatch(/currentPage/);
+  });
+
+  test('still injects pageSize for a data-fetch call argument even without formUuid inline', () => {
+    const source = `
+export function renderJsx() {
+  return <div />;
+}
+export function loadRows() {
+  this.utils.yida.searchFormDatas({ currentPage: 1 });
+}
+`;
+
+    const result = fixYidaSource(source);
+
+    expect(result.fixes.map(fix => fix.rule)).toContain('pagesize-default-inserted');
+    expect(result.code).toMatch(/pageSize:\s*50/);
+  });
+
   test('injects the Tailwind loader only when Tailwind classes are used', () => {
     const withTailwind = `
 export function renderJsx() {
