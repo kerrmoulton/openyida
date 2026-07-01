@@ -324,6 +324,134 @@ export default function Page() {
     expect(result.ok).toBe(false);
     expect(result.errors.map(issue => issue.code)).toContain('UNSUPPORTED_EFFECT_CLEANUP_REFERENCE');
   });
+
+  test('inserts var self = this at the top of renderJsx when missing', () => {
+    const source = `
+export function renderJsx() {
+  return <button onClick={(e) => { this.save(e); }}>Save</button>;
+}
+export function save() {}
+`;
+
+    const result = fixYidaSource(source);
+
+    expect(result.errors).toHaveLength(0);
+    expect(result.fixes.map(fix => fix.rule)).toContain('self-binding-inserted');
+    expect(result.code).toContain('var self = this;');
+  });
+
+  test('does not re-insert self binding when renderJsx already declares it', () => {
+    const source = `
+export function renderJsx() {
+  var self = this;
+  return <button onClick={(e) => { self.save(e); }}>Save</button>;
+}
+export function save() {}
+`;
+
+    const result = fixYidaSource(source);
+
+    expect(result.errors).toHaveLength(0);
+    expect(result.fixes.map(fix => fix.rule)).not.toContain('self-binding-inserted');
+    expect(result.code.match(/var self = this;/g)).toHaveLength(1);
+  });
+
+  test('clamps oversized pageSize to the platform max of 100', () => {
+    const source = `
+export function renderJsx() {
+  return <div />;
+}
+export function loadRows() {
+  this.utils.yida.searchFormDatas({ formUuid: 'FORM-X', pageSize: 200 });
+}
+`;
+
+    const result = fixYidaSource(source);
+
+    expect(result.fixes.map(fix => fix.rule)).toContain('pagesize-clamped');
+    expect(result.code).toMatch(/pageSize:\s*100/);
+    expect(result.code).not.toMatch(/pageSize:\s*200/);
+  });
+
+  test('inserts the recommended pageSize 50 when a pagination object omits it', () => {
+    const source = `
+export function renderJsx() {
+  return <div />;
+}
+export function loadRows() {
+  this.utils.yida.searchFormDatas({ formUuid: 'FORM-X', currentPage: 1 });
+}
+`;
+
+    const result = fixYidaSource(source);
+
+    expect(result.fixes.map(fix => fix.rule)).toContain('pagesize-default-inserted');
+    expect(result.code).toMatch(/pageSize:\s*50/);
+  });
+
+  test('leaves a legal explicit pageSize untouched', () => {
+    const source = `
+export function renderJsx() {
+  return <div />;
+}
+export function loadRows() {
+  this.utils.yida.searchFormDatas({ formUuid: 'FORM-X', pageSize: 50 });
+}
+`;
+
+    const result = fixYidaSource(source);
+
+    expect(result.fixes.map(fix => fix.rule)).not.toContain('pagesize-clamped');
+    expect(result.fixes.map(fix => fix.rule)).not.toContain('pagesize-default-inserted');
+    expect(result.code).toMatch(/pageSize:\s*50/);
+  });
+
+  test('injects the Tailwind loader only when Tailwind classes are used', () => {
+    const withTailwind = `
+export function renderJsx() {
+  var self = this;
+  return <div className="flex items-center gap-2 px-4">Hello</div>;
+}
+`;
+
+    const result = fixYidaSource(withTailwind);
+
+    expect(result.fixes.map(fix => fix.rule)).toContain('tailwind-injected');
+    expect(result.fixes.map(fix => fix.rule)).toContain('tailwind-didmount-hook');
+    expect(result.code).toContain('export function ensureTailwind');
+    expect(result.code).toContain('this.ensureTailwind();');
+
+    const withoutTailwind = `
+export function renderJsx() {
+  var self = this;
+  return <div className="my-plain-card">Hello</div>;
+}
+`;
+
+    const plain = fixYidaSource(withoutTailwind);
+
+    expect(plain.fixes.map(fix => fix.rule)).not.toContain('tailwind-injected');
+    expect(plain.code).not.toContain('export function ensureTailwind');
+  });
+
+  test('does not clobber a user-authored didMount when injecting Tailwind', () => {
+    const source = `
+export function renderJsx() {
+  var self = this;
+  return <div className="flex items-center gap-2 px-4">Hello</div>;
+}
+export function didMount() {
+  this.loadData();
+}
+export function loadData() {}
+`;
+
+    const result = fixYidaSource(source);
+
+    expect(result.fixes.map(fix => fix.rule)).toContain('tailwind-injected');
+    expect(result.fixes.map(fix => fix.rule)).not.toContain('tailwind-didmount-hook');
+    expect(result.code).toContain('this.loadData();');
+  });
 });
 
 describe('build-page command', () => {

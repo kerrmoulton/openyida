@@ -222,4 +222,173 @@ export function renderChart() {
 
     expect(warningRules).toContain('echarts-rich-label-formatter');
   });
+
+  test('does not flag JSX inline array literals as ES6 computed properties', () => {
+    const source = `
+export function renderJsx() {
+  var self = this;
+  return (
+    <div>
+      {['线索', '在谈'].map(function(name) {
+        return <span key={name}>{name}</span>;
+      })}
+    </div>
+  );
+}
+`;
+
+    const result = lintYidaSource(source, '/tmp/inline-array.jsx');
+    const errorRules = result.errors.map(issue => issue.rule);
+
+    expect(errorRules).not.toContain('computed-property');
+  });
+
+  test('still flags real ES6 computed property keys after removing the line regex', () => {
+    const source = `
+export function renderJsx() {
+  return <div />;
+}
+
+export function buildPayload(key) {
+  var payload = { [key]: 1 };
+  return payload;
+}
+`;
+
+    const result = lintYidaSource(source, '/tmp/real-computed.jsx');
+    const errorRules = result.errors.map(issue => issue.rule);
+
+    expect(errorRules).toContain('computed-property');
+  });
+
+  test('warns when setState writes non-timestamp business fields', () => {
+    const source = `
+export function renderJsx() {
+  return <div />;
+}
+
+export function refresh() {
+  this.setState({ count: 3 });
+}
+`;
+
+    const result = lintYidaSource(source, '/tmp/setstate-business.jsx');
+    const warningRules = result.warnings.map(issue => issue.rule);
+
+    expect(warningRules).toContain('setState-non-timestamp');
+  });
+
+  test('does not warn when setState only updates the timestamp contract field', () => {
+    const source = `
+export function renderJsx() {
+  return <div />;
+}
+
+export function forceUpdate() {
+  this.setState({ timestamp: new Date().getTime() });
+}
+`;
+
+    const result = lintYidaSource(source, '/tmp/setstate-timestamp.jsx');
+    const warningRules = result.warnings.map(issue => issue.rule);
+
+    expect(warningRules).not.toContain('setState-non-timestamp');
+  });
+
+  test('warns when renderJsx uses this without declaring var self = this', () => {
+    const source = `
+export function renderJsx() {
+  return <button onClick={(e) => { this.save(e); }}>save</button>;
+}
+
+export function save() {}
+`;
+
+    const result = lintYidaSource(source, '/tmp/self-missing.jsx');
+    const warningRules = result.warnings.map(issue => issue.rule);
+
+    expect(warningRules).toContain('self-binding-missing');
+  });
+
+  test('does not warn about self binding when renderJsx declares var self = this', () => {
+    const source = `
+export function renderJsx() {
+  var self = this;
+  return <button onClick={(e) => { self.save(e); }}>save</button>;
+}
+
+export function save() {}
+`;
+
+    const result = lintYidaSource(source, '/tmp/self-present.jsx');
+    const warningRules = result.warnings.map(issue => issue.rule);
+
+    expect(warningRules).not.toContain('self-binding-missing');
+  });
+
+  test('warns when echarts.init runs without a DOM-ready guard', () => {
+    const source = `
+export function renderJsx() {
+  return <div id="chart" />;
+}
+
+export function renderChart() {
+  var chart = echarts.init(document.getElementById('chart'));
+  chart.setOption({});
+}
+`;
+
+    const result = lintYidaSource(source, '/tmp/echarts-direct.jsx');
+    const warningRules = result.warnings.map(issue => issue.rule);
+
+    expect(warningRules).toContain('echarts-dom-ready');
+  });
+
+  test('does not warn about echarts.init wrapped in a setTimeout DOM-ready guard', () => {
+    const source = `
+export function renderJsx() {
+  return <div id="chart" />;
+}
+
+export function renderChart() {
+  setTimeout(function() {
+    var chart = echarts.init(document.getElementById('chart'));
+    chart.setOption({});
+  }, 300);
+}
+`;
+
+    const result = lintYidaSource(source, '/tmp/echarts-guarded.jsx');
+    const warningRules = result.warnings.map(issue => issue.rule);
+
+    expect(warningRules).not.toContain('echarts-dom-ready');
+  });
+
+  test('recommends pageSize 50 for legal-but-large values and keeps the hard limit', () => {
+    const warnSource = `
+export function loadRows() {
+  this.utils.yida.searchFormDatas({ formUuid: 'FORM-X', pageSize: 80 });
+}
+`;
+    const warnResult = lintYidaSource(warnSource, '/tmp/pagesize-warn.jsx');
+    expect(warnResult.warnings.map(issue => issue.rule)).toContain('page-size-recommend');
+    expect(warnResult.errors.map(issue => issue.rule)).not.toContain('page-size-limit');
+
+    const okSource = `
+export function loadRows() {
+  this.utils.yida.searchFormDatas({ formUuid: 'FORM-X', pageSize: 50 });
+}
+`;
+    const okResult = lintYidaSource(okSource, '/tmp/pagesize-ok.jsx');
+    expect(okResult.warnings.map(issue => issue.rule)).not.toContain('page-size-recommend');
+
+    const errorSource = `
+export function loadRows() {
+  this.utils.yida.searchFormDatas({ formUuid: 'FORM-X', pageSize: 200 });
+}
+`;
+    const errorResult = lintYidaSource(errorSource, '/tmp/pagesize-error.jsx');
+    expect(errorResult.errors.map(issue => issue.rule)).toContain('page-size-limit');
+    expect(errorResult.warnings.map(issue => issue.rule)).not.toContain('page-size-recommend');
+  });
 });
