@@ -23,25 +23,28 @@ description: 宜搭自定义页面 JSX 开发规范。React 16 宜搭原生 expo
 10. **禁止 ES6 计算属性名**：不要写 `{ [key]: value }`、`{ [FIELDS.xxx]: value }` 或 `setCustomState({ [key]: value })`；宜搭运行时可能静默白屏，`check-page` 会以 `computed-property` error 阻塞。改用 `var obj = {}; obj[key] = value;`
 11. **生命周期名称大小写固定**：只允许 `export function didMount()` 与 `export function didUnmount()`；`didmount`、`componentDidMount`、`componentWillUnmount` 会被 `check-page` 阻塞
 12. **按钮必须真的绑定事件**：禁止 `onclick` 小写属性、`onClick={self.save()}`、`onClick={(e) => self.save}`、`<button>静态标签</button>` 等看起来有按钮但不会正确绑定的写法；统一使用 `onClick={(e) => { self.save(e); }}`。如果只是状态标签/截图标记，用 `span`/`div`，不要用 `button`
+13. **业务状态禁止直接 `this.setState`**：业务态只写 `_customState`，通过 `setCustomState()` / `forceUpdate()` 触发重渲染；`this.setState` 只允许写 `timestamp` 等运行时契约字段
 
 ### 重要规则（IMPORTANT）
 
 影响代码质量和用户体验：
 
 1. **代码生成前确认功能摘要**：详见 [编码指南 编注 0](references/coding-guide.md)
-2. **pageSize ≤ 100**：分页接口 `searchFormDatas` 等的 `pageSize` 最大 100
+2. **pageSize 推荐 50，最大 100**：列表/看板默认 `pageSize: 50`；分页接口 `searchFormDatas` 等的 `pageSize` 最大 100
 3. **didUnmount 清理定时器**：在 `didUnmount` 中清理所有 `setInterval`/`setTimeout`，防止内存泄漏
 4. **默认 Tailwind 风格层**：面向用户的自定义页面默认使用 Tailwind utility className 组织视觉层，并默认导入 Tailwind preflight 重置原生控件外观；运行时脚本只允许使用已验证的 `g.alicdn.com` 或企业自托管地址，未配置有效地址时走内联兜底样式
 5. **DateField 时间戳格式**：日期字段值必须是时间戳（毫秒），不能是字符串
-6. **forceUpdate 后延迟操作 DOM**：`forceUpdate()` 后 DOM 不会立即更新，需 `setTimeout` 延迟访问新 DOM 元素
+6. **forceUpdate 后延迟操作 DOM**：`forceUpdate()` 后 DOM 不会立即更新，ECharts/Canvas/第三方组件初始化必须放入 `setTimeout` 或 `requestAnimationFrame`
 7. **多端适配**：使用 `this.utils.isMobile()` 判断设备类型，适配 PC 和移动端
 8. **输入法组合输入处理**：使用 `_isComposing` 标记配合 `compositionstart`/`compositionend` 事件，避免输入过程中触发提交
 9. **iframe 嵌入表单 URL**：数据列表用 `workbench/{formUuid}?iframe=true`，禁止用 `formDetail`
 10. **Tabs 显隐控制**：下拉值变更后自动回退到第一个可见 Tab，内容区用 `display: none` 保留 DOM
 11. **加载态必须可恢复**：列表/看板页默认保留空态或演示数据；接口失败、超时或返回异常时必须把 `loading` 置回 `false`，不要只渲染“正在加载...”挡住整页
 12. **禁止可见原生下拉**：筛选、预约、审批等用户可见下拉交互不要使用 `<select>`；使用 Tailwind className 组合 `button + menu + option` 的自定义下拉组件
+13. **发布前必须跑检查链路**：先执行 `openyida check-page <file>` 和 `openyida compile <file>`；若出现 warning/error，按规则修复后再发布
 
 > 每条规则的代码示例、反模式和常见错误见 [编码指南](references/coding-guide.md)（编写代码前强制必读）。
+> 运行时易错点、`check-page` 规则和兼容层自动修复边界见 [运行时护栏](references/runtime-guardrails.md)。
 > 表单类 JSX 控件、筛选栏、表格、成员/附件等组件写法见 [组件指南](references/component-jsx-guide.md)；未验证的平台组件能力不得编造。
 
 ## 官方示例范式内化
@@ -60,31 +63,13 @@ description: 宜搭自定义页面 JSX 开发规范。React 16 宜搭原生 expo
 
 ## 适用场景
 
-**正向触发**：
-- 开发自定义展示页面（"自定义页面"、"JSX 页面"、"自定义组件"）
-- 需要调用 `this.utils.yida.*` 读写表单数据
-- 复杂交互逻辑（状态管理、事件处理、动态渲染）
-
-**不适用（应使用其他技能）**：
-
 | 场景 | 应使用技能 |
 |------|-----------|
+| 自定义展示页面、JSX 页面、跨数据展示、复杂交互 | 本技能 |
 | 原生表单页面开发 | `yida-create-form-page` |
 | 发布已编写的页面 | `yida-publish-page` |
 | 批量表格录入 | `yida-table-form` |
 | PPT 幻灯片 | `yida-ppt-slider` |
-
-## 异常处理
-
-| 异常场景 | 处理方式 |
-|---------|----------|
-| 在原生 `renderJsx` 页面里使用了 React Hooks | 改为宜搭原生 `export function` + `_customState` 模式；或改用 `.oyd.jsx` 的 `export default function Page()` authoring 模式，并确认只使用受支持的 `useState` / `useEffect(..., [])` |
-| 字段 ID 不确定 | 执行 `openyida get-schema` 获取真实 fieldId |
-| `forceUpdate is not a function` | 检查 `this` 绑定，确认方法用 `export function` 定义 |
-| didMount / didUnmount 报错或没有执行 | 检查是否写成了 `didmount`、`componentDidMount` 等错误名称；运行 `openyida check-page <file> --json` 查看 `lifecycle-case` / `react-lifecycle-method` |
-| 按钮点不了 | 检查是否用了小写 `onclick`、渲染期调用 `onClick={self.xxx()}`、只引用不调用 `onClick={(e) => self.xxx}`、或 `<button>` 根本没有事件；运行 `openyida check-page <file>` 会阻塞这些写法 |
-| API 调用无响应 | 确认 `.catch()` 错误处理，检查登录态 |
-| 发布后页面空白 | 检查 `renderJsx` 是否正确导出，查看浏览器控制台 |
 
 ## 快速开始
 
@@ -96,13 +81,10 @@ openyida get-schema APP_XXX FORM-EMPLOYEE > .cache/employee-schema.json 2>&1
 
 # Step 2：创建自定义页面
 openyida create-page APP_XXX "员工信息查询"
-# 输出：formUuid = FORM-QUERY001
 
 # Step 3：生成/编写页面代码
-# 优先使用 spec/blocks 生成高质量页面：openyida generate-page product-homepage --spec .cache/openyida/page-specs/employee-query.json --output project/pages/src/employee-query.oyd.jsx
-# 需要完整交互样板时：openyida generate-page todo-mvc --output project/pages/src/todo-mvc.oyd.jsx --compile
-# 需要手动参考模板时：openyida sample yida-custom-page custom-page-template
-# 在 project/pages/src/employee-query.oyd.jsx 中编写
+openyida sample yida-custom-page custom-page-template
+# 在 project/pages/src/employee-query.oyd.jsx 中编写；复杂页面优先使用 generate-page
 
 # Step 4：本地规范检查 + 编译校验（不发布）
 openyida check-page project/pages/src/employee-query.oyd.jsx
@@ -112,292 +94,23 @@ openyida compile project/pages/src/employee-query.oyd.jsx
 openyida publish project/pages/src/employee-query.oyd.jsx APP_XXX FORM-QUERY001
 ```
 
-预期输出：
-
-```json
-{
-  "success": true,
-  "pageUrl": "https://www.aliwork.com/APP_XXX/custom/FORM-QUERY001"
-}
-```
-
 **关键说明**：
 - **Step 1** 的 get-schema 输出包含所有字段的 fieldId，在代码中必须使用 `FIELDS` 常量映射这些 ID
-  - get-schema 输出的 JSON 中，每个字段的 `fieldId`（如 `textField_k8j2n3m4`）即是代码中 `FIELDS` 常量应映射的值
-- **Step 3** 的页面代码必须遵循 [编码指南](references/coding-guide.md) 的全部 19 条编码注意事项
-- 优先通过 `openyida generate-page product-homepage --spec .cache/openyida/page-specs/home.json --output pages/src/home.oyd.jsx --compile` 生成高质量页面骨架；需要验证事件、状态、循环渲染、编辑和 localStorage 时使用 `openyida generate-page todo-mvc --output pages/src/todo-mvc.oyd.jsx --compile`
+- **Step 3** 的页面代码必须遵循 [编码指南](references/coding-guide.md) 和 [运行时护栏](references/runtime-guardrails.md)
+- 优先通过 `openyida generate-page ... --compile` 生成高质量骨架；需要完整交互样板时使用 `todo-mvc`
 - 页面生成 spec、接口调试 JSON、一次性验证脚本等临时工件必须放在 `.cache/openyida/` 下；不要在仓库根目录生成 `page.json`、`data.json` 或脚本文件
-- `generate-page` 会写入 `.openyida-page.json` 结构化 manifest，后续改版优先改 spec/blocks 再重新生成 JSX
-- 自定义页面默认使用 Tailwind utility className 组织视觉层；Tailwind 运行时脚本必须写成可替换常量，默认使用已验证的 `https://g.alicdn.com/code/lib/tailwindcss-browser/0.0.0-insiders.fed6c6a/index.global.min.js`，并通过 `style[type="text/tailwindcss"]` 导入 `theme + preflight + utilities`。私有化环境可替换为企业自托管地址。不要默认写 `cdn.tailwindcss.com`、`jsdelivr`、`unpkg` 等海外 CDN。
-- 用户可见下拉框不要用浏览器原生 `<select>`。`check-page` 会提示 `native-select-ui` warning；除非是隐藏调试控件或用户明确要求原生控件，否则改为 [组件指南](references/component-jsx-guide.md) 的自定义下拉。
-- 动态字段写入不要用 ES6 计算属性名。`this.setCustomState({ [key]: value })`、`JSON.stringify({ [FIELDS.status]: '待审批' })` 都会被 `check-page` 以 `computed-property` error 拦截；生成时直接写 `var obj = {}; obj[key] = value;`。
-- ECharts 中国地图必须走 `fetch(DataV GeoJSON) -> echarts.registerMap('china', geoJson)`；不要加载旧版内置中国地图脚本。`check-page` 会拦截该类旧写法。
-- ECharts `label.formatter` 返回 rich text 模板在宜搭自定义页面环境不稳定；优先使用普通 formatter 字符串，或在数据处理阶段预先拼好标签文本。
 - `check-page` 支持行级禁用：`// openyida-lint-disable-line <rule>` 或 `// openyida-lint-disable-next-line <rule>`。只在确认该行不会触发宜搭运行时问题时使用。
-- 完整代码模板通过 `openyida sample yida-custom-page custom-page-template` 获取
 
 ## 开发规范
 
 > 编写页面代码前**必须完整阅读** [编码指南](references/coding-guide.md)，包含文件结构模板、状态管理模式、生命周期钩子、全局变量及全部 19 条编码注意事项。
 > 涉及输入控件、日期、选择、成员/部门、附件、表格或筛选栏时，同时阅读 [组件指南](references/component-jsx-guide.md)。
 
-## 官方示例模板
+## 官方示例模板与编码注意事项
 
-| 变量 | 类型 | 说明 |
-| --- | --- | --- |
-| `window.g_config._csrf_token` | `String` | CSRF Token，调用需认证的接口（如 AI 接口、Schema 保存）时必须携带 |
-| `window.loginUser.userId` | `String` | 当前登录用户的工号 |
-| `window.loginUser.userName` | `String` | 当前登录用户的姓名 |
-| `this.state.urlParams` | `Object` | 页面 URL 中的查询参数 |
+原“官方示例模板”的全局变量表已归并到 [编码指南](references/coding-guide.md) 的“全局变量”；原“编码注意事项”的完整规则和示例仍在 [编码指南](references/coding-guide.md)。入口层只保留导航和执行命令，避免与 reference 重复。
 
-### 编码注意事项
-
-1. **自定义方法必须用 `export function` 定义**：凡是需要在方法内部使用 `this`（包括 `this.utils.yida.*`、`this.setCustomState` 等）的自定义方法，**必须且只能**使用 `export function 方法名() {}` 的形式定义，调用时使用 `this.方法名()`。**禁止**使用 `const fn = () => {}`、`const fn = function() {}` 等形式定义需要访问 `this` 的方法，这些形式无法被宜搭运行时正确绑定 `this`：
-   ```javascript
-   // ✅ 正确：export function + this.方法名() 调用
-   export function didMount() {
-     this.loadStatistics();
-   }
-   export function loadStatistics() {
-     this.utils.yida.searchFormDatas({ formUuid: 'FORM-XXX', pageSize: 10 });
-   }
-
-   // ❌ 错误①：缺少 export，无法被宜搭运行时识别，this 丢失
-   export function didMount() {
-     loadStatistics();  // 直接调用，this 丢失
-   }
-   function loadStatistics() {
-     this.utils.yida.searchFormDatas(...);  // 报错：this is undefined
-   }
-
-   // ❌ 错误②：箭头函数/函数表达式形式，缺少 export，无法被宜搭运行时绑定 this，禁止使用
-   const loadStatistics = () => {
-     this.utils.yida.searchFormDatas(...);  // 报错：this is undefined
-   };
-   const loadStatistics = function() {
-     this.utils.yida.searchFormDatas(...);  // 报错：this is undefined
-   };
-   ```
-2. **【严格禁止】事件绑定必须使用箭头函数包裹**：在 `renderJsx` 中绑定任何事件处理器（`onClick`、`onChange`、`onSubmit` 等）时，先在函数顶部定义 `var self = this`，再使用箭头函数 `(e) => { self.方法名(e) }`。**严禁**直接写 `this.方法名` 或 `.bind(this)` 作为事件处理器，否则容易在宜搭运行时丢失上下文：
-
-   ```javascript
-   export function handleSubmit(e) {
-     this.setCustomState({ submitted: true });
-     this.utils.toast({ title: '提交成功', type: 'success' });
-   }
-
-   // ✅ 正确：renderJsx 顶部固定 self，箭头函数包裹
-   export function renderJsx() {
-     var self = this;
-     return <button onClick={(e) => { self.handleSubmit(e); }}>提交</button>;
-   }
-
-   // ❌ 错误①：直接传方法引用，this 丢失，运行时报错，绝对禁止！
-   export function renderJsx() {
-     return <button onClick={this.handleSubmit}>提交</button>;
-   }
-
-   // ❌ 错误②：使用 .bind(this) 绑定，虽然能运行但不符合规范，禁止使用！
-   export function renderJsx() {
-     return <button onClick={function() { this.handleSubmit(); }.bind(this)}>提交</button>;
-   }
-   ```
-
-     > **生成代码时的自检清单**：检查 `renderJsx` 中所有 `onClick`、`onChange`、`onSubmit` 等事件属性，确保每一个都是 `(e) => { self.xxx(e) }` 形式，不存在任何 `onClick={this.xxx}` 或 `.bind(this)` 的写法。
-     > `check-page` 会阻塞四类“按钮看得到但点不了”的 IDE 常见误写：小写 `onclick`、渲染时直接执行 `onClick={self.xxx()}`、箭头函数只返回方法引用 `onClick={(e) => self.xxx}`、可见 `<button>` 没有任何事件。静态徽标、状态胶囊、截图排除标记一律用 `span`/`div`。
-
-     ```javascript
-     // ❌ 错误③：在 .map(function(){}) 普通函数回调中使用箭头函数事件处理器，this 已在 function 回调里丢失，箭头函数捕获的 this 是 undefined！
-     export function renderJsx() {
-       return (
-         <div>
-         {quickBtns.map(function(btn, idx) {
-           return (
-             <button
-               key={idx}
-               onClick={(e) => { this.goToForm(btn.form); }}  // ❌ this 是 undefined，运行时报错
-             >
-               {btn.label}
-             </button>
-           );
-         })}
-       </div>
-     );
-   }
-
-   // ✅ 正确：.map() 回调必须使用箭头函数，确保 this 正确捕获
-   export function renderJsx() {
-     var self = this;
-     return (
-       <div>
-         {quickBtns.map((btn, idx) => (
-           <button
-             key={idx}
-             onClick={(e) => { self.goToForm(btn.form); }}  // ✅ 箭头函数回调 + self 调用，this 正确
-           >
-             {btn.label}
-           </button>
-         ))}
-       </div>
-     );
-   }
-   ```
-
-   > **补充自检项**：检查 `renderJsx` 中所有 `.map()`、`.filter()`、`.forEach()` 等数组方法的回调，确保全部使用**箭头函数**形式 `(item) => ...`，不存在任何 `.map(function(item) {...})` 的写法，否则回调内部的 `this` 会丢失。
-
-3. **输入法组合输入处理**：使用 `_isComposing` 标记配合 `compositionstart` / `compositionend` 事件，正确处理中文输入法的组合输入状态，避免输入过程中触发提交
-4. **定时器清理**：在 `didUnmount` 中必须清理所有通过 `setInterval` / `setTimeout` 创建的定时器，防止内存泄漏
-5. **错误处理**：所有 API 调用（`this.utils.yida.*`、`fetch`）必须使用 `.catch()` 处理异常，并通过 `this.utils.toast({ title: message, type: 'error' })` 向用户展示错误提示
-6. **样式方式**：所有样式通过 JavaScript 对象定义（内联样式），在 `renderJsx` 中通过 `style` 属性应用，不使用外部 CSS 文件。**注意**：CSS 渐变（`linear-gradient` 等）必须使用 `background` 属性，不能使用 `backgroundColor`（只接受纯色值），否则浏览器会忽略该值导致背景变白：
-   ```javascript
-   // ✅ 正确
-   style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)" }}
-   // ❌ 错误：backgroundColor 不支持渐变
-   style={{ backgroundColor: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)" }}
-   ```
-7. **异步操作**：可以使用 `async/await` 语法，Babel 编译会自动转换为 ES5 兼容代码
-8. **pageSize 上限**：调用 `searchFormDatas`、`searchFormDataIds`、`getProcessInstances`、`getProcessInstanceIds` 等分页接口时，`pageSize` 最大值为 **100**，超过会导致接口报错。禁止将 `pageSize` 设置为超过 100 的值，推荐使用 `10`～`100` 之间的合理值。
-9. **输入框使用非受控组件**：在宜搭环境中，`<input>` 的 `value` 属性绑定状态后会触发重渲染导致输入异常。**正确做法**：使用 `defaultValue`，在 `onChange` 中更新 `_customState` 而不调用 `setCustomState`：
-   ```javascript
-   // ❌ 错误：受控组件，每次输入都触发重渲染导致无法输入
-   <input value={userAnswer} onChange={function(e) { this.setCustomState({ userAnswer: e.target.value }); }} />
-
-   // ✅ 正确：非受控组件，仅静默更新状态，不触发重渲染
-   <input id="my-input" defaultValue="" onChange={function(e) { _customState.userAnswer = e.target.value; }} />
-
-   // 需要清空时通过 DOM 操作
-   var inputEl = document.getElementById("my-input");
-   if (inputEl) { inputEl.value = ""; }
-   ```
-
-10. **DateField 时间戳格式**：保存日期字段时，值必须是 **时间戳（毫秒）**，不能是字符串：
-    ```javascript
-    // ❌ 错误：字符串格式
-    dateField_xxx: '2024-01-15'
-
-    // ✅ 正确：时间戳格式
-    dateField_xxx: new Date().getTime()
-    ```
-
-11. **多端适配**：宜搭自定义页面会在 PC 端和移动端同时展示，使用 `this.utils.isMobile()` 判断设备类型：
-    ```javascript
-    const isMobile = this.utils.isMobile();
-    var styles = {
-      container: { padding: isMobile ? '12px' : '16px', minHeight: '100vh' },
-      card: { padding: isMobile ? '12px' : '16px', marginBottom: isMobile ? '8px' : '12px' },
-    };
-    ```
-
-12. **清除默认样式**：宜搭自定义页面容器有默认 padding 和圆角，需要强制覆盖：
-    ```javascript
-    var styles = {
-      container: { padding: '0 16px', borderRadius: '0 !important', minHeight: '100vh' },
-    };
-    ```
-
-13. **性能优化**：
-    - 不要在每次 `onChange` 都调用 `setCustomState`，可直接写入 `_customState` 静默更新
-    - 只在需要触发重渲染时才调用 `forceUpdate`
-    - 在 `renderJsx` 顶部定义事件处理函数，避免每次渲染都创建新的内联函数
-
-14. **⚠️ `forceUpdate()` 后的 DOM 渲染时序**：
-
-    `forceUpdate()` 调用 `this.setState()` 后，React 会在**下一个微任务**中重新渲染组件。这意味着 `forceUpdate()` 之后**同步代码中无法立即访问新渲染的 DOM 元素**。
-
-    **典型错误场景**：异步数据加载完成后设置 `loading=false` 并调用 `forceUpdate()`，然后立即尝试操作新出现的 DOM 元素（如 `document.getElementById('chart-container')`），此时 DOM 还未更新，返回 `null`。
-
-    ```javascript
-    // ❌ 错误：forceUpdate 后立即操作新 DOM
-    _customState.loading = false;
-    self.forceUpdate();
-    var container = document.getElementById('my-chart');  // null！DOM 还没更新
-
-    // ✅ 正确：延迟一帧等待 React 完成 DOM 更新
-    _customState.loading = false;
-    self.forceUpdate();
-    setTimeout(function () {
-      var container = document.getElementById('my-chart');  // 此时 DOM 已存在
-      if (container) { /* 初始化图表等操作 */ }
-    }, 100);
-    ```
-
-    > **适用场景**：ECharts 图表初始化、Canvas 绑定、第三方库挂载等需要操作 DOM 的场景。详见 `yida-chart` 技能的「图表渲染时序」章节。
-
-15. **调试技巧**：
-    ```javascript
-    // 打印当前状态到控制台
-    console.log('当前状态:', _customState);
-
-    // 弹窗提示（适合快速验证逻辑）
-    this.utils.toast({ title: '调试信息', type: 'info' });
-    ```
-
-16. **iframe 嵌入表单 URL 规范**：在自定义页面中通过 iframe 嵌入宜搭表单时，需使用正确的 URL 格式：
-
-    | 场景 | URL 格式 |
-    |------|----------|
-    | 表单提交页 | `{base_url}/{appType}/submission/{formUuid}` |
-    | 数据管理页（列表） | `{base_url}/{appType}/workbench/{formUuid}?iframe=true` |
-    | 数据管理页（指定视图） | `{base_url}/{appType}/workbench/{formUuid}?viewUuid={viewUuid}&iframe=true` |
-
-    ```javascript
-    // ❌ 错误：formDetail 是表单详情页，不是数据列表
-    const wrongUrl = `${baseUrl}/${appType}/formDetail/${formUuid}`;
-
-    // ✅ 正确：workbench 是运行态数据管理页
-    const listUrl = `${baseUrl}/${appType}/workbench/${formUuid}?iframe=true`;
-    ```
-
-    > `viewUuid` 可选，从宜搭「数据管理」→「报表视图」页面的 URL 中获取，不传则使用默认视图。
-
-17. **下拉选项控制选项卡（Tabs）表格页显示/隐藏**：当页面中存在选项卡组件包含多个表格页，需要根据下拉选择框的值动态控制特定表格页的显示或隐藏时，使用状态驱动的条件渲染实现。
-
-    **实现要点**：
-    - 用 `_customState.selectedType` 记录下拉选中值，`onChange` 时调用 `setCustomState` 触发重渲染
-    - 用 `_customState.activeTab` 记录当前激活的 Tab，切换时直接写入 `_customState` 并调用 `forceUpdate()`
-    - 下拉值变更后，若当前激活的 Tab 被隐藏，自动回退到第一个可见 Tab，避免空白页面
-    - Tab 内容区使用 `display: none` 而非条件渲染，保留 DOM 避免 iframe 重复加载
-    - 所有 Tab 均被隐藏时展示兜底提示，提升用户体验
-
-    该场景按上述状态机规则实现即可；当前技能包不提供单独示例文件，避免尝试读取不存在的 `examples/tabs-visibility-control.js`。
-
-18. 字段 ID 语义化别名约定
-
-宜搭表单字段 ID 通常是随机字符串（如 `textField_k8j2n3m4`），直接在代码中使用可读性差、维护困难。**推荐在文件顶部统一定义字段别名常量**，在代码中始终使用别名引用字段 ID。
-
-**约定规范**：
-
-```javascript
-// ✅ 推荐：在文件顶部统一定义字段别名
-// 字段 ID 来自 openyida get-schema 的输出，或 .cache/<项目名>-schema.json
-var FIELDS = {
-  userName: 'textField_k8j2n3m4',       // 姓名
-  department: 'selectField_a3b9c1d2',    // 部门
-  applyDate: 'dateField_x7y2z5w1',       // 申请日期
-  amount: 'numberField_p4q8r3s6',        // 金额
-  status: 'radioField_m1n5o9p3',         // 审批状态
-  remark: 'textareaField_v2w6x1y4',      // 备注
-};
-
-// ✅ 使用别名引用字段，代码清晰易读
-// 注意：必须用 ES5 写法构建对象，禁止使用计算属性名 { [key]: val }
-var searchCondition = {};
-searchCondition[FIELDS.department] = '研发部';
-searchCondition[FIELDS.status] = '待审批';
-this.utils.yida.searchFormDatas({
-  formUuid: 'FORM-XXX',
-  searchFieldJson: JSON.stringify(searchCondition),
-  currentPage: 1,
-  pageSize: 20,
-});
-
-// ✅ 构建提交数据时使用别名
-var formDataJson = {};
-formDataJson[FIELDS.userName] = _customState.inputName;
-formDataJson[FIELDS.department] = _customState.selectedDept;
-formDataJson[FIELDS.amount] = _customState.inputAmount;
-```
-代码编写前，执行以下命令获取示例模板，再用 `read_file` 完整读取：
+代码编写前，先按需获取模板并完整读取生成文件：
 
 ```bash
 openyida sample yida-custom-page custom-page-template   # 完整页面模板（didMount/renderJsx/状态管理/API调用）
@@ -408,6 +121,10 @@ openyida generate-page product-homepage --spec .cache/openyida/page-specs/home.j
 openyida generate-page todo-mvc --output pages/src/todo-mvc.oyd.jsx --compile  # 生成官方 TodoMVC 风格交互样板
 openyida check-page pages/src/home.oyd.jsx --json      # 输出机器可读的规范检查结果；.oyd.jsx 会先兼容构建
 ```
+
+- 完整文件结构、状态管理、全局变量、19 条编码规则见 [编码指南](references/coding-guide.md)
+- 运行时高风险规则、`check-page` 规则和自动修复边界见 [运行时护栏](references/runtime-guardrails.md)
+- 输入控件、筛选栏、下拉、表格、附件等组件骨架见 [组件指南](references/component-jsx-guide.md)
 
 ## 常见场景示例
 
@@ -450,24 +167,13 @@ openyida check-page pages/src/home.oyd.jsx --json      # 输出机器可读的�
 
 > **上表为常用 API 速查，完整 API 列表见 [yida-api.md](../../references/yida-api.md)。使用前必须阅读完整参数文档，禁止猜测参数。**
 
-### 大模型 AI 接口
-
-以下接口用于调用大模型 AI 文本生成能力：
-
-| 方法 | 说明 | 调用方式 |
-| --- | --- | --- |
-| `txtFromAI` | AI 文本生成 | `POST /query/intelligent/txtFromAI.json` |
-
-**主要参数**：`_csrf_token`（CSRF 令牌）、`prompt`（提示词）、`skill`（技能类型，如 `ToText`）、`maxTokens`（最大返回 token 数）
-
-> **使用前必须阅读 [model-api.md](../../references/model-api.md) 查询详细的参数，禁止猜测参数**。
-
 ## 参考文档
 
 | 文档 | 覆盖范围 | 何时阅读 |
 |------|---------|---------|
 | **本技能文档** | | |
 | [编码指南](references/coding-guide.md) | 文件结构模板、状态管理、生命周期、19 条编码规范 | 编写任何页面代码前必读 |
+| [运行时护栏](references/runtime-guardrails.md) | pageSize、loading 恢复、ECharts DOM 时序、setState 约束、check-page 规则映射 | 编写列表、看板、图表或接口页面前必读 |
 | [设计规范](references/design-system.md) | 色彩/圆角/字体/间距系统、7 类组件样式模板、8 条反模式 | 实现 UI 样式时必读 |
 | [素材资源](references/assets-guide.md) | 图片/音乐/Icon 素材库、CDN 安全规范 | 需要引入图片、图标、音效时阅读 |
 | [官方示例中心 Schema 范式](../../references/official-example-schema-patterns.md) | 示例中心 156 个 capacity 模板的 schema 抽取链路、类型分布、数据源/报表/连接器模式 | 用户要求参考官方示例、蒸馏模板能力、或实现列表/模板中心/数据源驱动页面时阅读 |
