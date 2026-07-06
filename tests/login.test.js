@@ -457,6 +457,32 @@ describe('env-manager 海外登录环境', () => {
     expect(isYidaServiceHost('evil-yidaapps.com')).toBe(false);
   });
 
+  test('inferEnvironmentNameFromUrl 根据目标 URL 推断内置环境', () => {
+    const { inferEnvironmentNameFromUrl } = require('../lib/core/env-manager');
+
+    expect(inferEnvironmentNameFromUrl('https://yida-group.alibaba-inc.com/')).toBe('alibaba');
+    expect(inferEnvironmentNameFromUrl('https://yida-aliyun.alibaba-inc.com/home')).toBe('alibaba');
+    expect(inferEnvironmentNameFromUrl('https://www.yidaapps.com/')).toBe('intl');
+    expect(inferEnvironmentNameFromUrl('https://demo.aliwork.com/workPlatform')).toBe('public');
+  });
+
+  test('inferEnvironmentNameFromUrl 可从 OAuth redirect_uri 推断环境', () => {
+    const { buildDingtalkOAuthLoginUrl, inferEnvironmentNameFromUrl } = require('../lib/core/env-manager');
+
+    const intlLoginUrl = buildDingtalkOAuthLoginUrl({
+      loginOrigin: 'https://login.dingtalk.io',
+      baseUrl: 'https://www.yidaapps.com',
+      lang: 'en_US',
+    });
+    const alibabaLoginUrl = buildDingtalkOAuthLoginUrl({
+      loginOrigin: 'https://login.dingtalk.com',
+      baseUrl: 'https://yida-group.alibaba-inc.com',
+    });
+
+    expect(inferEnvironmentNameFromUrl(intlLoginUrl)).toBe('intl');
+    expect(inferEnvironmentNameFromUrl(alibabaLoginUrl)).toBe('alibaba');
+  });
+
   test('中文别名解析到对应内置环境', () => {
     const { resolveEnvNameAlias } = require('../lib/core/env-manager');
 
@@ -525,6 +551,7 @@ describe('interactiveLogin 浏览器优先级', () => {
     delete process.env.OPENYIDA_ASSUME_DESKTOP;
     delete process.env.OPENYIDA_FORCE_TERMINAL_QR;
     delete process.env.OPENYIDA_AGENT_PLAYWRIGHT_FALLBACK;
+    delete process.env.YIDA_AUTH_ENABLED;
   }
 
   function loadLoginWithMocks(cdpImpl, execSyncImpl) {
@@ -677,6 +704,35 @@ describe('interactiveLogin 浏览器优先级', () => {
       base_url: 'https://fresh.aliwork.com',
     });
   });
+
+  test('YIDA_AUTH_ENABLED=true 时 force=true 也只读取注入缓存', () => {
+    fs.mkdirSync(path.join(tmpDir, '.cache'), { recursive: true });
+    fs.writeFileSync(path.join(tmpDir, '.cache', 'cookies-public.json'), JSON.stringify({
+      cookies: [
+        { name: 'sid', value: 'cookie-only' },
+      ],
+      csrf_token: 'injected-token-1234567890',
+      corp_id: 'corp-injected',
+      user_id: 'user-injected',
+      base_url: 'https://www.aliwork.com',
+    }), 'utf8');
+    process.env.YIDA_AUTH_ENABLED = 'true';
+
+    const { loginModule, cdpModule, childProcess } = loadLoginWithMocks(() => {
+      throw new Error('interactive login should not run');
+    });
+
+    const result = loginModule.ensureLogin({ force: true });
+
+    expect(cdpModule.cdpBrowserLogin).not.toHaveBeenCalled();
+    expect(childProcess.execSync).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      csrf_token: 'injected-token-1234567890',
+      corp_id: 'corp-injected',
+      user_id: 'user-injected',
+      base_url: 'https://www.aliwork.com',
+    });
+  });
 });
 
 //─ checkLoginOnly 测试────────────────────────────
@@ -777,6 +833,7 @@ describe('authLogin 登录优先级', () => {
       resolveBaseUrl: jest.fn(),
       detectActiveTool: jest.fn(() => ({ tool: 'opencode' })),
       hasDesktopEnvironment: jest.fn(() => true),
+      isInjectedAuthMode: jest.fn(() => false),
     }));
     jest.doMock('../lib/core/chalk', () => ({
       info: jest.fn(),
@@ -818,6 +875,8 @@ describe('findProjectRoot 环境检测', () => {
     delete process.env.__CFBundleIdentifier;
     delete process.env.CURSOR_TRACE_ID;
     delete process.env.AGENT_WORK_ROOT;
+    delete process.env.MULERUN_CHAT_ID;
+    delete process.env.MULE_DATA_DIR;
     delete process.env.TERM_PROGRAM;
     delete process.env.VSCODE_GIT_ASKPASS_NODE;
   });
@@ -977,6 +1036,8 @@ describe('detectActiveTool', () => {
     delete process.env.__CFBundleIdentifier;
     delete process.env.CURSOR_TRACE_ID;
     delete process.env.AGENT_WORK_ROOT;
+    delete process.env.MULERUN_CHAT_ID;
+    delete process.env.MULE_DATA_DIR;
     delete process.env.TERM_PROGRAM;
     delete process.env.VSCODE_GIT_ASKPASS_NODE;
   });
@@ -1065,6 +1126,8 @@ describe('detectActiveTool', () => {
     delete process.env.AGENT_WORK_ROOT;
     delete process.env.OPENCODE;
     delete process.env.OPENCODE_CLIENT;
+    delete process.env.MULERUN_CHAT_ID;
+    delete process.env.MULE_DATA_DIR;
     delete process.env.CURSOR_TRACE_ID;
     delete process.env.TERM_PROGRAM;
 

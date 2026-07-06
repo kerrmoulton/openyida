@@ -6,11 +6,13 @@ const path = require('path');
 
 const {
   parseCurl,
+  extractCurlUrl,
   detectAuthType,
   filterBrowserHeaders,
 } = require('../lib/connector/curl-parser');
 const {
   generateOperation,
+  isSensitiveHeader,
 } = require('../lib/connector/action-generator');
 const {
   generateChildList,
@@ -24,6 +26,8 @@ const {
   DocParserFactory,
 } = require('../lib/connector/doc-parser');
 const { generateConnectorDesc } = require('../lib/connector/desc-generator');
+const { normalizeOperations } = require('../lib/connector/operation-normalizer');
+const { buildOperationsSummary } = require('../lib/connector/api');
 
 describe('connector curl parsing and action generation', () => {
   test('parseCurl extracts URL, method, headers, query path, and JSON body', () => {
@@ -47,6 +51,34 @@ describe('connector curl parsing and action generation', () => {
       body: '{"name":"Ada","age":3}',
     });
     expect(parsed.headers.Authorization).toBe('Bearer token');
+  });
+
+  test('parseCurl handles bare URL, single quotes, --url and -X before URL', () => {
+    // 裸 URL（无引号）
+    expect(parseCurl('curl https://api.example.com/v1/items').url)
+      .toBe('https://api.example.com/v1/items');
+    // 单引号 URL
+    expect(parseCurl("curl 'https://api.example.com/v1/items?a=1'").url)
+      .toBe('https://api.example.com/v1/items?a=1');
+    // --url 参数
+    expect(parseCurl('curl --url https://api.example.com/v1/items').url)
+      .toBe('https://api.example.com/v1/items');
+    // -X POST 在 URL 之前（裸 URL）
+    const parsed = parseCurl('curl -X POST https://api.example.com/v1/items -d \'{"a":1}\'');
+    expect(parsed.url).toBe('https://api.example.com/v1/items');
+    expect(parsed.method).toBe('POST');
+  });
+
+  test('extractCurlUrl prioritizes --url, then quoted, then bare URL', () => {
+    expect(extractCurlUrl('curl --url "https://a.com/x"')).toBe('https://a.com/x');
+    expect(extractCurlUrl('curl -X GET "https://a.com/y"')).toBe('https://a.com/y');
+    expect(extractCurlUrl('curl https://a.com/z -H "X: 1"')).toBe('https://a.com/z');
+    expect(extractCurlUrl('curl -H "X: 1"')).toBe('');
+  });
+
+  test('detectAuthType is case-insensitive for the auth scheme', () => {
+    expect(detectAuthType({ Authorization: 'bearer abc' }).code).toBe('ApiKeyAuth');
+    expect(detectAuthType({ authorization: 'BASIC abc' }).code).toBe('BasicAuth');
   });
 
   test('detectAuthType recognizes common auth headers', () => {
@@ -80,9 +112,39 @@ describe('connector curl parsing and action generation', () => {
     expect(operation.method).toBe('post');
     expect(operation.operationId).toBe('users_search');
     expect(operation.inputs.map((input) => input.name)).toEqual(['Headers', 'Body', 'Query']);
-    expect(operation.parameters.header).toEqual([{ name: 'Authorization', value: 'Bearer token' }]);
+    // 安全：敏感头（Authorization）的真实凭证不得写入生成的 Action 配置，应脱敏为空值
+    expect(operation.parameters.header).toEqual([{ name: 'Authorization', value: '' }]);
     expect(operation.parameters.query).toEqual([{ name: 'q', value: '' }]);
     expect(operation.parameters.body.default).toBe('{"name":"Ada","age":3}');
+  });
+
+  test('generateOperation redacts sensitive header values but keeps business header values', () => {
+    const curlCommand = [
+      'curl "https://api.example.com/v1/users/search?q=ada"',
+      '-H "Authorization: Bearer super-secret-token-value"',
+      '-H "X-Tenant-Id: tenant-42"',
+    ].join(' ');
+    const curlData = parseCurl(curlCommand);
+    const relevantHeaders = filterBrowserHeaders(curlData.headers);
+    const operation = generateOperation(curlData, relevantHeaders);
+
+    const serialized = JSON.stringify(operation);
+    // 真实 token 绝不能出现在生成的配置里
+    expect(serialized).not.toContain('super-secret-token-value');
+    // 业务头的值应保留
+    const tenantHeader = operation.parameters.header.find((h) => h.name === 'X-Tenant-Id');
+    expect(tenantHeader.value).toBe('tenant-42');
+    const authHeader = operation.parameters.header.find((h) => h.name === 'Authorization');
+    expect(authHeader.value).toBe('');
+  });
+
+  test('isSensitiveHeader matches credential-bearing headers case-insensitively', () => {
+    expect(isSensitiveHeader('Authorization')).toBe(true);
+    expect(isSensitiveHeader('X-Api-Key')).toBe(true);
+    expect(isSensitiveHeader('Cookie')).toBe(true);
+    expect(isSensitiveHeader('x-acs-dingtalk-access-token')).toBe(true);
+    expect(isSensitiveHeader('Content-Type')).toBe(false);
+    expect(isSensitiveHeader('X-Tenant-Id')).toBe(false);
   });
 
   test('generateConnectorDesc identifies Yida and generic HTTP connectors', () => {
@@ -180,11 +242,43 @@ describe('connector response and API document parsing', () => {
     });
     expect(operation.summary).toBe('Search Users');
     expect(operation.method).toBe('post');
+    const headersInput = operation.inputs.find((input) => input.name === 'Headers');
+    const queryInput = operation.inputs.find((input) => input.name === 'Query');
+    const bodyInput = operation.inputs.find((input) => input.name === 'Body');
+    expect(headersInput.paramLocation).toBe('header');
+    expect(headersInput.childList.map((node) => node.name)).toEqual(['Authorization']);
+    expect(headersInput.childList[0].paramLocation).toBe('header');
+    expect(queryInput.paramLocation).toBe('query');
+    expect(queryInput.childList[0].paramLocation).toBe('query');
+    expect(bodyInput.paramLocation).toBe('body');
+    expect(bodyInput.childList.map((node) => node.paramLocation)).toEqual(['body', 'body']);
     expect(operation.parameters.header[0]).toEqual({
       name: 'Authorization',
       value: 'Bearer token',
     });
     expect(operation.parameters.query[0]).toEqual({ name: 'page', value: '1' });
+    expect(operation.outputs[0].childList.map((node) => node.name)).toContain('data');
+  });
+
+  test('convertToOperationConfig does not synthesize request body from response schema', () => {
+    const markdown = [
+      '# List Users',
+      '',
+      '- URL',
+      'https://api.example.com/v1/users',
+      '- Method',
+      'GET',
+      '',
+      '## 响应',
+      '```json',
+      '{"success":true,"data":[{"id":1}]}',
+      '```',
+    ].join('\n');
+
+    const operation = convertToOperationConfig(new MarkdownParser(markdown).parse());
+
+    expect(operation.inputs.map((input) => input.name)).not.toContain('Body');
+    expect(operation.parameters.body).toBeUndefined();
     expect(operation.outputs[0].childList.map((node) => node.name)).toContain('data');
   });
 
@@ -199,5 +293,41 @@ describe('connector response and API document parsing', () => {
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('connector operation normalization', () => {
+  test('normalizes legacy name/path actions before saving to Yida', () => {
+    const [operation] = normalizeOperations([
+      {
+        name: '测试接口',
+        path: '/test',
+        method: 'GET',
+        description: '测试用接口',
+      },
+    ]);
+
+    expect(operation).toMatchObject({
+      id: 'operation-test',
+      operationId: 'test',
+      summary: '测试接口',
+      description: '测试用接口',
+      url: 'test',
+      method: 'get',
+      parameters: { header: [] },
+      responses: { type: 'object', properties: {} },
+      origin: true,
+    });
+    expect(operation.outputs[0]).toMatchObject({
+      name: 'Response',
+      paramType: 'Object',
+      childList: [],
+    });
+  });
+
+  test('buildOperationsSummary falls back to legacy action names', () => {
+    expect(buildOperationsSummary([
+      { name: '测试接口', path: '/test', method: 'get' },
+    ])).toBe('支持测试接口');
   });
 });

@@ -11,6 +11,7 @@ description: 解决 heredoc 或 shell 命令写入大文件内容被截断的问
 - 内容被截断（工具输出超过 token 限制）
 - heredoc 内容未生效（zsh 特殊字符转义问题）
 - 多次追加导致重复内容或语法错误
+- Windows PowerShell 为了转义内容而执行 `Get-Content -Raw | ConvertTo-Json`，会把大 JSX/JS 文件整体读入内存并 JSON 转义，可能导致内存暴涨
 
 ## 解决方案
 
@@ -44,16 +45,29 @@ wc -l /path/to/target.js   # 验证行数
 ## 核心原则
 
 1. **永远不要用 heredoc 写大文件** — 改用 `create_file` 工具创建临时 JS 脚本
-2. **内容放在 JS 模板字符串里** — 支持任意长度，不受 shell 限制
-3. **写完立即验证** — `wc -l` 检查行数，`tail` 检查末尾内容
-4. **分段写入大文件** — 超过 300 行的内容，拆分为多个 `create_file` + `node` 执行
-5. **本技能不读写 memory**：文件写入为纯本地操作，不依赖跨会话的 memory 状态
+2. **永远不要用 PowerShell JSON 化大文件** — 禁止 `Get-Content -Raw <file> | ConvertTo-Json`、`ConvertFrom-Json` 处理 `.oyd.jsx/.jsx/.js` 页面源码
+3. **内容放在 JS 模板字符串里** — 支持任意长度，不受 shell 限制
+4. **写完立即验证** — `wc -l` 检查行数，`tail` 检查末尾内容
+5. **分段写入大文件** — 超过 300 行的内容，拆分为多个 `create_file` + `node` 执行
+6. **本技能不读写 memory**：文件写入为纯本地操作，不依赖跨会话的 memory 状态
 
 ## 适用场景
 
 - 宜搭自定义页面代码（通常 500-1500 行）
 - Three.js 场景代码
 - 任何超过 100 行的代码文件写入
+- Windows 环境下写入/修补大 `.oyd.jsx` 页面源码
+
+## Windows / PowerShell 禁止模式
+
+不要为了转义或生成 patch，把大页面源码转换成 JSON 字符串：
+
+```powershell
+# 禁止：会整体读入并生成多份转义副本，可能瞬间占用几十 GB 内存
+Get-Content -Raw project\pages\src\vendor-section.oyd.jsx | ConvertTo-Json
+```
+
+正确做法是直接用 Node 写入目标文件；需要局部替换时，用 Node 读取后做精确字符串/AST 替换并直接 `fs.writeFileSync` 写回，不要额外包成 JSON patch。
 
 ## 触发条件
 

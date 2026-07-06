@@ -67,6 +67,8 @@ openyida login --check-only --json
 
 `openyida env --json` 用于确认当前 AI 工具、项目根目录、配置文件和登录态拆解项；`openyida login --check-only --json` 只读取本地登录缓存，不触发登录、不打开浏览器、不创建任何资源。
 
+若用户明确要求登录某个宜搭入口 URL，登录命令必须携带该 URL 或对应环境 flag。例如 `https://yida-group.alibaba-inc.com/` 是阿里内网宜搭，应执行 `openyida login https://yida-group.alibaba-inc.com/` 或 `openyida login --alibaba`，不要退化成裸 `openyida login`，否则会落到默认公有云 `www.aliwork.com` / `cookies-public.json`。
+
 **悟空（Wukong）降级规则**：如果在悟空环境中本地命令执行入口连续失败，不要继续重试，也不要判断为 OpenYida 登录失败。进入人工协同诊断模式，请用户在可用终端执行以下低风险命令并贴回输出：
 
 ```bash
@@ -181,7 +183,7 @@ openyida copy
 | `yida-corp-manager` | `skills/yida-corp-manager/SKILL.md` | 平台管理员、应用管理员、子管理员与通讯录权限 | `openyida corp-manager <子命令>` |
 | `yida-agent-center` | `skills/yida-agent-center/SKILL.md` | 代理中心：在职流程代理、离职代理、撤销和部分流程范围 | `openyida agent-center <子命令>` |
 | `yida-form-detail` | `skills/yida-form-detail/SKILL.md` | 表单详情页 formDetail 样式优化 | 详见 SKILL.md |
-| `yida-data-management` | `skills/yida-data-management/SKILL.md` | 表单/流程/任务数据查询与变更 | `openyida data query form <appType> <formUuid>` |
+| `yida-data-management` | `skills/yida-data-management/SKILL.md` | 表单/子表/流程/任务数据查询与变更 | `openyida data query form <appType> <formUuid>` |
 | `yida-corp-efficiency` | `skills/yida-corp-efficiency/SKILL.md` | 平台管理企业效能概览、查看明细报表、报表接口模板、学习成果和通知群动作 | `openyida corp-efficiency` |
 | `yida-table-form` | `skills/yida-table-form/SKILL.md` | 表格形态批量录入页面 | 详见 SKILL.md |
 | `yida-process-rule` | `skills/yida-process-rule/SKILL.md` | 配置流程规则、审批/办理/抄送、条件/并行分支、字段权限、跳转规则和官方组件节点配置适配 | `openyida configure-process <appType> <formUuid> <流程JSON>` |
@@ -190,6 +192,7 @@ openyida copy
 | `yida-business-rule` | `skills/yida-business-rule/SKILL.md` | 表单业务关联规则高级函数（INSERT/UPDATE/DELETE/UPSERT） | 详见 SKILL.md |
 | `yida-connector` | `skills/yida-connector/SKILL.md` | HTTP 连接器创建、测试与动作管理 | `openyida connector smart-create <配置>` |
 | `yida-connector-safe-actions` | `skills/yida-connector-safe-actions/SKILL.md` | 从前后端接口安全生成 HTTP 连接器执行动作，并修复测试后动作消失问题 | `openyida connector add-action --operations <动作JSON> --connector-id <id> --confirm` |
+| `yida-data-source-connectors` | `skills/yida-data-source-connectors/SKILL.md` | 自定义页面调用连接器/远程 API 时，必须通过设计器“数据源”创建并使用 `this.dataSourceMap` 调用 | 详见 SKILL.md |
 | `sls-log-workbench` | `skills/sls-log-workbench/SKILL.md` | SLS 日志查询工作台排查（内部技术支持） | 详见 SKILL.md |
 | `yida-dashboard` | `skills/yida-dashboard/SKILL.md` | 经营看板/驾驶舱/数据大屏完整产品化交付（单屏控制塔+宜搭待办连接器真实钉钉待办闭环+卡片截图+组织内短链） | 详见 SKILL.md |
 | `yida-chart` | `skills/yida-chart/SKILL.md` | 报表可视化（ECharts 图表 + 数据聚合） | 详见 SKILL.md |
@@ -223,6 +226,9 @@ openyida copy
 - **避免无效重试**：同一命令失败后，先根据错误信息检查登录态、组织、参数和字段 ID；不要无修改地连续重试超过 1 次。
 - **数据性能优先**：统计/聚合类需求优先使用 `yida-report` 原生报表服务端聚合；不要在自定义页面前端分页拉取大量表单数据后自行聚合。
 - **模板优先**：自定义页面、表单字段、报表配置等复杂产物优先使用 `openyida sample` 或现有示例生成骨架，再做最小改动。
+- **官方示例范式优先**：用户要求参考/蒸馏宜搭示例中心时，先按 [官方示例中心 Schema 范式](references/official-example-schema-patterns.md) 理解脱敏 schema 的承载方式，再优化技能或实现方案；不要只凭截图、卡片标题或页面视觉做判断。
+- **按 schema 证据选择技能**：先看 `formType`、组件树和 `dataSource.online`。`receipt/process/report` 分别优先落到表单、流程、报表技能；只有默认页是自定义展示页、或确实需要列表/看板/工具页交互时，才默认落到 `yida-custom-page`。
+- **配置承载优先于代码承载**：字段结构、公式、联动、报表聚合、审批规则、集成自动化、连接器动作应分别由对应技能承载；自定义页面代码只做展示、事件分发和必要胶水。
 
 ### 3. corpId 一致性检查（必须遵守）
 

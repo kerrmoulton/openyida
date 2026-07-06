@@ -41,7 +41,10 @@ function cliEnv() {
     CURSOR_TRACE_ID: '',
     VSCODE_GIT_ASKPASS_NODE: '',
     AGENT_WORK_ROOT: '',
+    MULERUN_CHAT_ID: '',
+    MULE_DATA_DIR: '',
     OPENYIDA_AGENT_MODE: '',
+    YIDA_AUTH_ENABLED: '',
     OPENYIDA_ASSUME_DESKTOP: '',
     OPENYIDA_FORCE_TERMINAL_QR: '',
     __CFBundleIdentifier: '',
@@ -105,7 +108,7 @@ describe('CLI offline smoke', () => {
     const output = runOk(['--help']);
     expect(output).toContain('OpenYida');
     expect(output).toContain('env [--json]');
-    expect(output).toContain('login [--qr|--agent-qr|--codex|--browser] [--env <name>|--intl|--overseas|--global|--yidaapps] [--corp-id <corpId>]');
+    expect(output).toContain('login [target-url] [--qr|--agent-qr|--codex|--browser] [--env <name>|--intl|--overseas|--global|--yidaapps|--alibaba] [--corp-id <corpId>]');
     expect(output).toContain('corp-efficiency');
     expect(output).toContain('create-form');
     expect(output).toContain('list-forms');
@@ -173,6 +176,7 @@ describe('CLI offline smoke', () => {
     expect(commands).toContain('connector.smart-create');
     expect(commands).toContain('corp-manager');
     expect(commands).toContain('agent-center');
+    expect(commands).toContain('integration.diagnose');
     expect(commands).toContain('dingtalk-link');
     expect(commands).toContain('externalize-form');
     expect(commands).toContain('db-seq-fix');
@@ -198,6 +202,11 @@ describe('CLI offline smoke', () => {
       usage: 'openyida ai <text|image> [options]',
       output: 'text|json',
       requires_login: true,
+    });
+    expect(parsed.commands.find(entry => entry.id === 'integration.diagnose')).toMatchObject({
+      usage: 'openyida integration diagnose (--text <text>|--file <path>|--rules) [--json]',
+      output: 'text|json',
+      requires_login: false,
     });
     expect(parsed.commands.find(entry => entry.id === 'externalize-form')).toMatchObject({
       usage: 'openyida externalize-form <appType> <formUuid> [--schema-file file]',
@@ -269,6 +278,46 @@ describe('CLI offline smoke', () => {
       const parsed = JSON.parse(output);
       expect(parsed).toHaveProperty('login.diagnostics.currentEnv', 'intl');
       expect(parsed.login.diagnostics.configuredCookieFile).toContain('cookies-intl.json');
+    } finally {
+      fs.rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test('login target URL infers Alibaba intranet environment for check-only', () => {
+    const workspace = createCodexWorkspace();
+    try {
+      const output = runOkWithEnv([
+        'login',
+        'https://yida-group.alibaba-inc.com/',
+        '--check-only',
+        '--json',
+      ], {
+        CODEX_SHELL: '1',
+      }, workspace);
+      const parsed = JSON.parse(output);
+      expect(parsed.status).toBe('not_logged_in');
+      expect(parsed.diagnostics.currentEnv).toBe('alibaba');
+      expect(parsed.diagnostics.cookieFile).toContain('cookies-alibaba.json');
+    } finally {
+      fs.rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test('login target URL is inferred even when it follows check-only flags', () => {
+    const workspace = createCodexWorkspace();
+    try {
+      const output = runOkWithEnv([
+        'login',
+        '--check-only',
+        '--json',
+        'https://www.yidaapps.com/',
+      ], {
+        CODEX_SHELL: '1',
+      }, workspace);
+      const parsed = JSON.parse(output);
+      expect(parsed.status).toBe('not_logged_in');
+      expect(parsed.diagnostics.currentEnv).toBe('intl');
+      expect(parsed.diagnostics.cookieFile).toContain('cookies-intl.json');
     } finally {
       fs.rmSync(workspace, { recursive: true, force: true });
     }
@@ -449,6 +498,60 @@ describe('CLI offline smoke', () => {
         base_url: 'https://www.aliwork.com',
         corp_id: 'corp',
         user_id: 'cachedUser',
+        cookies_count: 2,
+      });
+    } finally {
+      fs.rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test('YIDA_AUTH_ENABLED=true login only checks injected cookie cache', () => {
+    const workspace = createCodexWorkspace();
+    try {
+      const output = runOkWithEnv(['login'], {
+        CODEX_SHELL: '1',
+        YIDA_AUTH_ENABLED: 'true',
+        OPENYIDA_ENV: 'public',
+      }, workspace);
+      const parsed = JSON.parse(output.trim());
+      expect(parsed).toMatchObject({
+        status: 'not_logged_in',
+        can_auto_use: false,
+      });
+      expect(parsed.message).toContain('injected Cookie cache');
+      expect(parsed).toHaveProperty('diagnostics.authMode', 'injected');
+      expect(parsed).not.toHaveProperty('handoff_type');
+    } finally {
+      fs.rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test('YIDA_AUTH_ENABLED=true login accepts top-level injected auth fields', () => {
+    const workspace = createCodexWorkspace();
+    const cacheDir = path.join(workspace, 'project', '.cache');
+    fs.mkdirSync(cacheDir, { recursive: true });
+    fs.writeFileSync(path.join(cacheDir, 'cookies-public.json'), JSON.stringify({
+      cookies: [
+        { name: 'sid', value: 'cookie-only' },
+      ],
+      csrf_token: 'injected-token-1234567890',
+      corp_id: 'corp-injected',
+      user_id: 'user-injected',
+      base_url: 'https://www.aliwork.com',
+    }), 'utf8');
+
+    try {
+      const output = runOkWithEnv(['login'], {
+        CODEX_SHELL: '1',
+        YIDA_AUTH_ENABLED: 'true',
+        OPENYIDA_ENV: 'public',
+      }, workspace);
+      const parsed = JSON.parse(output.trim());
+      expect(parsed).toMatchObject({
+        ok: true,
+        base_url: 'https://www.aliwork.com',
+        corp_id: 'corp-injected',
+        user_id: 'user-injected',
         cookies_count: 2,
       });
     } finally {

@@ -48,6 +48,15 @@ openyida login
 
 默认登录路径不需要 Playwright：优先复用缓存；Codex、Qoder、悟空、Claude Code、OpenCode、Cursor 等可检测到的 AI 工具先尝试本地 Chrome/Edge/Chromium CDP 登录，CDP 不可用时再使用二维码 handoff；其他终端环境使用二维码登录。`openyida login --browser` 优先使用本地 Chrome/Edge/Chromium CDP，CDP 不可用时才用 Playwright 兜底。
 
+若用户明确给出宜搭入口 URL，必须把该 URL 传给登录命令，或使用对应环境 flag；不要退化成裸 `openyida login`：
+
+```bash
+openyida login https://yida-group.alibaba-inc.com/
+openyida login --alibaba
+```
+
+`https://yida-group.alibaba-inc.com/` 属于阿里内网宜搭，登录态应写入 `cookies-alibaba.json`；`www.aliwork.com`/`cookies-public.json` 表示走了默认公有云环境。
+
 ### AI 工具二维码登录模式
 
 在 AI 对话框环境中没有有效缓存，且本地 CDP 浏览器登录不可用时，`openyida login` 返回 `need_qr_scan` JSON，包含 `qr_image_markdown`、`agent_response_markdown`、`qr_image_file`、`qr_url`、`poll_command` 和 `session_file`。

@@ -34,6 +34,8 @@ describe('integration check', () => {
     'header_form_inst_id',
     'header_execution_status',
     'header_exception',
+    'header_diagnosis',
+    'header_recommendation',
     'header_start_time',
     'header_finish_time',
     'header_elapsed_ms',
@@ -97,6 +99,11 @@ describe('integration check', () => {
         status: 'y',
         eventName: '表单更新成功',
         abnormalLogCount: 1,
+        diagnostics: [{
+          severity: 'error',
+          title: '连接器执行异常',
+          recommendation: '检查连接器配置',
+        }],
         logs: [
           {
             procInstId: 'PROC-1',
@@ -118,6 +125,7 @@ describe('integration check', () => {
 
     expect(rows).toHaveLength(2);
     expect(rows[1]).toEqual(expect.arrayContaining(['APP_A', '项目线索', '分配负责人', '目标列不存在']));
+    expect(rows[1]).toEqual(expect.arrayContaining(['[error] 连接器执行异常', '检查连接器配置']));
   });
 
   test('buildAppRows records no-abnormal and app-error rows', () => {

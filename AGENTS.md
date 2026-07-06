@@ -38,6 +38,10 @@ openyida/
 │   │   ├── codex-login.js   # Codex 内置浏览器登录引导
 │   │   ├── org.js           # 组织管理（列出/切换组织）
 │   │   └── qr-login.js      # 终端二维码扫码登录
+│   ├── basic-info/          # 企业基础信息查询（版本 / 授权 / 域名）
+│   │   └── basic-info.js    # 企业版本、授权信息与域名管理
+│   ├── bridge/              # 浏览器桥接服务（本地 HTTP 代理连接宜搭页面）
+│   │   └── bridge.js        # Bridge HTTP 服务器（本地代理 + 页面唤起）
 │   ├── samples/             # 代码示例/模板（通过 openyida sample 命令输出到工作目录）
 │   │   ├── yida-chart/            # ECharts 图表示例（7个）
 │   │   ├── yida-custom-page/      # 自定义页面模板（2个）
@@ -45,6 +49,16 @@ openyida/
 │   │   ├── yida-data-management/  # 表单字段模板（1个）
 │   │   ├── yida-density/          # 密度切换示例（1个）
 │   │   └── yida-table-form/       # 表格表单示例（1个）
+│   ├── a2a/                 # A2A 协议服务器（Agent-to-Agent HTTP 通信）
+│   │   ├── cmd.js           # a2a 命令入口（参数解析与启动）
+│   │   └── server.js        # A2A HTTP 服务实现（JSON-RPC 路由）
+│   ├── agent-center/        # 智能代理任务中心（代理人任务管理）
+│   │   ├── agent-center.js  # 代理人任务命令（创建/更新/取消/查询）
+│   │   └── api.js           # 代理人 API 请求封装
+│   ├── aggregate-table/     # 聚合表管理（虚拟视图 / 聚合表单）
+│   │   └── aggregate-table.js # 聚合表创建与配置
+│   ├── ai/                  # 宜搭 AI 能力（文生文 / 识图）
+│   │   └── ai.js            # AI 命令入口（txtFromAI / 图片识别）
 │   ├── app/                 # 应用 / 表单 / 页面管理
 │   │   ├── app-list.js      # yida-app-list：查询我的应用列表（名称/appType/地址）
 │   │   ├── create-app.js    # 创建宜搭应用
@@ -58,6 +72,8 @@ openyida/
 │   │   ├── export-app.js    # 导出应用（生成迁移包）
 │   │   ├── import-app.js    # 导入迁移包，重建应用
 │   │   └── update-form-config.js  # 更新表单配置
+│   ├── app-permission/      # 应用权限管理（管理员角色配置）
+│   │   └── app-permission.js # 应用管理员角色分配（主管理/数据/应用管理员）
 │   ├── page-config/         # 页面公开访问 / 分享配置
 │   │   ├── verify-short-url.js    # 验证短链接 URL
 │   │   ├── save-share-config.js   # 保存公开访问 / 分享配置
@@ -73,10 +89,18 @@ openyida/
 │   │   ├── collector.js     # 对话记录收集
 │   │   ├── formatter.js     # 对话格式化
 │   │   └── export-conversation.js  # 导出对话记录
+│   ├── feedback/            # 体验反馈收集（表单化反馈提交）
+│   │   └── feedback.js      # 反馈表单创建与提交（自动检测 AI 工具环境）
 │   ├── flash-note/          # 闪记转 PRD
 │   │   └── flash-to-prd.js  # 闪记转高质量 prompt（支持会议识别）
+│   ├── formula/             # 公式求值引擎（宜搭公式本地计算）
+│   │   └── evaluate.js      # 宜搭公式解析与求值（支持 60+ 内置函数）
+│   ├── dingtalk/            # 钉钉链接生成（AppLink / 页面链接构建）
+│   │   └── dingtalk-link.js # 钉钉 AppLink URL 与页面链接生成
 │   ├── dws/                 # 钉钉 CLI 集成
 │   │   └── dws-wrapper.js   # 钉钉 CLI 包装器（通讯录/日历/待办/审批等）
+│   ├── i18n-management/     # 应用多语言管理（语言包配置）
+│   │   └── i18n-management.js # 应用级多语言资源管理（12 种语言）
 │   ├── integration/         # 集成 & 自动化
 │   │   └── integration-create.js  # 创建集成逻辑流
 │   ├── connector/           # HTTP 连接器管理
@@ -99,11 +123,18 @@ openyida/
 │   │   ├── response-parser.js     # 响应结构解析
 │   │   ├── action-generator.js    # Action 自动生成
 │   │   └── desc-generator.js      # 描述自动生成
+│   ├── corp-efficiency/     # 企业效能分析（平台管理效能指标）
+│   │   └── corp-efficiency.js # 效能概览 / 详情 / 分组 / 通知
+│   ├── corp-manager/        # 平台权限管理（管理员 / 通讯录可见性）
+│   │   ├── api.js           # 管理员与通讯录 API 封装
+│   │   └── corp-manager.js  # 管理员增删查 / 通讯录可见性配置
 │   ├── cdn/                 # CDN / OSS 管理
 │   │   ├── cdn-config.js          # CDN 配置读写
 │   │   ├── cdn-config-cmd.js      # CDN 配置命令
 │   │   ├── cdn-upload.js          # 上传图片到 OSS/CDN
 │   │   └── cdn-refresh.js         # 刷新 CDN 缓存
+│   ├── mcp/                 # MCP 协议服务器（Model Context Protocol）
+│   │   └── server.js        # MCP JSON-RPC 服务实现（工具注册与调用）
 │   ├── report/              # 宜搭报表管理
 │   │   ├── create-report.js       # 创建报表（入口）
 │   │   ├── index.js               # 创建报表主流程

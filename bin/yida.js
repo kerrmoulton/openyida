@@ -27,6 +27,8 @@ function isAgentEnvironment(env) {
     env.CODEX_HOME ||
     env.CLAUDE_CODE ||
     env.CLAUDE_CODE_ENTRYPOINT ||
+    env.MULERUN_CHAT_ID ||
+    env.MULE_DATA_DIR ||
     env.OPENCODE ||
     env.OPENCODE_CLIENT ||
     env.QODER_IDE ||
@@ -212,6 +214,16 @@ function handleFirstRunGuide() {
 function printLoginResult(result) {
   noteLoginCommandResult(result);
 
+  if (!result) {
+    console.log(JSON.stringify({
+      ok: false,
+      status: 'login_failed',
+      can_auto_use: false,
+      error: 'login_failed',
+    }));
+    return;
+  }
+
   if (result && (result.status === 'need_qr_scan' || result.status === 'need_corp_selection')) {
     console.log(JSON.stringify(result));
     return;
@@ -240,6 +252,11 @@ function printLoginResult(result) {
       if (result[key]) {handoff[key] = result[key];}
     });
     console.log(JSON.stringify(handoff));
+    return;
+  }
+
+  if (result.status && result.status !== 'ok' && !result.csrf_token) {
+    console.log(JSON.stringify(result));
     return;
   }
 
@@ -329,7 +346,60 @@ function getArgValue(cliArgs, name) {
   return cliArgs[index + 1];
 }
 
-function applyLoginEnvironmentFlags(cliArgs) {
+function parseLoginTargetArg(value) {
+  const raw = String(value || '').trim();
+  if (!raw) {return null;}
+
+  const hasProtocol = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw);
+  if (!hasProtocol) {
+    if (raw.startsWith('/') || raw.startsWith('.') || raw.includes('\\')) {return null;}
+    const hostPart = raw.split('/')[0];
+    if (!hostPart.includes('.') && hostPart !== 'localhost') {return null;}
+  }
+
+  try {
+    return new URL(hasProtocol ? raw : `https://${raw}`);
+  } catch {
+    return null;
+  }
+}
+
+function applyLoginTargetUrl(value) {
+  const parsedUrl = parseLoginTargetArg(value);
+  if (!parsedUrl) {return false;}
+
+  const {
+    deriveBaseUrlFromDingtalkOAuthUrl,
+    inferEnvironmentNameFromUrl,
+    inferLoginUrlForBaseUrl,
+    normalizeBaseUrl,
+    normalizeHostname,
+  } = require('../lib/core/env-manager');
+
+  const targetHref = parsedUrl.href;
+  const redirectBaseUrl = deriveBaseUrlFromDingtalkOAuthUrl(targetHref, null);
+  const endpoint = normalizeBaseUrl(redirectBaseUrl || parsedUrl.origin, null);
+  const inferredEnv = inferEnvironmentNameFromUrl(redirectBaseUrl || targetHref);
+
+  if (inferredEnv) {
+    process.env.OPENYIDA_ENV = inferredEnv;
+  }
+  if (endpoint) {
+    process.env.OPENYIDA_ENDPOINT = endpoint;
+  }
+
+  const host = normalizeHostname(targetHref);
+  const isDingtalkLoginHost = host.endsWith('dingtalk.com') || host.endsWith('dingtalk.io');
+  const normalizedPath = parsedUrl.pathname.replace(/\/+$/, '') || '/';
+  const hasCustomLoginPath = normalizedPath !== '/' && normalizedPath !== '/workPlatform';
+  process.env.OPENYIDA_LOGIN_URL = isDingtalkLoginHost || hasCustomLoginPath
+    ? targetHref
+    : inferLoginUrlForBaseUrl(endpoint || parsedUrl.origin);
+
+  return true;
+}
+
+function applyLoginEnvironmentFlags(cliArgs, options = {}) {
   const envFlagMap = {
     '--public': 'public',
     '--intl': 'intl',
@@ -341,6 +411,19 @@ function applyLoginEnvironmentFlags(cliArgs) {
     '--internal': 'alibaba',
     '--intranet': 'alibaba',
   };
+  const valuePassthroughFlags = new Set([
+    '--agent-poll',
+    '--codex-poll',
+    '--agent-select',
+    '--codex-select',
+    '--corp-id',
+  ]);
+  const targetUrlFlags = new Set([
+    '--endpoint',
+    '--base-url',
+    '--login-url',
+  ]);
+  const inferTargetUrl = !!options.inferTargetUrl;
   const filteredArgs = [];
 
   for (let index = 0; index < cliArgs.length; index++) {
@@ -353,8 +436,26 @@ function applyLoginEnvironmentFlags(cliArgs) {
       }
       continue;
     }
+    if (inferTargetUrl && targetUrlFlags.has(arg)) {
+      const targetUrl = cliArgs[index + 1];
+      if (targetUrl && !targetUrl.startsWith('--') && applyLoginTargetUrl(targetUrl)) {
+        index++;
+        continue;
+      }
+    }
+    if (valuePassthroughFlags.has(arg)) {
+      filteredArgs.push(arg);
+      if (cliArgs[index + 1] && !cliArgs[index + 1].startsWith('--')) {
+        filteredArgs.push(cliArgs[index + 1]);
+        index++;
+      }
+      continue;
+    }
     if (envFlagMap[arg]) {
       process.env.OPENYIDA_ENV = envFlagMap[arg];
+      continue;
+    }
+    if (inferTargetUrl && !arg.startsWith('--') && applyLoginTargetUrl(arg)) {
       continue;
     }
     filteredArgs.push(arg);
@@ -397,12 +498,12 @@ async function main() {
   if (!command || command === '--help' || command === '-h') {
     handleFirstRunGuide();
     printHelp();
-    process.exit(0);
+    return;
   }
 
   if (command === '--version' || command === '-v') {
     console.log(currentVersion);
-    process.exit(0);
+    return;
   }
 
   switch (command) {
@@ -455,7 +556,8 @@ async function main() {
 
     case 'login': {
       const { checkLoginOnly } = require('../lib/auth/login');
-      const loginArgs = applyLoginEnvironmentFlags(args);
+      const loginArgs = applyLoginEnvironmentFlags(args, { inferTargetUrl: true });
+      const { isInjectedAuthMode } = require('../lib/core/utils');
       if (loginArgs.includes('--agent-poll') || loginArgs.includes('--codex-poll')) {
         const sessionFile = getArgValue(loginArgs, '--agent-poll') || getArgValue(loginArgs, '--codex-poll');
         const { pollCodexQrLogin } = require('../lib/auth/qr-login');
@@ -470,9 +572,12 @@ async function main() {
           corpId: getArgValue(loginArgs, '--corp-id'),
         });
         printLoginResult(result);
-      } else if (loginArgs[0] === '--check-only') {
+      } else if (loginArgs.includes('--check-only')) {
         const result = checkLoginOnly({ includeSecrets: loginArgs.includes('--with-cookies') });
         console.log(JSON.stringify(result, null, 2));
+      } else if (isInjectedAuthMode()) {
+        const result = checkLoginOnly({ includeSecrets: true });
+        printLoginResult(result);
       } else if (shouldUseCodexQrLogin(loginArgs)) {
         const { startCodexQrLogin } = require('../lib/auth/qr-login');
         const result = await startCodexQrLogin({ corpId: getArgValue(loginArgs, '--corp-id') });
@@ -559,7 +664,7 @@ async function main() {
       if (subCommand === 'status') {
         authStatus();
       } else if (subCommand === 'login') {
-        const authArgs = applyLoginEnvironmentFlags(args.slice(1));
+        const authArgs = applyLoginEnvironmentFlags(args.slice(1), { inferTargetUrl: true });
         let loginType = 'qrcode';
         if (authArgs.includes('--codex')) {
           loginType = 'codex';
@@ -1019,6 +1124,9 @@ async function main() {
       } else if (subCommand === 'check') {
         const { run: runIntegrationCheck } = require('../lib/integration/integration-check');
         await runIntegrationCheck(subArgs);
+      } else if (subCommand === 'diagnose' || subCommand === 'doctor') {
+        const { run: runIntegrationDiagnose } = require('../lib/integration/integration-diagnose');
+        await runIntegrationDiagnose(subArgs);
       } else {
         throwCliUsage(t('cli.integration_unknown', subCommand), t('cli.integration_help_hint'));
       }

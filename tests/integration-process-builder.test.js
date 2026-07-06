@@ -13,6 +13,7 @@ const {
   buildDataCreateAssignments,
   buildProcessJson,
 } = require('../lib/integration/integration-process-builder');
+const { buildViewJson } = require('../lib/integration/integration-view-builder');
 
 describe('integration process builder', () => {
   test('mapEventTypes normalizes supported aliases and drops unknown events', () => {
@@ -50,6 +51,26 @@ describe('integration process builder', () => {
     });
   });
 
+  test('buildDataRetrieveCondition supports runtime-safe get-self matching by instance id', () => {
+    const condition = buildDataRetrieveCondition([
+      {
+        bFieldId: 'pid',
+        bFieldName: '表单实例ID',
+        aFieldId: '__masterdata_form_inst_id',
+        componentType: 'TextField',
+        opCode: 'Equal',
+      },
+    ]);
+
+    expect(condition.rules[0]).toMatchObject({
+      id: 'pid',
+      op: '等于',
+      value: '__masterdata_form_inst_id',
+      valueType: 'processVar',
+      opCode: 'Equal',
+    });
+  });
+
   test('buildDataCreateAssignments preserves literals and converts numeric literals', () => {
     expect(buildDataCreateAssignments([
       { column: 'numberField_count', valueType: 'literal', value: '12' },
@@ -60,7 +81,7 @@ describe('integration process builder', () => {
     ]);
   });
 
-  test('buildProcessJson links trigger, data, message, and finish nodes in order', () => {
+  test('buildProcessJson links trigger, data, add-data, message, and finish nodes in order', () => {
     const processJson = buildProcessJson({
       processCode: 'LPROC-TEST',
       formUuid: 'FORM-A',
@@ -69,7 +90,7 @@ describe('integration process builder', () => {
       notificationTitle: 'Title',
       notificationContent: 'Content',
       toUsers: ['user1'],
-      nodeIds: ['trigger', 'add', 'data', 'message', 'end'],
+      nodeIds: ['trigger', 'data', 'add', 'message', 'end'],
       addDataFormUuid: 'FORM-B',
       addDataAssignments: [{ column: 'textField_name', valueType: 'literal', value: 'Ada' }],
       dataFormUuid: 'FORM-C',
@@ -80,15 +101,43 @@ describe('integration process builder', () => {
     expect(processJson.props.processCode).toBe('LPROC-TEST');
     expect(processJson.nodes.map((node) => node.type)).toEqual([
       'trigger',
-      'dataCreate',
       'dataRetrieve',
+      'dataCreate',
       'sendMessage',
       'finish',
     ]);
-    expect(processJson.nodes[0].nextId).toEqual(['add']);
-    expect(processJson.nodes[1].nextId).toEqual(['data']);
+    expect(processJson.nodes[0].nextId).toEqual(['data']);
+    expect(processJson.nodes[1].nextId).toEqual(['add']);
     expect(processJson.nodes[2].nextId).toEqual(['message']);
     expect(processJson.nodes[3].props.messageInfo.buttons[0].buttonUuid).toBe('button-fixed');
+  });
+
+  test('buildViewJson keeps get-data before add-data on the canvas', () => {
+    const viewJson = buildViewJson({
+      formUuid: 'FORM-A',
+      appType: 'APP-A',
+      formEventTypes: ['insert'],
+      notificationTitle: 'Title',
+      notificationContent: 'Content',
+      toUsers: [{ userId: 'user1', userName: '' }],
+      nodeIds: ['canvas', 'trigger', 'data', 'add', 'message', 'end'],
+      addDataFormUuid: 'FORM-B',
+      addDataAssignments: [{ column: 'textField_name', valueType: 'literal', value: 'Ada' }],
+      addDataFormSchema: [],
+      dataFormUuid: 'FORM-C',
+      dataConditions: [{ bFieldId: 'field_b', bFieldName: 'B', aFieldId: 'field_a' }],
+      hasMessageNode: true,
+    });
+
+    expect(viewJson.schema.children.map((node) => node.componentName)).toEqual([
+      'StartNode',
+      'GetSingleDataNode',
+      'AddDataNode',
+      'SendMessageNode',
+      'EndNode',
+    ]);
+    expect(viewJson.schema.children[1].id).toBe('data');
+    expect(viewJson.schema.children[2].id).toBe('add');
   });
 
   test('buildProcessJson can omit the message node and point trigger directly to finish', () => {

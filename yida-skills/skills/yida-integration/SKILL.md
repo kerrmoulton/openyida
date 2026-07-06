@@ -16,6 +16,7 @@ description: 宜搭集成&自动化配置技能。支持创建/查询/开启/关
 - **创建/发布前必须确认**：执行集成自动化创建或发布操作前，必须向用户展示逻辑流配置摘要（触发条件、节点列表、通知对象），获得用户明确同意后再执行
 - 创建前先确认触发表单的 formUuid 和相关字段 ID
 - 创建成功后记录逻辑流 ID 到 `.cache/<项目名>-schema.json`
+- 参考官方示例时不要只看默认页面 schema：集成自动化示例的默认页通常只是触发表单或说明页，逻辑流本体需要通过集成自动化接口/命令查询或创建
 
 ## 适用场景
 
@@ -52,6 +53,8 @@ description: 宜搭集成&自动化配置技能。支持创建/查询/开启/关
 
 
 本技能用于在宜搭平台创建「集成&自动化」（逻辑流），支持场景：**表单事件触发 → 多节点组合处理 → 钉钉工作通知 / 数据操作**。
+
+官方示例中心体现的集成范式是“表单收集数据，逻辑流处理副作用”。因此，跨表新增/更新、通知、创建待办、调用钉钉能力等提交后动作，默认用本技能；不要把这些副作用塞进表单字段 JS 或自定义页面按钮，除非用户明确要求一次性人工触发工具页。
 
 ## 功能概述
 
@@ -91,8 +94,11 @@ openyida integration check <appType...> [--json] [--output result.xlsx] [--no-pr
 | `--approval-node-ids <nodeId,...>` | 空 | 当 `--events activityTask` 时必填；审批节点 ID，多个用逗号分隔 |
 | `--trigger-condition <fieldId:fieldName:opCode:value[:componentType[:valueType]]>` | 空 | 触发器过滤条件，可多次传入；示例：`radioField_xxx:采购类型:Equal:材料采购:RadioField:literal` |
 | `--trigger-recursively` | 关闭 | 允许自动触发，对应设计器里的“允许自动触发” |
+| `--get-self` | 关闭 | 自动插入“获取自身”节点：来源表单为当前触发表，过滤条件为 `pid 等于 字段 __masterdata_form_inst_id` |
+| `--get-self-field <field>` | `__masterdata_form_inst_id` | 覆盖右侧触发事件系统字段；仅在确认环境变量名不同后使用 |
+| `--get-self-query-field <field>` | `pid` | 覆盖左侧查询系统字段；仅在确认平台查询字段名不同后使用 |
 | `--data-form-uuid <formUuid>` | 不启用 | 获取单条数据节点的目标表单 UUID（B 表单），传入后在触发节点和通知节点之间插入 GetSingleDataNode |
-| `--data-condition <bFieldId:bFieldName:aFieldId[:componentType]>` | 无 | 获取单条数据的过滤条件，可多次传入；格式：`B表单字段ID:B表单字段名:A表单字段ID[:组件类型]`，组件类型默认 `TextField` |
+| `--data-condition <bFieldId:bFieldName:aFieldId[:componentType[:opCode[:valueType]]]>` | 无 | 获取单条数据的过滤条件，可多次传入；格式：`B表单字段ID:B表单字段名:A表单字段ID[:组件类型[:操作符[:值类型]]]`，组件类型默认 `TextField`，操作符默认 `Contain` |
 | `--add-data-form-uuid <formUuid>` | 不启用 | 新增数据节点的目标表单 UUID，传入后在通知节点之后插入 AddDataNode |
 | `--add-data-assignment <targetFieldId:valueType:value>` | 无 | 新增数据的字段赋值，可多次传入；格式：`目标字段ID:valueType:value`，valueType 可选 `processVar`（引用触发表单字段）/ `literal`（固定值）/ `column`（公式） |
 | `--publish` | 不发布 | 加此标志则保存后立即发布（开启状态），否则仅保存为草稿 |
@@ -115,7 +121,7 @@ openyida integration create APP_XXX FORM-XXX "记录变更通知" \
   --publish
 
 # 带获取单条数据节点：触发时从 B 表单获取匹配记录，再发送通知
-# --data-condition 格式：B表单字段ID:B表单字段名:A表单字段ID[:组件类型]
+# --data-condition 格式：B表单字段ID:B表单字段名:A表单字段ID[:组件类型[:opCode[:valueType]]]
 # 可多次传入 --data-condition 添加多个过滤条件
 openyida integration create APP_XXX FORM-A-XXX "跨表通知" \
   --receivers user123 \
@@ -124,6 +130,14 @@ openyida integration create APP_XXX FORM-A-XXX "跨表通知" \
   --events insert,update \
   --data-form-uuid FORM-B-XXX \
   --data-condition "textField_b1:B表单姓名字段:textField_a1:TextField" \
+  --publish
+
+# 获取自身：触发后重新读取当前记录，避免流水号、定时值或触发 payload 不是最新值
+openyida integration create APP_XXX FORM-A-XXX "获取自身后通知" \
+  --title "记录已提交" \
+  --content "已按表单实例ID重新读取当前记录。" \
+  --events insert,update \
+  --get-self \
   --publish
 
 # 带新增数据节点：触发时将 A 表单数据同步到 B 表单，并发送通知
@@ -177,13 +191,26 @@ openyida integration create APP_XXX FORM-A-XXX "表单A新增后同步到表单B
 ```bash
 openyida integration check APP_XXX --json
 openyida integration check APP_XXX APP_YYY --output project/output/自动化异常.xlsx
+openyida integration diagnose --text "连接器异常：接口参数异常"
+openyida integration diagnose --file project/tickets/automation-error.txt --json
 ```
 
 - 会分页查询指定应用下的全部集成自动化，默认覆盖 `1/2/3/5/6` 五类触发类型。
 - 对每条自动化调用运行日志接口，并按 `status=2` 筛选“执行异常”。
+- `integration check` 会在 JSON/Excel/文本输出中附带诊断建议；注意“未发现异常日志”不等于业务一定正确，获取数据无匹配或条件未命中可能仍显示成功。
+- `integration diagnose` 可离线诊断工单文本、OCR 后的截图文本或日志片段，不需要登录态。
 - 批量查询时只显示单行进度，不逐条输出 HTTP 200。
 - JSON 结果包含 `totalFlows`、`abnormalFlows[].processCode`、自动化名称、触发表单和异常日志列表。
 - 传入 `--output <file.xlsx>` 时导出 Excel，一个应用一个 sheet；无异常的应用会写入“未发现执行异常日志”，检查失败的应用会写入失败原因。
+
+## 集成自动化闭坑规则
+
+- 获取自身：优先使用 `--get-self`，标准条件为查询侧系统字段 `pid` 等于触发事件字段 `__masterdata_form_inst_id`。不要用 `formInstId = formInstId`、不要用“包含”或非唯一字段做自身匹配。
+- 流水号：新增/编辑触发时，触发 payload 中的流水号可能为空或不是最新值；需要先获取自身，再引用获取节点里的流水号。
+- 定时自动化：定时触发值可能是历史数据；需要最新值时先获取自身或获取目标数据。
+- 直接更新：匹配字段只能消费当前触发表字段，不能随意匹配前置节点字段；文本字段不要匹配单选/多选字段。直接更新不会触发被更新表单上的集成自动化。
+- 条件分支：空值判断优先用公式 `ISEMPTY()`，不要只依赖“没有值”选项。
+- 异常重试：重试通常会从头执行，已执行过的新增/更新节点可能再次写入或覆盖数据；重试前先确认幂等性。
 
 ## 调用流程
 

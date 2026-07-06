@@ -30,9 +30,27 @@ describe('import-app helpers', () => {
       actions: { source: 'APP_OLD/FORM-OLD' },
     };
 
-    expect(__test__.adaptSerialNumberFormulas(schema, 'APP_OLD', 'APP_NEW', 'FORM-OLD', 'FORM-NEW')).toEqual({
+    expect(__test__.adaptSchemaIdentifiers(schema, 'APP_OLD', 'APP_NEW', 'FORM-OLD', 'FORM-NEW')).toEqual({
       pages: [{ id: 'FORM-NEW', props: { appType: 'APP_NEW' } }],
       actions: { source: 'APP_NEW/FORM-NEW' },
     });
+  });
+
+  test('does not corrupt plain text that merely contains the old identifier as a substring', () => {
+    const schema = {
+      pages: [{ id: 'FORM-OLD', props: { appType: 'APP_OLD' } }],
+      fields: [
+        // label / value 中包含旧标识符子串，但属于更长的字符串，不应被替换
+        { label: 'APP_OLDER backup note', value: 'see FORM-OLD-archive for details' },
+      ],
+    };
+
+    const result = __test__.adaptSchemaIdentifiers(schema, 'APP_OLD', 'APP_NEW', 'FORM-OLD', 'FORM-NEW');
+
+    expect(result.pages[0].id).toBe('FORM-NEW');
+    expect(result.pages[0].props.appType).toBe('APP_NEW');
+    // 关键：被更长标识符包裹的子串保持原样，不被误替换
+    expect(result.fields[0].label).toBe('APP_OLDER backup note');
+    expect(result.fields[0].value).toBe('see FORM-OLD-archive for details');
   });
 });

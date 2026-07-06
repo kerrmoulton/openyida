@@ -76,6 +76,31 @@ node ~/.agents/skills/large-file-write/scripts/write.js \
 
 ---
 
+## Windows / PowerShell 禁止模式
+
+**不要**用 PowerShell 把大 JSX/JS 文件转成 JSON patch：
+
+```powershell
+# 禁止：会把整个文件读入内存并生成转义后的大字符串
+Get-Content -Raw project\pages\src\vendor-section.oyd.jsx | ConvertTo-Json > vendor-patch.json
+```
+
+这种写法会同时持有原始源码、JSON 转义字符串、管道对象和输出缓冲。对包含 vendor、base64、压缩代码的 `.oyd.jsx` 文件，内存可能被放大到数十 GB。
+
+请改用 Node：
+
+```js
+const fs = require('fs');
+const target = 'project/pages/src/vendor-section.oyd.jsx';
+const source = fs.readFileSync(target, 'utf8');
+const next = source.replace('old snippet', 'new snippet');
+fs.writeFileSync(target, next, 'utf8');
+```
+
+如果替换内容很大，按下文“分段写入大文件”拆分。
+
+---
+
 ## 分段写入大文件（>300 行）
 
 当单次内容超过 300 行时，拆分为多个脚本分段写入：
