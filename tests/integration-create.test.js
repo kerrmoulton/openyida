@@ -149,6 +149,50 @@ describe('integration create command', () => {
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
+  test('reuses form navigation lookup when add-data and initiate-approval targets are both present', async () => {
+    fetchFormPageList.mockResolvedValue([
+      {
+        formUuid: 'FORM-RECEIPT',
+        formName: 'B普通表单',
+        formType: 'receipt',
+      },
+      {
+        formUuid: 'FORM-PROCESS',
+        formName: 'C流程表单',
+        formType: 'process',
+      },
+    ]);
+    integrationApi.createLogicflow.mockResolvedValue('LPROC-TEST');
+    integrationApi.getFormSchema.mockResolvedValue([]);
+    integrationApi.saveProcess.mockResolvedValue({ success: true });
+
+    await run([
+      'APP_TEST',
+      'FORM-A',
+      'A新增后同步并发起审批',
+      '--add-data-form-uuid',
+      'FORM-RECEIPT',
+      '--add-data-assignment',
+      'textField_b:literal:value',
+      '--initiate-approval-form-uuid',
+      'FORM-PROCESS',
+      '--initiate-approval-initiator-user',
+      'user-1:Alice',
+      '--initiate-approval-assignment',
+      'textField_c:processVar:textField_a',
+    ]);
+
+    expect(fetchFormPageList).toHaveBeenCalledTimes(1);
+    const saveParams = integrationApi.saveProcess.mock.calls[0][1];
+    expect(saveParams.processJson.nodes.map((node) => node.type)).toEqual([
+      'trigger',
+      'dataCreate',
+      'initiateApproval',
+      'finish',
+    ]);
+    expect(exitSpy).not.toHaveBeenCalled();
+  });
+
   test('passes HTTP connector metadata into processJson and viewJson', async () => {
     integrationApi.createLogicflow.mockResolvedValue('LPROC-TEST');
     integrationApi.saveProcess.mockResolvedValue({ success: true });

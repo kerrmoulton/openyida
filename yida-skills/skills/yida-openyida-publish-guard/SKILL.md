@@ -40,6 +40,8 @@ openyida login --check-only --json
 openyida get-schema <appType> <formUuid> --json > project/.cache/openyida/live-<formUuid>.json
 ```
 
+The repository ignore rules already exclude `project/.cache/openyida/`; keep fetched live schema files there and do not commit them.
+
 4. Inspect the fetched live page for current code and configuration. For custom display pages, check at least:
 
 - `pages[].componentsTree[].methods.__initMethods__.source`
@@ -53,7 +55,7 @@ openyida get-schema <appType> <formUuid> --json > project/.cache/openyida/live-<
 - If the local source is older or missing a user-visible live change, merge the requested change into the live/current behavior.
 - If the user explicitly says "only change X", verify the final diff only touches X and strictly required helper or style code.
 - If live and local differ in unrelated user-visible areas, pause and ask whether to preserve the live changes unless the preservation is obvious.
-- If the user explicitly says "use local source", you may skip live-source merging, but still run environment checks, page checks, compile, and health-checked publish.
+- Exception: only when the user explicitly says "use local source" may you skip live-source merging. You must still run env check -> check-page -> compile -> publish --health-check. Skipping live-source merging does not mean skipping safety checks.
 
 6. Only after the merge is scoped and reviewed, run:
 

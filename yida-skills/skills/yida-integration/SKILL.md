@@ -103,7 +103,7 @@ openyida integration check <appType...> [--json] [--output result.xlsx] [--no-pr
 | `--add-data-form-uuid <formUuid>` | 不启用 | 新增数据节点的目标表单 UUID，传入后在通知节点之后插入 AddDataNode；目标必须是普通表单（如 `formType=receipt`），不能是流程表单（`formType=process`） |
 | `--add-data-assignment <targetFieldId:valueType:value>` | 无 | 新增数据的字段赋值，可多次传入；格式：`目标字段ID:valueType:value`，valueType 可选 `processVar`（引用触发表单字段）/ `literal`（固定值）/ `column`（公式） |
 | `--initiate-approval-form-uuid <formUuid>` | 不启用 | 发起审批节点的目标流程表单 UUID；当 B 是流程表单（`formType=process`）时必须使用它，不要用 `--add-data-form-uuid` |
-| `--initiate-approval-initiator-user <userId[:name]>` | 无 | 发起审批的发起人，格式如 `01376266634908:张三`；使用发起审批节点时必填 |
+| `--initiate-approval-initiator-user <userId[:name]>` | 无 | 发起审批的发起人，推荐格式 `01376266634908:张三`；只传 userId 时设计器中会显示原始 ID。使用发起审批节点时必填 |
 | `--initiate-approval-assignment <targetFieldId:valueType:value>` | 无 | 发起审批时写入目标流程表单字段的赋值规则，可多次传入；格式同 `--add-data-assignment` |
 | `--connector-mode <mode>` | 自动推断 | 连接器类型；HTTP 自定义连接器使用 `5`，`connectorId` 以 `Http_` 开头时会自动按 `5` 处理 |
 | `--connection-id <id>` | 空 | HTTP 连接器鉴权连接 ID；HTTP 连接器建议传入，否则设计器右侧配置面板可能无法加载连接实例详情 |
@@ -170,6 +170,15 @@ openyida integration create APP_XXX FORM-A-XXX "A审批完成后发起B流程" \
   --initiate-approval-initiator-user "01376266634908:张三" \
   --initiate-approval-assignment "textField_b1:processVar:textField_a1" \
   --initiate-approval-assignment "textareaField_b2:literal:自动发起" \
+  --publish
+
+# 调用 HTTP 自定义连接器动作，并保留设计器右侧面板所需的连接器元信息
+openyida integration create APP_XXX FORM-A-XXX "调用 HTTP 连接器" \
+  --connector-id Http_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
+  --action-id publish_month_qs \
+  --connection-id 28336 \
+  --connector-display-name "BI 后端" \
+  --connector-assignment "month:processVar:textField_month" \
   --publish
 ```
 
