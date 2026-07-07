@@ -266,7 +266,7 @@ function printLoginResult(result) {
     corp_id: result && result.corp_id,
     user_id: result && result.user_id,
     csrf_token: result && result.csrf_token ? `${result.csrf_token.slice(0, 16)}...` : undefined,
-    cookies_count: Array.isArray(result && result.cookies) ? result.cookies.length : 0,
+    cookies_count: Array.isArray(result && result.cookies) ? result.cookies.length : (result.cookies_count || 0),
   };
   console.log(JSON.stringify(summary));
 }
@@ -559,7 +559,7 @@ async function main() {
     case 'login': {
       const { checkLoginOnly } = require('../lib/auth/login');
       const loginArgs = applyLoginEnvironmentFlags(args, { inferTargetUrl: true });
-      const { isInjectedAuthMode } = require('../lib/core/utils');
+      const { isEnvAuthMode } = require('../lib/core/utils');
       if (loginArgs.includes('--agent-poll') || loginArgs.includes('--codex-poll')) {
         const sessionFile = getArgValue(loginArgs, '--agent-poll') || getArgValue(loginArgs, '--codex-poll');
         const { pollCodexQrLogin } = require('../lib/auth/qr-login');
@@ -577,7 +577,7 @@ async function main() {
       } else if (loginArgs.includes('--check-only')) {
         const result = checkLoginOnly({ includeSecrets: loginArgs.includes('--with-cookies') });
         console.log(JSON.stringify(result, null, 2));
-      } else if (isInjectedAuthMode()) {
+      } else if (isEnvAuthMode()) {
         const result = checkLoginOnly({ includeSecrets: true });
         printLoginResult(result);
       } else if (shouldUseCodexQrLogin(loginArgs)) {

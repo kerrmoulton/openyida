@@ -16,6 +16,7 @@ const {
   hasDesktopEnvironment,
   resolveWukongWorkspaceRoot,
   httpPost,
+  httpPostJson,
   httpGet,
 } = require('../lib/core/utils');
 
@@ -167,6 +168,16 @@ describe('isLoginExpired', () => {
     expect(isLoginExpired({ success: false, errorCode: '302' })).toBe(true);
   });
 
+  test('HTTP auth errorCode 时返回 true', () => {
+    expect(isLoginExpired({ success: false, errorCode: '401' })).toBe(true);
+    expect(isLoginExpired({ success: false, errorCode: '403' })).toBe(true);
+  });
+
+  test('not_logged_in 状态或错误码时返回 true', () => {
+    expect(isLoginExpired({ status: 'not_logged_in' })).toBe(true);
+    expect(isLoginExpired({ success: false, errorCode: 'not_logged_in' })).toBe(true);
+  });
+
   test('success 为 true 时返回 false', () => {
     expect(isLoginExpired({ success: true, errorCode: '307' })).toBe(false);
   });
@@ -253,6 +264,48 @@ describe('http redirect login detection', () => {
         __needLogin: true,
         __httpStatus: 307,
         __location: '/workPlatform',
+      });
+    } finally {
+      server.close();
+    }
+  });
+
+  test('httpGet 将 401 识别为需要重新登录', async () => {
+    const server = http.createServer((req, res) => {
+      res.statusCode = 401;
+      res.end('Unauthorized');
+    });
+    const port = await listen(server);
+
+    try {
+      const result = await httpGet(`http://127.0.0.1:${port}`, '/bad', { a: 1 }, [
+        { name: 'tianshu_csrf_token', value: 'tok' },
+      ], { silentStatus: true });
+
+      expect(result).toMatchObject({
+        __needLogin: true,
+        __httpStatus: 401,
+      });
+    } finally {
+      server.close();
+    }
+  });
+
+  test('httpPostJson 将 403 识别为需要重新登录', async () => {
+    const server = http.createServer((req, res) => {
+      res.statusCode = 403;
+      res.end(JSON.stringify({ success: false, errorCode: '403' }));
+    });
+    const port = await listen(server);
+
+    try {
+      const result = await httpPostJson(`http://127.0.0.1:${port}`, '/bad', {}, [
+        { name: 'tianshu_csrf_token', value: 'tok' },
+      ], { silentStatus: true });
+
+      expect(result).toMatchObject({
+        __needLogin: true,
+        __httpStatus: 403,
       });
     } finally {
       server.close();

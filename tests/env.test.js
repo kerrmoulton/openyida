@@ -6,6 +6,13 @@ const os = require('os');
 
 const { run, detectEnvironment, detectLoginStatus, buildEnvironmentSnapshot } = require('../lib/core/env');
 
+function restoreEnv(snapshot) {
+  Object.keys(process.env).forEach((key) => {
+    if (!(key in snapshot)) {delete process.env[key];}
+  });
+  Object.assign(process.env, snapshot);
+}
+
 // ── detectEnvironment ─────────────────────────────────────────────────
 
 describe('detectEnvironment', () => {
@@ -187,6 +194,31 @@ describe('run', () => {
     expect(snapshot).toHaveProperty('login.csrfToken');
     if (snapshot.login.csrfToken) {
       expect(snapshot.login.csrfToken.endsWith('...')).toBe(true);
+    }
+  });
+
+  test('env auth 下 buildEnvironmentSnapshot 不泄露 cookie/csrf/corp/user 明文', () => {
+    const originalEnv = { ...process.env };
+    const rawCookie = 'tianshu_csrf_token=env-secret-token; tianshu_corp_user=corpSensitive_userSensitive';
+    process.env.YIDA_AUTH_ENABLED = 'true';
+    process.env.OPENYIDA_COOKIE_B64 = Buffer.from(rawCookie, 'utf8').toString('base64');
+    process.env.OPENYIDA_BASE_URL = 'https://www.aliwork.com';
+
+    try {
+      const snapshot = buildEnvironmentSnapshot();
+      const serialized = JSON.stringify(snapshot);
+
+      expect(snapshot.login.loggedIn).toBe(true);
+      expect(snapshot.login.authSource).toBe('env');
+      expect(snapshot.login.csrfToken).toBeNull();
+      expect(snapshot.login.corpId).toContain('***');
+      expect(snapshot.login.userId).toContain('***');
+      expect(serialized).not.toContain('env-secret-token');
+      expect(serialized).not.toContain('corpSensitive');
+      expect(serialized).not.toContain('userSensitive');
+      expect(serialized).not.toContain(process.env.OPENYIDA_COOKIE_B64);
+    } finally {
+      restoreEnv(originalEnv);
     }
   });
 

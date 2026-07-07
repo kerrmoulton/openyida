@@ -520,7 +520,7 @@ describe('CLI offline smoke', () => {
     }
   });
 
-  test('YIDA_AUTH_ENABLED=true login only checks injected cookie cache', () => {
+  test('YIDA_AUTH_ENABLED=true login only checks env cookie', () => {
     const workspace = createCodexWorkspace();
     try {
       const output = runOkWithEnv(['login'], {
@@ -533,15 +533,16 @@ describe('CLI offline smoke', () => {
         status: 'not_logged_in',
         can_auto_use: false,
       });
-      expect(parsed.message).toContain('injected Cookie cache');
-      expect(parsed).toHaveProperty('diagnostics.authMode', 'injected');
+      expect(parsed.message).toContain('No env Cookie');
+      expect(parsed).toHaveProperty('diagnostics.authMode', 'env');
+      expect(parsed).toHaveProperty('diagnostics.failure_reason', 'env_cookie_missing');
       expect(parsed).not.toHaveProperty('handoff_type');
     } finally {
       fs.rmSync(workspace, { recursive: true, force: true });
     }
   });
 
-  test('YIDA_AUTH_ENABLED=true login accepts top-level injected auth fields', () => {
+  test('OPENYIDA_COOKIE_B64 login accepts env cookie and ignores stale cache', () => {
     const workspace = createCodexWorkspace();
     const cacheDir = path.join(workspace, 'project', '.cache');
     fs.mkdirSync(cacheDir, { recursive: true });
@@ -549,26 +550,32 @@ describe('CLI offline smoke', () => {
       cookies: [
         { name: 'sid', value: 'cookie-only' },
       ],
-      csrf_token: 'injected-token-1234567890',
-      corp_id: 'corp-injected',
-      user_id: 'user-injected',
-      base_url: 'https://www.aliwork.com',
+      csrf_token: 'stale-token-1234567890',
+      corp_id: 'corp-stale',
+      user_id: 'user-stale',
+      base_url: 'https://stale.aliwork.com',
     }), 'utf8');
+    const rawCookie = 'tianshu_csrf_token=env-token-1234567890; tianshu_corp_user=corpInjected_userInjected';
 
     try {
       const output = runOkWithEnv(['login'], {
         CODEX_SHELL: '1',
         YIDA_AUTH_ENABLED: 'true',
+        OPENYIDA_COOKIE_B64: Buffer.from(rawCookie, 'utf8').toString('base64'),
+        OPENYIDA_BASE_URL: 'https://www.aliwork.com',
         OPENYIDA_ENV: 'public',
       }, workspace);
       const parsed = JSON.parse(output.trim());
       expect(parsed).toMatchObject({
         ok: true,
         base_url: 'https://www.aliwork.com',
-        corp_id: 'corp-injected',
-        user_id: 'user-injected',
         cookies_count: 2,
       });
+      expect(parsed.corp_id).toContain('***');
+      expect(parsed.user_id).toContain('***');
+      expect(JSON.stringify(parsed)).not.toContain('env-token-1234567890');
+      expect(JSON.stringify(parsed)).not.toContain('corpInjected');
+      expect(JSON.stringify(parsed)).not.toContain('userInjected');
     } finally {
       fs.rmSync(workspace, { recursive: true, force: true });
     }

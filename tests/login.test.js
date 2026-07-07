@@ -14,8 +14,25 @@ jest.mock('../lib/core/i18n', () => ({
 
 const {
   extractInfoFromCookies,
+  getLastEnvAuthError,
   loadCookieData,
+  loadEnvCookieData,
+  parseCookieHeader,
+  requestWithAutoLogin,
 } = require('../lib/core/utils');
+
+function restoreEnv(snapshot) {
+  Object.keys(process.env).forEach((key) => {
+    if (!(key in snapshot)) {delete process.env[key];}
+  });
+  Object.assign(process.env, snapshot);
+}
+
+function clearEnvAuthVars() {
+  delete process.env.YIDA_AUTH_ENABLED;
+  delete process.env.OPENYIDA_COOKIE_B64;
+  delete process.env.OPENYIDA_BASE_URL;
+}
 
 //─ extractInfoFromCookies─────────────────────────
 
@@ -110,14 +127,121 @@ describe('extractInfoFromCookies', () => {
   });
 });
 
+describe('env cookie auth provider', () => {
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    restoreEnv(originalEnv);
+    clearEnvAuthVars();
+  });
+
+  afterEach(() => {
+    restoreEnv(originalEnv);
+  });
+
+  test('parseCookieHeader parses raw HTTP Cookie header', () => {
+    const cookies = parseCookieHeader(
+      'tianshu_csrf_token=env-token; tianshu_corp_user=corp123_user456; other=value=with=equals',
+      { baseUrl: 'https://www.aliwork.com' }
+    );
+
+    expect(cookies).toEqual([
+      { name: 'tianshu_csrf_token', value: 'env-token', domain: 'www.aliwork.com' },
+      { name: 'tianshu_corp_user', value: 'corp123_user456', domain: 'www.aliwork.com' },
+      { name: 'other', value: 'value=with=equals', domain: 'www.aliwork.com' },
+    ]);
+  });
+
+  test('loadEnvCookieData decodes base64 cookie and extracts csrf/corp/user/baseUrl', () => {
+    const rawCookie = 'tianshu_csrf_token=env-token; tianshu_corp_user=corp123_user456';
+    process.env.OPENYIDA_COOKIE_B64 = Buffer.from(rawCookie, 'utf8').toString('base64');
+    process.env.OPENYIDA_BASE_URL = 'https://custom.aliwork.com/';
+
+    const result = loadEnvCookieData('https://www.aliwork.com');
+
+    expect(result).toMatchObject({
+      csrf_token: 'env-token',
+      corp_id: 'corp123',
+      user_id: 'user456',
+      base_url: 'https://custom.aliwork.com',
+      auth_source: 'env',
+    });
+    expect(result.cookies).toEqual([
+      { name: 'tianshu_csrf_token', value: 'env-token', domain: 'custom.aliwork.com' },
+      { name: 'tianshu_corp_user', value: 'corp123_user456', domain: 'custom.aliwork.com' },
+    ]);
+  });
+
+  test('invalid base64 records structured env auth error', () => {
+    process.env.OPENYIDA_COOKIE_B64 = 'not valid base64!';
+
+    expect(loadEnvCookieData()).toBeNull();
+    expect(getLastEnvAuthError()).toMatchObject({
+      code: 'not_logged_in',
+      failure_reason: 'env_cookie_decode_failed',
+      authMode: 'env',
+    });
+  });
+
+  test('missing csrf records csrf_missing error', () => {
+    process.env.OPENYIDA_COOKIE_B64 = Buffer.from('tianshu_corp_user=corp123_user456', 'utf8').toString('base64');
+
+    expect(loadEnvCookieData()).toBeNull();
+    expect(getLastEnvAuthError()).toMatchObject({
+      code: 'csrf_missing',
+      failure_reason: 'csrf_token_missing',
+    });
+  });
+
+  test('env cookie expired response returns structured auth error', async () => {
+    process.env.YIDA_AUTH_ENABLED = 'true';
+    const result = await requestWithAutoLogin(async () => ({ __needLogin: true }), {
+      csrfToken: 'expired',
+      cookies: [],
+      baseUrl: 'https://www.aliwork.com',
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      __needLogin: true,
+      errorCode: 'INJECTED_AUTH_REQUIRED',
+    });
+    expect(result.errorMsg).toContain('not_logged_in');
+    expect(result.errorMsg).toContain('env cookie');
+  });
+
+  test('OPENYIDA_COOKIE_B64 alone keeps expired response in env auth mode', async () => {
+    process.env.OPENYIDA_COOKIE_B64 = Buffer.from(
+      'tianshu_csrf_token=env-token; tianshu_corp_user=corp123_user456',
+      'utf8'
+    ).toString('base64');
+
+    const result = await requestWithAutoLogin(async () => ({ __needLogin: true }), {
+      csrfToken: 'expired',
+      cookies: [],
+      baseUrl: 'https://www.aliwork.com',
+    });
+
+    expect(result).toMatchObject({
+      success: false,
+      __needLogin: true,
+      errorCode: 'INJECTED_AUTH_REQUIRED',
+    });
+    expect(result.errorMsg).toContain('env cookie');
+  });
+});
+
 //─ loadCookieData─────────────────────────────────
 
 describe('loadCookieData', () => {
+  const originalEnv = { ...process.env };
   let tmpDir;
   let cacheDir;
   let cookieFile;
 
   beforeEach(() => {
+    restoreEnv(originalEnv);
+    clearEnvAuthVars();
     tmpDir = path.join(os.tmpdir(), `yida-load-cookie-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     cacheDir = path.join(tmpDir, '.cache');
     cookieFile = path.join(cacheDir, 'cookies.json');
@@ -128,6 +252,7 @@ describe('loadCookieData', () => {
     if (fs.existsSync(tmpDir)) {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
+    restoreEnv(originalEnv);
   });
 
   test('cookies.json 不存在时返回 null', () => {
@@ -179,16 +304,71 @@ describe('loadCookieData', () => {
     const result = loadCookieData(tmpDir);
     expect(result).toBeNull();
   });
+
+  test('env cookie 优先于 cookies.json', () => {
+    fs.writeFileSync(cookieFile, JSON.stringify({
+      cookies: [
+        { name: 'tianshu_csrf_token', value: 'cache-token' },
+        { name: 'tianshu_corp_user', value: 'cacheCorp_cacheUser' },
+      ],
+      base_url: 'https://cache.aliwork.com',
+    }), 'utf-8');
+    process.env.OPENYIDA_COOKIE_B64 = Buffer.from(
+      'tianshu_csrf_token=env-token; tianshu_corp_user=envCorp_envUser',
+      'utf8'
+    ).toString('base64');
+
+    const result = loadCookieData(tmpDir);
+
+    expect(result.csrf_token).toBe('env-token');
+    expect(result.corp_id).toBe('envCorp');
+    expect(result.user_id).toBe('envUser');
+    expect(result.auth_source).toBe('env');
+  });
+
+  test('env cookie 不创建或修改 .cache cookie 文件', () => {
+    fs.rmSync(cookieFile, { force: true });
+    process.env.OPENYIDA_COOKIE_B64 = Buffer.from(
+      'tianshu_csrf_token=env-token; tianshu_corp_user=envCorp_envUser',
+      'utf8'
+    ).toString('base64');
+
+    const beforeExists = fs.existsSync(cookieFile);
+    const result = loadCookieData(tmpDir);
+
+    expect(beforeExists).toBe(false);
+    expect(result.csrf_token).toBe('env-token');
+    expect(fs.existsSync(cookieFile)).toBe(false);
+    expect(fs.existsSync(path.join(cacheDir, 'cookies-public.json'))).toBe(false);
+  });
+
+  test('YIDA_AUTH_ENABLED=true 但缺少 env cookie 时不回退 cookies.json', () => {
+    fs.writeFileSync(cookieFile, JSON.stringify({
+      cookies: [
+        { name: 'tianshu_csrf_token', value: 'cache-token' },
+      ],
+    }), 'utf-8');
+    process.env.YIDA_AUTH_ENABLED = 'true';
+
+    expect(loadCookieData(tmpDir)).toBeNull();
+    expect(getLastEnvAuthError()).toMatchObject({
+      failure_reason: 'env_cookie_missing',
+    });
+  });
 });
 
 //─ saveCookieCache 文件写入测试───────────────────
 
 describe('saveCookieCache 文件写入', () => {
+  const originalEnv = { ...process.env };
+  const originalCwd = process.cwd();
   let tmpDir;
   let cacheDir;
   let cookieFile;
 
   beforeEach(() => {
+    restoreEnv(originalEnv);
+    clearEnvAuthVars();
     tmpDir = path.join(os.tmpdir(), `yida-save-cookie-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     cacheDir = path.join(tmpDir, '.cache');
     cookieFile = path.join(cacheDir, 'cookies.json');
@@ -196,9 +376,11 @@ describe('saveCookieCache 文件写入', () => {
   });
 
   afterEach(() => {
+    process.chdir(originalCwd);
     if (fs.existsSync(tmpDir)) {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
+    restoreEnv(originalEnv);
   });
 
   test('正确写入 cookies.json 文件', () => {
@@ -232,6 +414,20 @@ describe('saveCookieCache 文件写入', () => {
     expect(result).not.toBeNull();
     expect(result.csrf_token).toBe('token123');
     expect(result.base_url).toBe(baseUrl);
+  });
+
+  test('env auth 模式下 saveCookieCache 不写入 cookies.json', () => {
+    process.chdir(tmpDir);
+    process.env.YIDA_AUTH_ENABLED = 'true';
+    const { saveCookieCache } = require('../lib/auth/login');
+
+    saveCookieCache([
+      { name: 'tianshu_csrf_token', value: 'newtoken' },
+      { name: 'tianshu_corp_user', value: 'newcorp_newuser' },
+    ], 'https://www.aliwork.com');
+
+    expect(fs.existsSync(cookieFile)).toBe(false);
+    expect(fs.existsSync(path.join(cacheDir, 'cookies-public.json'))).toBe(false);
   });
 });
 
@@ -729,18 +925,23 @@ describe('interactiveLogin 浏览器优先级', () => {
     });
   });
 
-  test('YIDA_AUTH_ENABLED=true 时 force=true 也只读取注入缓存', () => {
+  test('YIDA_AUTH_ENABLED=true 时 force=true 也只读取进程 env cookie', () => {
     fs.mkdirSync(path.join(tmpDir, '.cache'), { recursive: true });
     fs.writeFileSync(path.join(tmpDir, '.cache', 'cookies-public.json'), JSON.stringify({
       cookies: [
         { name: 'sid', value: 'cookie-only' },
       ],
-      csrf_token: 'injected-token-1234567890',
-      corp_id: 'corp-injected',
-      user_id: 'user-injected',
-      base_url: 'https://www.aliwork.com',
+      csrf_token: 'stale-token-1234567890',
+      corp_id: 'corp-stale',
+      user_id: 'user-stale',
+      base_url: 'https://stale.aliwork.com',
     }), 'utf8');
     process.env.YIDA_AUTH_ENABLED = 'true';
+    process.env.OPENYIDA_COOKIE_B64 = Buffer.from(
+      'tianshu_csrf_token=env-token-1234567890; tianshu_corp_user=corpEnv_userEnv',
+      'utf8'
+    ).toString('base64');
+    process.env.OPENYIDA_BASE_URL = 'https://env.aliwork.com';
 
     const { loginModule, cdpModule, childProcess } = loadLoginWithMocks(() => {
       throw new Error('interactive login should not run');
@@ -751,10 +952,10 @@ describe('interactiveLogin 浏览器优先级', () => {
     expect(cdpModule.cdpBrowserLogin).not.toHaveBeenCalled();
     expect(childProcess.execSync).not.toHaveBeenCalled();
     expect(result).toMatchObject({
-      csrf_token: 'injected-token-1234567890',
-      corp_id: 'corp-injected',
-      user_id: 'user-injected',
-      base_url: 'https://www.aliwork.com',
+      csrf_token: 'env-token-1234567890',
+      corp_id: 'corpEnv',
+      user_id: 'userEnv',
+      base_url: 'https://env.aliwork.com',
     });
   });
 });
@@ -800,6 +1001,31 @@ describe('checkLoginOnly 独立测试', () => {
     } finally {
       process.chdir(originalCwd);
       fs.rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  test('env auth 下 checkLoginOnly 不返回完整 cookie 或 csrf', () => {
+    const originalEnv = { ...process.env };
+    const rawCookie = 'tianshu_csrf_token=env-secret-token; tianshu_corp_user=corpSensitive_userSensitive';
+    process.env.YIDA_AUTH_ENABLED = 'true';
+    process.env.OPENYIDA_COOKIE_B64 = Buffer.from(rawCookie, 'utf8').toString('base64');
+    process.env.OPENYIDA_BASE_URL = 'https://www.aliwork.com';
+
+    try {
+      const { checkLoginOnly } = require('../lib/auth/login');
+      const result = checkLoginOnly({ includeSecrets: true });
+      const serialized = JSON.stringify(result);
+
+      expect(result.status).toBe('ok');
+      expect(result.cookies).toBeUndefined();
+      expect(result.csrf_token).toBe('env-secr…');
+      expect(result.corp_id).toContain('***');
+      expect(result.user_id).toContain('***');
+      expect(serialized).not.toContain('env-secret-token');
+      expect(serialized).not.toContain(process.env.OPENYIDA_COOKIE_B64);
+      expect(serialized).not.toContain(rawCookie);
+    } finally {
+      restoreEnv(originalEnv);
     }
   });
 });
@@ -859,6 +1085,7 @@ describe('authLogin 登录优先级', () => {
       detectActiveTool: jest.fn(() => ({ tool: 'opencode' })),
       hasDesktopEnvironment: jest.fn(() => true),
       isInjectedAuthMode: jest.fn(() => false),
+      isEnvAuthMode: jest.fn(() => false),
     }));
     jest.doMock('../lib/core/chalk', () => ({
       info: jest.fn(),
