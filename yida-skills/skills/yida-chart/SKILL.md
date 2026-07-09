@@ -60,8 +60,8 @@ openyida login --check-only --json
 # Step 2: 准备原生报表数据源
 # 无原生报表时先使用 yida-report 创建；已有 URL 时解析 appType/formUuid
 
-# Step 3: 获取报表 Schema，输出到文件避免终端截断
-openyida get-schema <appType> <reportFormUuid> > .cache/report-schema-output.txt 2>&1
+# Step 3: 获取报表 Schema；需要文件时用 CLI 输出目录或结构化文件写入工具保存 stdout
+openyida get-schema <appType> --all --keyword <报表名称> --output-dir .cache/openyida/<项目名或任务名>/schemas
 
 # Step 4: 解析 cid / className / dataSetKey / filterKey / cname
 

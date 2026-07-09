@@ -6,10 +6,10 @@
 
 适用于一次性写入大块内容（>100 行）。
 
-### Step 1：用 `create_file` 工具创建临时内容脚本
+### Step 1：用结构化文件写入工具创建临时内容脚本
 
 ```js
-// /tmp/content-payload.js
+// <projectRoot>/.cache/openyida/<任务名>/scripts/content-payload.js
 const fs = require('fs');
 const content = `
 // 这里放你要写入的大块内容
@@ -25,7 +25,7 @@ console.log('写入完成，行数：', content.split('\n').length);
 ### Step 2：执行脚本
 
 ```bash
-node /tmp/content-payload.js
+node .cache/openyida/<任务名>/scripts/content-payload.js
 ```
 
 ### Step 3：验证写入结果
@@ -42,7 +42,7 @@ tail -5 /path/to/target.js
 适用于向已有文件末尾追加大块内容。
 
 ```js
-// /tmp/append-payload.js
+// <projectRoot>/.cache/openyida/<任务名>/scripts/append-payload.js
 const fs = require('fs');
 const appendContent = `
 // 追加的内容
@@ -57,22 +57,23 @@ console.log('追加完成');
 执行：
 
 ```bash
-node /tmp/append-payload.js
+node .cache/openyida/<任务名>/scripts/append-payload.js
 ```
 
 ---
 
-## 模式三：使用通用写入脚本（stdin 模式）
+## 模式三：使用通用写入脚本（content-file 模式）
 
-适用于通过管道传入内容的场景。
+适用于内容已经由结构化文件写入工具保存为独立文件的场景。
 
 ```bash
 node ~/.agents/skills/large-file-write/scripts/write.js \
   --file /path/to/target.js \
+  --content-file .cache/openyida/<任务名>/scripts/content.txt \
   --mode write   # 或 append
 ```
 
-然后通过 stdin 输入内容（Ctrl+D 结束）。
+不要通过 shell 管道、heredoc 或重定向临时生成 `content.txt`；先使用 create_file / Write / file edit tool 创建它。
 
 ---
 
@@ -80,10 +81,7 @@ node ~/.agents/skills/large-file-write/scripts/write.js \
 
 **不要**用 PowerShell 把大 JSX/JS 文件转成 JSON patch：
 
-```powershell
-# 禁止：会把整个文件读入内存并生成转义后的大字符串
-Get-Content -Raw project\pages\src\vendor-section.oyd.jsx | ConvertTo-Json > vendor-patch.json
-```
+禁止把整个文件读入内存再重定向成 JSON patch，例如 `Get-Content -Raw ... | ConvertTo-Json` 这类流程会制造巨大中间数据，也违反“命令输入文件由结构化写入工具创建”的约定。
 
 这种写法会同时持有原始源码、JSON 转义字符串、管道对象和输出缓冲。对包含 vendor、base64、压缩代码的 `.oyd.jsx` 文件，内存可能被放大到数十 GB。
 
@@ -106,7 +104,7 @@ fs.writeFileSync(target, next, 'utf8');
 当单次内容超过 300 行时，拆分为多个脚本分段写入：
 
 ```js
-// /tmp/part1-payload.js — 写入第一段（文件头 + 前半部分）
+// <projectRoot>/.cache/openyida/<任务名>/scripts/part1-payload.js — 写入第一段（文件头 + 前半部分）
 const fs = require('fs');
 const part1 = `
 // === 第一段内容 ===
@@ -118,7 +116,7 @@ console.log('第一段写入完成');
 ```
 
 ```js
-// /tmp/part2-payload.js — 追加第二段
+// <projectRoot>/.cache/openyida/<任务名>/scripts/part2-payload.js — 追加第二段
 const fs = require('fs');
 const part2 = `
 // === 第二段内容 ===
@@ -145,5 +143,5 @@ tail -5 /path/to/target.js
 |---------|------|---------|
 | 文件为空 | 模板字符串反引号未闭合 | 检查 `` ` `` 是否成对，特殊字符是否转义 |
 | 内容截断 | 单次 create_file 超过 token 限制 | 拆分为多个脚本分段写入 |
-| 权限拒绝 | 目标路径无写权限 | 改用 `/tmp/` 路径，或检查目录权限 |
+| 权限拒绝 | 目标路径无写权限 | 检查目标目录权限；OpenYida 业务文件仍应留在 project 工作目录内 |
 | node 命令未找到 | Node.js 未安装 | 先安装 Node.js ≥ 16 |

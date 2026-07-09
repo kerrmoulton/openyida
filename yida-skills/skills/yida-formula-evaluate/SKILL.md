@@ -39,13 +39,15 @@ openyida formula evaluate <公式或文件> [--schema schema.json] [--json] [--s
 1. 如果公式包含字段引用，先获取 Schema：
 
 ```bash
-openyida get-schema APP_XXX FORM-XXX > .cache/form-schema.json
+openyida get-schema APP_XXX FORM-XXX
 ```
+
+将 stdout 中需要复用的 Schema 通过 create_file / Write / file edit tool 保存到 `<projectRoot>/.cache/openyida/<项目名或任务名>/formula/form-schema.json`；不要用 shell 重定向。
 
 2. 运行静态检查：
 
 ```bash
-openyida formula evaluate 'IF(GT(#{numberField_total}, 100), "高", "低")' --schema .cache/form-schema.json
+openyida formula evaluate 'IF(GT(#{numberField_total}, 100), "高", "低")' --schema .cache/openyida/<项目名或任务名>/formula/form-schema.json
 ```
 
 3. 根据诊断结果修复：

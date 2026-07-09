@@ -11,6 +11,7 @@ description: 宜搭数据管理。表单实例/子表/流程实例/任务中心�
 - 不要编造 formInstId 或 processInstanceId，必须从查询结果中提取
 - 不要用此命令修改表单结构（字段增删改），应使用 `yida-create-form-page`
 - **绝对禁止猜测或编造字段 ID（fieldId）**，宜搭字段 ID 由平台随机生成（如 `textField_eftt1aa5m`），无法预测，必须通过 `openyida get-schema` 获取
+- 不要用 shell heredoc、`cat`/`echo`/`printf`/`tee` 或重定向生成 `--data-file`、`--search-file`、CSV 或一次性脚本
 
 ## 严格要求 (MUST DO)
 
@@ -22,8 +23,8 @@ description: 宜搭数据管理。表单实例/子表/流程实例/任务中心�
 - **录入数据后，必须执行 `openyida data query` 抽查至少 1 条记录，确认 `formData` 中字段有实际值（非空），否则说明字段 ID 有误，需重新排查**
 - **读取子表明细超过 50 行时，必须使用 `openyida data query subform` 或 `listTableDataByFormInstIdAndTableId` 分页查询完整子表；不要把 `searchFormDatas.currentPage` 当作子表分页**
 - **本技能不读写 memory**：数据操作通过 CLI 命令写入宜搭平台，不依赖跨会话的 memory 状态
-- 一次性造数、旧数据修正、字段迁移脚本可以使用 Python 或 JS，优先选择更快更清晰的实现；脚本、导入数据、查询条件文件必须放在 `.cache/openyida/` 下，并复用真实查询到的 appType/formUuid/fieldId/formInstId
-- **禁止在仓库根目录生成导入用的 `*.json`、`*.js`、`*.py`、`*.csv` 临时文件**；推荐使用 `.cache/openyida/data-import/` 存放数据文件，`.cache/openyida/scripts/` 存放一次性执行脚本
+- 一次性造数、旧数据修正、字段迁移脚本可以使用 Python 或 JS，优先选择更快更清晰的实现；脚本、导入数据、查询条件文件必须由结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/` 下，并复用真实查询到的 appType/formUuid/fieldId/formInstId
+- **禁止在仓库根目录、系统临时目录或 `.cache/` 顶层生成导入用的 `*.json`、`*.js`、`*.py`、`*.csv` 临时文件**；推荐使用 `<projectRoot>/.cache/openyida/<项目名或任务名>/data-import/` 存放数据文件，`<projectRoot>/.cache/openyida/<项目名或任务名>/scripts/` 存放一次性执行脚本
 
 ## 适用场景
 
@@ -61,14 +62,16 @@ description: 宜搭数据管理。表单实例/子表/流程实例/任务中心�
 ### 表单实例
 
 ```bash
-openyida data query form <appType> <formUuid> [--page 1 --size 20] [--search-json '<json>'|--search-file .cache/openyida/data-import/search.json] [--resolve-aliases]
+openyida data query form <appType> <formUuid> [--page 1 --size 20] [--search-json '<json>'|--search-file .cache/openyida/<项目名或任务名>/data-import/search.json] [--resolve-aliases]
 openyida data get form <appType> --inst-id <formInstId>
 openyida data create form <appType> <formUuid> --data-json '<json>' [--resolve-aliases]
-openyida data create form <appType> <formUuid> --data-file .cache/openyida/data-import/record.json [--resolve-aliases]
+openyida data create form <appType> <formUuid> --data-file .cache/openyida/<项目名或任务名>/data-import/record.json [--resolve-aliases]
 openyida data update form <appType> --inst-id <formInstId> --form-uuid <formUuid> --data-json '<json>' [--resolve-aliases]
-openyida data update form <appType> --inst-id <formInstId> --form-uuid <formUuid> --data-file .cache/openyida/data-import/patch.json [--resolve-aliases]
+openyida data update form <appType> --inst-id <formInstId> --form-uuid <formUuid> --data-file .cache/openyida/<项目名或任务名>/data-import/patch.json [--resolve-aliases]
 openyida data query subform <appType> <formUuid> --inst-id <formInstId> --table-field-id <fieldId|alias> [--page 1 --size 100] [--resolve-aliases]
 ```
+
+> `--data-file` / `--search-file` 指向的文件先用 create_file / Write / file edit tool 创建。上方路径默认从 OpenYida project 工作目录执行；从 workspace 根执行命令时路径加 `project/` 前缀。
 
 当 JSON 使用宜搭组件别名作为 key 时，追加 `--resolve-aliases`，OpenYida 会先读取表单 Schema 中的 `componentAlias.items`，再将别名转换为真实 `fieldId` 后调用数据接口。更新类命令若要解析别名，必须额外传 `--form-uuid <formUuid>`。
 
@@ -90,14 +93,14 @@ openyida data query subform <appType> <formUuid> --inst-id <formInstId> --table-
 ### 流程实例
 
 ```bash
-openyida data query process <appType> <formUuid> [--instance-status RUNNING] [--search-file .cache/openyida/data-import/process-search.json] [--resolve-aliases]
+openyida data query process <appType> <formUuid> [--instance-status RUNNING] [--search-file .cache/openyida/<项目名或任务名>/data-import/process-search.json] [--resolve-aliases]
 openyida data get process <appType> --process-inst-id <processInstanceId>
 openyida data create process <appType> <formUuid> --process-code <processCode> --data-json '<json>' [--resolve-aliases]
-openyida data create process <appType> <formUuid> --process-code <processCode> --data-file .cache/openyida/data-import/process-record.json [--resolve-aliases]
+openyida data create process <appType> <formUuid> --process-code <processCode> --data-file .cache/openyida/<项目名或任务名>/data-import/process-record.json [--resolve-aliases]
 openyida data update process <appType> --process-inst-id <processInstanceId> --form-uuid <formUuid> --data-json '<json>' [--resolve-aliases]
-openyida data update process <appType> --process-inst-id <processInstanceId> --form-uuid <formUuid> --data-file .cache/openyida/data-import/process-patch.json [--resolve-aliases]
+openyida data update process <appType> --process-inst-id <processInstanceId> --form-uuid <formUuid> --data-file .cache/openyida/<项目名或任务名>/data-import/process-patch.json [--resolve-aliases]
 openyida data query operation-records <appType> --process-inst-id <processInstanceId>
-openyida data execute task <appType> --task-id <taskId> --process-inst-id <processInstanceId> --out-result AGREE --remark '同意' [--data-file .cache/openyida/data-import/task-data.json] [--form-uuid <formUuid>] [--resolve-aliases]
+openyida data execute task <appType> --task-id <taskId> --process-inst-id <processInstanceId> --out-result AGREE --remark '同意' [--data-file .cache/openyida/<项目名或任务名>/data-import/task-data.json] [--form-uuid <formUuid>] [--resolve-aliases]
 ```
 
 ### 任务中心
@@ -156,7 +159,7 @@ openyida data query tasks <appType> --type todo|done|submitted|cc [--page 1 --si
 {"textField_xxx":"文本","numberField_xxx":10,"dateField_xxx":1719705600000,"employeeField_xxx":["userId"]}
 ```
 
-当 JSON 较长或用于批量导入时，写入 `.cache/openyida/data-import/<name>.json`，再使用 `--data-file` 或 `--search-file`；不要为了拼接命令在仓库根目录生成临时脚本。
+当 JSON 较长或用于批量导入时，使用结构化文件写入工具写入 `<projectRoot>/.cache/openyida/<项目名或任务名>/data-import/<name>.json`，再使用 `--data-file` 或 `--search-file`；不要为了拼接命令在仓库根目录、系统临时目录或 `.cache/` 顶层生成临时脚本。
 
 ### 常见字段格式
 
@@ -215,7 +218,7 @@ openyida sample yida-data-management form-field-template   # 表单字段定义�
 - `pageSize` 最大 100，QPS 限制约 40 次/秒
 - `searchFieldJson` 和 `dynamicOrder` 必须传字符串
 - 字段 ID 通过 `openyida get-schema` 获取，不要手写猜测
-- 批量脚本可以用 Python `subprocess` 调用 `openyida data ...`，也可以用 JS 复用 Node 工具；脚本必须放在 `.cache/openyida/scripts/`，导入数据放在 `.cache/openyida/data-import/`
+- 批量脚本可以用 Python `subprocess` 调用 `openyida data ...`，也可以用 JS 复用 Node 工具；脚本必须由结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/scripts/`，导入数据放在 `<projectRoot>/.cache/openyida/<项目名或任务名>/data-import/`
 
 ## 异常处理
 

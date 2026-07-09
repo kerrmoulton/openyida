@@ -15,8 +15,8 @@ https://www.aliwork.com/APP_KNILKT41DC5XXR5D4QEC/admin/REPORT-QA666SC1J3U3TFO9GM
 # Step 1：检测环境和登录态
 openyida env
 
-# Step 2：获取报表 Schema（必须重定向到文件，避免截断）
-openyida get-schema APP_KNILKT41DC5XXR5D4QEC REPORT-QA666SC1J3U3TFO9GM9MJ5400RIW3W83SUYMM5 > .cache/report-schema-output.txt 2>&1
+# Step 2：获取报表 Schema；需要文件时用结构化文件写入工具保存 stdout
+openyida get-schema APP_KNILKT41DC5XXR5D4QEC REPORT-QA666SC1J3U3TFO9GM9MJ5400RIW3W83SUYMM5 --json
 
 # Step 3：创建自定义展示页面
 openyida create-page APP_KNILKT41DC5XXR5D4QEC "任务数据看板" --mode dashboard

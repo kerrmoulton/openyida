@@ -25,7 +25,7 @@ Step 1: 从 URL 中解析 appType 和 formUuid
 Step 2: 执行 openyida env 检测环境和登录态
     ↓
 Step 3: 执行 openyida get-schema <appType> <formUuid> 获取现有报表 Schema
-    ↓  命令：openyida get-schema <appType> <formUuid> > .cache/report-schema-output.txt 2>&1
+    ↓  需要文件时，使用结构化文件写入工具保存 stdout，或用 --all --keyword --output-dir 输出到 project .cache
     ↓
 Step 4: 解析 Schema，提取每个图表组件的 5 个核心参数
     ↓  详见下方「Schema 解析规范」
@@ -58,15 +58,14 @@ Step 11: 输出 ECharts 自定义页面访问链接
 
 ## Schema 获取注意事项
 
-1. **必须将输出重定向到文件**：报表 Schema 通常非常大（数千行），终端输出会被截断
+1. **不要用 shell 重定向保存 Schema**：报表 Schema 通常非常大（数千行），需要文件时用 CLI 自带输出目录或 agent 结构化文件写入工具
    ```bash
-   openyida get-schema <appType> <formUuid> > .cache/report-schema-output.txt 2>&1
+   openyida get-schema <appType> --all --keyword <报表名称> --output-dir .cache/openyida/<项目名或任务名>/schemas
    ```
 
-2. **提取 JSON 部分**：输出文件包含前缀日志信息，需要从 `{` 开始的行提取纯 JSON
+2. **单表回读时保存 stdout**：如必须按 `formUuid` 回读，先执行命令，再用 create_file / Write / file edit tool 保存纯 JSON 到 `<projectRoot>/.cache/openyida/<项目名或任务名>/report-schema.json`
    ```bash
-   grep -n "^{" .cache/report-schema-output.txt
-   tail -n +<行号> .cache/report-schema-output.txt > .cache/report-schema.json
+   openyida get-schema <appType> <formUuid> --json
    ```
 
 ---

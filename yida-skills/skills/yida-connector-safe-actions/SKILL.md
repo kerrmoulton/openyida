@@ -26,6 +26,7 @@ description: 从前端 API 文件或后端 Controller 代码中提取接口定�
 - Windows PowerShell 读取中文 JSON 时必须显式使用 UTF-8。
 - 修改后必须执行“添加动作 -> 列表验证 -> CLI 测试 -> 再次列表验证”的闭环。
 - 如果一次错误配置导致动作被清空，应重建完整动作列表，而不是只追加缺失动作。
+- 动作 JSON 必须使用当前 agent 的结构化文件写入工具创建；不要用 shell heredoc、`cat`/`echo`/`printf`/`tee` 或重定向写文件。
 
 ## 推荐流程
 
@@ -51,11 +52,13 @@ openyida connector list-actions <connector-id>
 
 ### 3. 生成动作 JSON 文件
 
-建议放在当前项目：
+建议放在 OpenYida project 工作目录的任务子目录：
 
 ```text
-.cache/openyida/connector-actions/<业务名>-actions.json
+<projectRoot>/.cache/openyida/<项目名或任务名>/connector-actions/<业务名>-actions.json
 ```
+
+从 workspace 根执行命令时传 `project/.cache/openyida/<项目名或任务名>/connector-actions/<业务名>-actions.json`；从 project 工作目录内执行时传 `.cache/openyida/<项目名或任务名>/connector-actions/<业务名>-actions.json`。
 
 动作 ID 建议使用顺序编号：
 
@@ -74,7 +77,7 @@ openyida connector list-actions <connector-id>
 Windows PowerShell 必须加 `-Encoding UTF8`：
 
 ```powershell
-Get-Content -Raw -Encoding UTF8 .cache\openyida\connector-actions\<业务名>-actions.json | ConvertFrom-Json | Out-Null
+Get-Content -Raw -Encoding UTF8 .cache\openyida\<项目名或任务名>\connector-actions\<业务名>-actions.json | ConvertFrom-Json | Out-Null
 ```
 
 不要使用默认 `Get-Content` 校验中文 JSON，默认编码可能导致误判或乱码。
@@ -82,7 +85,7 @@ Get-Content -Raw -Encoding UTF8 .cache\openyida\connector-actions\<业务名>-ac
 ### 5. 添加动作
 
 ```bash
-openyida connector add-action --operations .cache/openyida/connector-actions/<业务名>-actions.json --connector-id <connector-id> --confirm
+openyida connector add-action --operations .cache/openyida/<项目名或任务名>/connector-actions/<业务名>-actions.json --connector-id <connector-id> --confirm
 ```
 
 ### 6. 验证动作存在

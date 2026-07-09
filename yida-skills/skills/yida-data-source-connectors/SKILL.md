@@ -108,8 +108,10 @@ export function loadConnectorDataSource(dataSourceName, headers, query, body) {
 
 ```bash
 openyida publish <src> <appType> <formUuid> --health-check
-openyida get-schema <appType> <formUuid> > .cache/openyida/<page>-schema.json
+openyida get-schema <appType> <formUuid>
 ```
+
+如需保存回读 Schema，使用 create_file / Write / file edit tool 创建 `<projectRoot>/.cache/openyida/<项目名或任务名>/<page>-schema.json`；从 workspace 根执行后续命令时路径加 `project/` 前缀。不要使用 shell 重定向。
 
 检查点：
 

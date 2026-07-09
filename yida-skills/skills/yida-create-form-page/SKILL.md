@@ -10,12 +10,13 @@ description: 表单页面创建与更新，支持 19 种字段类型（文本、
 - 不要编造 formUuid，必须从命令返回的 JSON 中提取
 - 不要在 update 模式中使用猜测的 fieldId，必须先用 `yida-get-schema` 获取
 - 不要用此命令操作数据记录（增删改查），应使用 `yida-data-management`
+- 不要用 shell heredoc、`cat`/`echo`/`printf`/`tee` 或重定向生成字段、变更、补丁、规则、数据源 JSON 文件
 
 ## 严格要求 (MUST DO)
 
 - create 成功后，将 formUuid 记录到 `.cache/<项目名>-schema.json`
 - update 模式修改字段前，必须先用 `openyida get-schema` 确认字段 ID
-- 字段定义或变更定义需要落盘时，必须写入 `.cache/openyida/<项目名>/`，例如 `.cache/openyida/pm/pm-fields-team.json`；不要在仓库根目录生成 `*-fields*.json` 或 `*-changes*.json`
+- 字段定义或变更定义需要落盘时，必须使用 agent 的结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/`，例如 `<projectRoot>/.cache/openyida/pm/pm-fields-team.json`；不要在仓库根目录、系统临时目录或 `.cache/` 顶层生成 `*-fields*.json`、`*-changes*.json`
 - **本技能不读写 memory**：formUuid 等信息输出到 stdout，通过 `.cache/<项目名>-schema.json` 持久化，不依赖跨会话的 memory 状态
 
 ## 官方表单示例范式
@@ -54,8 +55,10 @@ description: 表单页面创建与更新，支持 19 种字段类型（文本、
 
 ```bash
 openyida create-form create <appType> <formTitle> <fieldsJsonOrFile> [--layout double|card] [--theme compact|comfortable] [--label-align top|left]
-# 文件路径示例：.cache/openyida/<项目名>/<表单名>-fields.json
+# 文件路径示例：.cache/openyida/<项目名或任务名>/<表单名>-fields.json
 ```
+
+> 文件先用 create_file / Write / file edit tool 创建。上方路径默认从 OpenYida project 工作目录执行；如果从 workspace 根执行命令，传 `project/.cache/openyida/<项目名或任务名>/<表单名>-fields.json`。
 
 | 参数 | 必填 | 说明 |
 |------|------|------|
@@ -73,7 +76,7 @@ openyida create-form create <appType> <formTitle> <fieldsJsonOrFile> [--layout d
 
 ```bash
 openyida create-form update <appType> <formUuid> <changesJsonOrFile>
-# 文件路径示例：.cache/openyida/<项目名>/<表单名>-changes.json
+# 文件路径示例：.cache/openyida/<项目名或任务名>/<表单名>-changes.json
 ```
 
 | 参数 | 必填 | 说明 |
@@ -94,7 +97,7 @@ openyida create-form update <appType> <formUuid> <changesJsonOrFile>
 
 ```bash
 openyida create-form patch <appType> <formUuid> <patchJsonOrFile>
-# 文件路径示例：.cache/openyida/<项目名>/<表单名>-patch.json
+# 文件路径示例：.cache/openyida/<项目名或任务名>/<表单名>-patch.json
 ```
 
 支持的操作：
@@ -121,7 +124,7 @@ openyida create-form patch <appType> <formUuid> <patchJsonOrFile>
 ]
 ```
 
-patch 模式是高级能力：执行前必须先 `openyida get-schema <appType> <formUuid> --json` 确认现有结构，补丁文件必须写在 `.cache/openyida/<项目名>/` 下。
+patch 模式是高级能力：执行前必须先 `openyida get-schema <appType> <formUuid> --json` 确认现有结构，补丁文件必须用结构化文件写入工具写在 `<projectRoot>/.cache/openyida/<项目名或任务名>/` 下。
 
 ### 自定义校验函数（customValidate）
 
@@ -197,7 +200,7 @@ patch 模式是高级能力：执行前必须先 `openyida get-schema <appType> 
 
 ```bash
 openyida create-form rule <appType> <formUuid> <rulesJsonOrFile>
-# 文件路径示例：.cache/openyida/<项目名>/<表单名>-rules.json
+# 文件路径示例：.cache/openyida/<项目名或任务名>/<表单名>-rules.json
 ```
 
 支持的规则类型：
@@ -255,7 +258,7 @@ rule 模式会自动生成宜搭动作代码，绑定触发字段的 `onChange`�
 
 ```bash
 openyida create-form bind-datasource <appType> <formUuid> <fieldLabelOrId> <dataSourceJsonOrFile>
-# 文件路径示例：.cache/openyida/<项目名>/<字段名>-datasource.json
+# 文件路径示例：.cache/openyida/<项目名或任务名>/<字段名>-datasource.json
 ```
 
 数据源配置示例：
@@ -380,7 +383,7 @@ openyida create-form bind-datasource <appType> <formUuid> <fieldLabelOrId> <data
 
 ## 注意事项
 
-- 临时文件写在 `.cache/openyida/` 目录中；不要写到仓库根目录
+- 临时 JSON 文件用结构化文件写入工具写在 `<projectRoot>/.cache/openyida/<项目名或任务名>/` 目录中；不要写到仓库根目录、系统临时目录或 `.cache/` 顶层
 - update 模式操作按顺序执行，注意依赖关系
 - 字段匹配基于中文标签（`label.zh_CN`）
 - 如需创建自定义展示页面（无字段），请使用 `yida-create-page`

@@ -400,5 +400,7 @@ openyida compile pages/src/page.jsx
 如果页面使用字段 ID、提交数据或构造查询条件，发布前还必须重新确认 Schema：
 
 ```bash
-openyida get-schema APP_XXX FORM-XXX > .cache/form-schema.json
+openyida get-schema APP_XXX FORM-XXX
 ```
+
+如需保存完整 Schema，使用 create_file / Write / file edit tool 创建 `<projectRoot>/.cache/openyida/<项目名或任务名>/form-schema.json`；不要使用 shell 重定向。

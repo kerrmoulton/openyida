@@ -13,11 +13,13 @@ description: 获取表单的完整 Schema 结构，用于确认字段 ID（field
 - 不要跳过 Schema 获取步骤直接进行数据操作，即使用户催促也必须先获取
 - 不要在 Schema 获取失败时继续执行后续操作，必须先解决问题
 - 不要缓存过期的 Schema 信息，表单结构变更后必须重新获取
+- 不要把 `openyida get-schema` 的 stdout 通过 shell 重定向保存成 JSON，也不要用 heredoc、`cat`/`echo`/`printf`/`tee` 生成 Schema 文件
 
 ## 严格要求 (MUST DO)
 
 - **凡是需要用到字段 ID（fieldId）的操作，必须先执行此命令**，不得跳过
-- 将关键字段 ID 映射（字段名 → fieldId）记录到 `.cache/<项目名>-schema.json`，供后续操作复用
+- 将关键字段 ID 映射（字段名 → fieldId）用结构化文件写入工具记录到 `<projectRoot>/.cache/<项目名>-schema.json`，供后续操作复用
+- 如需保存完整 Schema 文件，先执行命令获取 stdout，再用 create_file / Write / file edit tool 写入 `<projectRoot>/.cache/openyida/<项目名或任务名>/<表单名>-schema.json`；从 workspace 根执行后续命令时传 `project/.cache/...`
 - **录入/更新数据后，必须用 `openyida data query --size 1` 抽查一条记录，确认 `formData` 中字段有实际值（非空 `""`），若全部为空说明字段 ID 有误，需重新排查**
 
 ## 适用场景
@@ -61,13 +63,20 @@ openyida get-schema <appType> --all [--output-dir <dir>] [--keyword <text>] [--c
 ### 单表模式
 
 ```bash
-openyida get-schema APP_XXX FORM-XXX > .cache/customer-schema.json
+openyida get-schema APP_XXX FORM-XXX
+```
+
+如需复用输出，使用 agent 的结构化文件写入工具创建：
+
+```text
+<projectRoot>/.cache/openyida/customer/customer-schema.json
+<projectRoot>/.cache/customer-schema.json   # 仅保存 appType/formUuid/fieldId/reportId 等 ID 映射
 ```
 
 ### 批量模式
 
 ```bash
-openyida get-schema APP_XXX --all --output-dir .cache/schemas
+openyida get-schema APP_XXX --all --output-dir .cache/openyida/customer/schemas
 openyida get-schema APP_XXX --all --keyword 客户 --concurrency 5 --retries 2
 ```
 
@@ -90,8 +99,8 @@ openyida get-schema APP_XXX --all --keyword 客户 --concurrency 5 --retries 2
 | 异常场景 | 处理方式 |
 |---------|----------|
 | 命令返回失败 | 确认 appType 和 formUuid 正确，检查登录态 |
-| 输出被终端截断 | 重定向到文件：`openyida get-schema <appType> <formUuid> > .cache/schema.json` |
-| 需要多个表单字段 ID | 使用批量模式：`openyida get-schema <appType> --all --output-dir .cache/schemas` |
+| 输出被终端截断 | 重新执行后将 stdout 通过结构化文件写入工具保存到 `<projectRoot>/.cache/openyida/<项目名或任务名>/<表单名>-schema.json`；不要使用 shell 重定向 |
+| 需要多个表单字段 ID | 使用批量模式：`openyida get-schema <appType> --all --output-dir .cache/openyida/<项目名或任务名>/schemas` |
 | 批量部分失败 | 查看 stdout 的 `failedCount` 和 `forms[].errorMsg`，必要时提高 `--retries` 或缩小 `--keyword` 范围 |
 | 找不到目标字段 | 检查字段是否已创建，字段 ID 格式如 `textField_xxxxxxxx`，不能手写猜测 |
 | Schema 输出为空 | 表单可能没有字段，先用 `yida-create-form-page` 创建字段 |

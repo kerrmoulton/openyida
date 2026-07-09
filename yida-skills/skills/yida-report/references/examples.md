@@ -9,8 +9,8 @@
 ### 前置步骤：获取表单 Schema
 
 ```bash
-openyida get-schema APP_XXX FORM-TASK > .cache/task-schema.json 2>&1
-# 从 schema.json 中提取字段信息：
+openyida get-schema APP_XXX FORM-TASK
+# 从 stdout 中提取字段信息，并用结构化文件写入工具更新 <projectRoot>/.cache/<项目名>-schema.json：
 # 任务名称：textField_taskName（STRING）
 # 优先级：selectField_priority（STRING，需加 _value 后缀）
 # 状态：selectField_status（STRING，需加 _value 后缀）
@@ -18,7 +18,7 @@ openyida get-schema APP_XXX FORM-TASK > .cache/task-schema.json 2>&1
 # 负责人：employeeField_owner（STRING，需加 _value 后缀）
 ```
 
-### 创建报表配置文件 `.cache/openyida/reports/task-report-config.json`
+### 使用结构化文件写入工具创建报表配置文件 `<projectRoot>/.cache/openyida/task-report/task-report-config.json`
 
 ```json
 {
@@ -95,7 +95,7 @@ openyida get-schema APP_XXX FORM-TASK > .cache/task-schema.json 2>&1
 ### 执行命令
 
 ```bash
-openyida create-report APP_XXX "任务管理数据报表" .cache/openyida/reports/task-report-config.json
+openyida create-report APP_XXX "任务管理数据报表" .cache/openyida/task-report/task-report-config.json
 ```
 
 ### 输出

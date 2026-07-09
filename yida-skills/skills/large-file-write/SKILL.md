@@ -1,13 +1,13 @@
 ---
 name: large-file-write
-description: 解决 heredoc 或 shell 命令写入大文件内容被截断的问题。通过 Node.js 脚本将内容作为模板字符串写入，绕过 shell 截断限制。适用于需要可靠写入超过 100 行文本文件时。
+description: 解决 heredoc 或 shell 命令写入大文件内容被截断的问题。优先使用 agent 结构化文件写入工具；超大文件可用该工具创建 Node.js payload 后执行。适用于需要可靠写入超过 100 行文本文件时。
 ---
 
 # Large File Write Skill
 
 ## 问题背景
 
-在 AI Agent 模式下，使用 heredoc（`<< 'EOF'`）或 shell 命令向文件写入大块内容时，经常出现：
+在 AI Agent 模式下，使用 shell here-document 或其他 shell 命令向文件写入大块内容时，经常出现：
 - 内容被截断（工具输出超过 token 限制）
 - heredoc 内容未生效（zsh 特殊字符转义问题）
 - 多次追加导致重复内容或语法错误
@@ -15,20 +15,22 @@ description: 解决 heredoc 或 shell 命令写入大文件内容被截断的问
 
 ## 解决方案
 
-使用 Node.js 脚本 `scripts/write.js`，将内容作为 JS 字符串变量传入，绕过 shell 截断限制。
+优先使用当前 agent 运行时提供的结构化文件写入工具（如 create_file / Write / file edit tool）直接创建目标文件。内容过大、单次写入可能截断时，再用结构化写入工具创建 Node.js payload 脚本，由 payload 调用 `fs.writeFileSync` 写目标文件。
+
+OpenYida 业务场景下，payload、内容片段和验证脚本必须放在 `<projectRoot>/.cache/openyida/<项目名或任务名>/scripts/`，不要写系统临时目录、仓库根目录或 `.cache/` 顶层。
 
 ## 使用方式
 
 三种写入模式的完整代码示例，详见 [references/write-patterns.md](./references/write-patterns.md)：
 
-- **模式一**：创建内容脚本后执行（推荐）— 用 `create_file` 创建临时 JS 脚本，再 `node` 执行
+- **模式一**：创建内容脚本后执行（推荐）— 用结构化文件写入工具创建临时 JS 脚本，再 `node` 执行
 - **模式二**：追加内容到已有文件 — 用 `fs.appendFileSync` 追加大块内容
-- **模式三**：使用通用写入脚本（stdin 模式）— 通过管道传入内容
+- **模式三**：使用通用写入脚本（content-file 模式）— 内容文件也先由结构化文件写入工具创建
 
 ### 快速示例
 
 ```js
-// /tmp/content-payload.js
+// <projectRoot>/.cache/openyida/<任务名>/scripts/content-payload.js
 const fs = require('fs');
 const content = `// 你的大块内容（支持任意长度）
 export function myFunction() { ... }
@@ -38,17 +40,17 @@ console.log('写入完成，行数：', content.split('\n').length);
 ```
 
 ```bash
-node /tmp/content-payload.js
+node .cache/openyida/<任务名>/scripts/content-payload.js
 wc -l /path/to/target.js   # 验证行数
 ```
 
 ## 核心原则
 
-1. **永远不要用 heredoc 写大文件** — 改用 `create_file` 工具创建临时 JS 脚本
+1. **永远不要用 heredoc 写大文件** — 改用结构化文件写入工具创建临时 JS 脚本
 2. **永远不要用 PowerShell JSON 化大文件** — 禁止 `Get-Content -Raw <file> | ConvertTo-Json`、`ConvertFrom-Json` 处理 `.oyd.jsx/.jsx/.js` 页面源码
 3. **内容放在 JS 模板字符串里** — 支持任意长度，不受 shell 限制
 4. **写完立即验证** — `wc -l` 检查行数，`tail` 检查末尾内容
-5. **分段写入大文件** — 超过 300 行的内容，拆分为多个 `create_file` + `node` 执行
+5. **分段写入大文件** — 超过 300 行的内容，拆分为多个结构化写入 + `node` 执行
 6. **本技能不读写 memory**：文件写入为纯本地操作，不依赖跨会话的 memory 状态
 
 ## 适用场景
@@ -88,4 +90,4 @@ Get-Content -Raw project\pages\src\vendor-section.oyd.jsx | ConvertTo-Json
 | `node: command not found` | Node.js 未安装 | 先安装 Node.js ≥ 16 |
 | 脚本执行后文件为空 | 模板字符串语法错误 | 检查反引号是否闭合，特殊字符是否转义 |
 | 写入不完整 | 内容超过单次 create_file 限制 | 按「分段写入」方式拆分为多个脚本 |
-| 权限拒绝 | 目标路径无写权限 | 检查目录权限，或改用 `/tmp/` 路径 |
+| 权限拒绝 | 目标路径无写权限 | 检查目标目录权限；OpenYida 业务文件仍应留在 project 工作目录内 |

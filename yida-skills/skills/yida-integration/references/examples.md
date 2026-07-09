@@ -9,8 +9,8 @@
 ### 前置步骤：获取字段 ID
 
 ```bash
-openyida get-schema APP_XXX FORM-LEAVE > .cache/leave-schema.json 2>&1
-# 从 schema.json 中提取字段 ID：
+openyida get-schema APP_XXX FORM-LEAVE
+# 从 stdout 中提取字段 ID，并用结构化文件写入工具更新 <projectRoot>/.cache/<项目名>-schema.json：
 # 申请人：employeeField_applicant
 # 请假类型：selectField_leaveType
 # 开始日期：dateField_startDate

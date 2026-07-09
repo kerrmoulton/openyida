@@ -8,9 +8,9 @@
  *   node write.js --file <目标文件路径> [--mode write|append] [--encoding utf8]
  *
  * 内容来源（三选一）：
- *   1. stdin：echo "content" | node write.js --file out.js
- *   2. --content-file <临时内容文件>：node write.js --file out.js --content-file /tmp/content.txt
- *   3. --payload <JS文件>：node write.js --payload /tmp/payload.js（payload 文件自行调用 fs 写入）
+ *   1. stdin：交互式输入或由调用方传入标准输入
+ *   2. --content-file <内容文件>：node write.js --file out.js --content-file .cache/openyida/task/content.txt
+ *   3. --payload <JS文件>：node write.js --payload .cache/openyida/task/payload.js（payload 文件自行调用 fs 写入）
  */
 
 const fs = require('fs');
@@ -53,15 +53,15 @@ large-file-write - 大文件可靠写入工具
   --help                 显示帮助
 
 示例：
-  # 从 stdin 写入
-  echo "hello world" | node write.js --file /tmp/out.txt
+	  # 从 stdin 写入
+	  node write.js --file .cache/openyida/task/out.txt
 
-  # 从内容文件写入
-  node write.js --file /tmp/out.js --content-file /tmp/content.txt --verify
+	  # 从内容文件写入
+	  node write.js --file .cache/openyida/task/out.js --content-file .cache/openyida/task/content.txt --verify
 
-  # 执行自包含 payload 脚本
-  node write.js --payload /tmp/my-payload.js
-`);
+	  # 执行自包含 payload 脚本
+	  node write.js --payload .cache/openyida/task/my-payload.js
+	`);
   process.exit(0);
 }
 

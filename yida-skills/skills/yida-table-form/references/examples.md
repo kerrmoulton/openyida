@@ -9,8 +9,8 @@ HR 需要批量录入新员工信息到宜搭表单，支持手动逐行填写�
 ### 前置步骤：获取表单字段 ID
 
 ```bash
-openyida get-schema APP_XXX FORM-EMPLOYEE > .cache/employee-schema.json 2>&1
-# 从 schema.json 中提取字段 ID：
+openyida get-schema APP_XXX FORM-EMPLOYEE
+# 从 stdout 中提取字段 ID，并用结构化文件写入工具更新 <projectRoot>/.cache/<项目名>-schema.json：
 # 姓名：textField_name
 # 部门：selectField_dept
 # 入职日期：dateField_joinDate

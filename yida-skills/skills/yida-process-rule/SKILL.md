@@ -10,6 +10,7 @@ description: 为已有流程表单配置审批规则（审批/办理/抄送、�
 - 不要在流程定义中使用猜测的 fieldId，必须先用 `yida-get-schema` 获取
 - 不要在未读取本 SKILL.md 的情况下编写流程定义 JSON，格式复杂且易出错
 - 不要用此技能创建流程表单，应使用 `yida-create-process`
+- 不要用 shell heredoc、`cat`/`echo`/`printf`/`tee` 或重定向生成流程定义 JSON
 
 ## 严格要求 (MUST DO)
 
@@ -17,7 +18,7 @@ description: 为已有流程表单配置审批规则（审批/办理/抄送、�
 - 字段 ≥ 3 且审批节点 ≥ 2 时，必须为每个节点配置字段权限
 - 存在回退/循环语义时，必须配置 `routeRules` 跳转规则
 - 配置前先用 `yida-get-schema` 获取所有字段 ID
-- 流程定义 JSON 必须写入 `.cache/openyida/<项目名>/`，不要在仓库根目录生成 `process-definition.json` 等临时文件
+- 流程定义 JSON 必须用结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/`，不要在仓库根目录、系统临时目录或 `.cache/` 顶层生成 `process-definition.json` 等临时文件
 
 ## 适用场景
 
@@ -78,6 +79,8 @@ openyida configure-process <appType> <formUuid> <processDefinitionFile> [process
 ```bash
 openyida configure-process "APP_XXX" "FORM-YYY" .cache/openyida/order/process-definition.json
 ```
+
+> 上方路径默认从 OpenYida project 工作目录执行；从 workspace 根执行命令时传 `project/.cache/openyida/order/process-definition.json`。
 
 **输出**：日志输出到 stderr，JSON 结果输出到 stdout：
 

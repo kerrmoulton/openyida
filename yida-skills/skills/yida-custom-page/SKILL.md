@@ -73,10 +73,15 @@ description: 宜搭 native 自定义页面 JSX 开发规范（React 16 宜搭原
 
 以创建「员工信息查询页」为例，完整流程如下：
 
-```bash
-# Step 1：获取表单 Schema，确认字段 ID
-openyida get-schema APP_XXX FORM-EMPLOYEE > .cache/employee-schema.json 2>&1
+1. 获取表单 Schema，确认字段 ID：
 
+```bash
+openyida get-schema APP_XXX FORM-EMPLOYEE
+```
+
+如需保存完整 Schema，使用 create_file / Write / file edit tool 创建 `<projectRoot>/.cache/openyida/employee-query/employee-schema.json`；ID 映射仍写 `<projectRoot>/.cache/employee-query-schema.json`。
+
+```bash
 # Step 2：创建自定义页面
 openyida create-page APP_XXX "员工信息查询"
 
@@ -96,7 +101,7 @@ openyida publish project/pages/src/employee-query.oyd.jsx APP_XXX FORM-QUERY001
 - **Step 1** 的 get-schema 输出包含所有字段的 fieldId，在代码中必须使用 `FIELDS` 常量映射这些 ID
 - **Step 3** 的页面代码必须遵循 [编码指南](references/coding-guide.md) 和 [运行时护栏](references/runtime-guardrails.md)
 - 优先通过 `openyida generate-page ... --compile` 生成高质量骨架；需要完整交互样板时使用 `todo-mvc`
-- 页面生成 spec、接口调试 JSON、一次性验证脚本等临时工件必须放在 `.cache/openyida/` 下；不要在仓库根目录生成 `page.json`、`data.json` 或脚本文件
+- 页面生成 spec、接口调试 JSON、一次性验证脚本等临时工件必须用结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/` 下；不要在仓库根目录、系统临时目录或 `.cache/` 顶层生成 `page.json`、`data.json` 或脚本文件
 - `check-page` 支持行级禁用：`// openyida-lint-disable-line <rule>` 或 `// openyida-lint-disable-next-line <rule>`。只在确认该行不会触发宜搭运行时问题时使用。
 
 ## 开发规范
@@ -115,12 +120,13 @@ openyida sample yida-custom-page custom-page-template   # 完整页面模板（d
 openyida sample yida-custom-page product-homepage       # 产品/项目首页轻量模板（支持 --var KEY=VALUE）
 openyida sample yida-custom-page todo-mvc               # TodoMVC 完整交互模板（事件/状态/循环/本地存储）
 openyida sample yida-custom-page design-tokens          # 设计 token 参考（颜色/间距/字体规范）
-openyida generate-page product-homepage --spec .cache/openyida/page-specs/home.json --output pages/src/home.oyd.jsx --compile  # 基于 spec/blocks 生成首页并本地编译
+openyida generate-page product-homepage --spec .cache/openyida/<项目名或任务名>/page-specs/home.json --output pages/src/home.oyd.jsx --compile  # 基于 spec/blocks 生成首页并本地编译
 openyida generate-page todo-mvc --output pages/src/todo-mvc.oyd.jsx --compile  # 生成官方 TodoMVC 风格交互样板
 openyida check-page pages/src/home.oyd.jsx --json      # 输出机器可读的规范检查结果；.oyd.jsx 会先兼容构建
 ```
 
 - 完整文件结构、状态管理、全局变量、19 条编码规则见 [编码指南](references/coding-guide.md)
+- `--spec` 文件先用 create_file / Write / file edit tool 创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/page-specs/`
 - 运行时高风险规则、`check-page` 规则和自动修复边界见 [运行时护栏](references/runtime-guardrails.md)
 - 输入控件、筛选栏、下拉、表格、附件等组件骨架见 [组件指南](references/component-jsx-guide.md)
 

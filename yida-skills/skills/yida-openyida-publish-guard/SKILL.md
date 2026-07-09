@@ -37,10 +37,10 @@ openyida login --check-only --json
 3. Fetch the live schema before editing or publishing:
 
 ```bash
-openyida get-schema <appType> <formUuid> --json > project/.cache/openyida/live-<formUuid>.json
+openyida get-schema <appType> <formUuid> --json
 ```
 
-The repository ignore rules already exclude `project/.cache/openyida/`; keep fetched live schema files there and do not commit them.
+If the schema needs to be inspected from a file, save stdout with the agent's structured file write tool to `<projectRoot>/.cache/openyida/publish-guard/live-<formUuid>.json`. From the workspace root that path is typically `project/.cache/openyida/publish-guard/live-<formUuid>.json`. Do not use shell redirection and do not commit fetched live schema files.
 
 4. Inspect the fetched live page for current code and configuration. For custom display pages, check at least:
 

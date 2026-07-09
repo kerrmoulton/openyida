@@ -81,10 +81,12 @@ openyida i18n upsert <appType> page_header --zh-CN "工作台" --en-US "Workbenc
 批量导入词条：
 
 ```bash
-openyida i18n batch-upsert <appType> --file i18n-items.json
+openyida i18n batch-upsert <appType> --file .cache/openyida/<项目名或任务名>/i18n/i18n-items.json
 ```
 
-`i18n-items.json` 示例：
+`i18n-items.json` 先用 create_file / Write / file edit tool 创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/i18n/`；不要用 shell heredoc 或重定向写文件。从 workspace 根执行命令时路径加 `project/` 前缀。
+
+文件内容示例：
 
 ```json
 [

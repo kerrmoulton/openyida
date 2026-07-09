@@ -1,6 +1,6 @@
 # 核心规则详解
 
-> 逐条展开主 SKILL.md「核心规则」的操作细节，编号与主文件一一对应（FATAL 1–3 / IMPORTANT 1–11）。需要更多篇幅的规则指向文末专节。
+> 逐条展开主 SKILL.md「核心规则」的操作细节，编号与主文件一一对应（FATAL 1–4 / IMPORTANT 1–11）。需要更多篇幅的规则指向文末专节。
 
 ## 致命规则（FATAL）
 
@@ -15,6 +15,8 @@
 - 发布时留意"同名双副本内容不一致"警告，必要时加 `--health-check` 做首屏 HTTP 健康检查；
 - 任何 JSON 配置写盘后先做 JSON 解析校验，再调用平台命令。
 
+**F4 命令输入文件禁止 shell 写入**：当 OpenYida 命令需要 JSON/YAML/CSV/config/script 文件参数时，必须先使用当前 agent 运行时提供的结构化文件写入工具（如 create_file / Write / file edit tool）创建文件，再把文件路径传给命令。禁止用 shell heredoc、`cat`/`echo`/`printf`/`tee` 加输出重定向，或把 `openyida` 命令 stdout 重定向成业务配置、Schema、导入数据或一次性脚本。
+
 ## 重要规则（IMPORTANT）
 
 | # | 规则 | 操作细节 |
@@ -26,7 +28,7 @@
 | 5 | 数据性能优先 | 统计聚合用 `yida-report` 服务端聚合；不在自定义页面前端分页拉全量后自行聚合。 |
 | 6 | 避免无效重试 | 失败先按错误信息查登录态/组织/参数/字段 ID；无修改不连续重试超 1 次。 |
 | 7 | 配置分两处存 | 详见 [配置信息分两处存储](#配置信息分两处存储) 与 [PRD 质量门槛](#prd-质量门槛)。 |
-| 8 | 临时文件入 `.cache/` | 详见 [临时文件规范](#临时文件规范)。 |
+| 8 | 临时文件入 project `.cache/` | 详见 [临时文件规范](#临时文件规范)。 |
 | 9 | 报表美化先问方案 | 详见 [报表优化 / 美化提示规则](#报表优化--美化提示规则)。 |
 | 10 | 按 schema 证据选技能 | 先看 `formType`、组件树、`dataSource.online`；`receipt/process/report` 分别落到表单/流程/报表技能，只有默认页是自定义展示页、或确需列表/看板/工具页交互时才落到 `yida-custom-page`。 |
 | 11 | 官方示例范式优先 | 蒸馏宜搭示例中心时，先按 [官方示例 Schema 范式](official-example-schema-patterns.md) 理解脱敏 schema 的承载方式，不凭截图/卡片标题/页面视觉判断。 |
@@ -55,14 +57,16 @@
 
 ## 临时文件规范
 
-所有临时文件（cookies、schema 缓存、字段/报表/流程配置、导入数据、一次性脚本等）**必须写在项目根目录的 `.cache/` 下**，不写仓库根目录或系统其他位置。
+所有 OpenYida 业务中间文件（cookies、schema 缓存、字段/报表/流程配置、导入数据、一次性脚本等）**必须写在 OpenYida project 工作目录的 `.cache/` 下**，不写业务仓库根目录、系统 `/tmp` 或其他位置。源码中的 `<projectRoot>` 指 OpenYida project 工作目录；从 workspace 根执行命令时路径通常是 `project/.cache/...`，从 project 工作目录内执行时路径是 `.cache/...`。
+
+文件必须由 agent 的结构化文件写入工具创建，再传给 OpenYida 命令。不要通过 `execute_shell` 加 heredoc、`cat`/`echo`/`printf`/`tee`、管道或重定向来生成 JSON/YAML/CSV/config/script 文件。`/tmp` 只允许用于外部工具强制要求的系统临时路径，OpenYida 业务配置、schema、导入数据和一次性脚本不写 `/tmp`。
 
 | 工件类型 | 推荐位置 |
 |---------|---------|
-| Schema / ID 映射 | `.cache/<项目名>-schema.json` |
-| 字段 / 报表 / 流程配置 | `.cache/openyida/<项目名>/` |
-| 批量导入数据（JSON/JSONL/CSV） | `.cache/openyida/data-import/` |
-| 一次性 Python / JS 脚本 | `.cache/openyida/scripts/` |
+| Schema / ID 映射 | `<projectRoot>/.cache/<项目名>-schema.json` |
+| 字段 / 报表 / 流程 / 连接器配置 | `<projectRoot>/.cache/openyida/<项目名或任务名>/` |
+| 批量导入数据（JSON/JSONL/CSV） | `<projectRoot>/.cache/openyida/<项目名或任务名>/data-import/` |
+| 一次性 Python / JS 脚本 | `<projectRoot>/.cache/openyida/<项目名或任务名>/scripts/` |
 
 > 只有需长期维护的 PRD、页面源码、示例资源才写入 `prd/`、`pages/src/`、`project/` 等正式目录。
 

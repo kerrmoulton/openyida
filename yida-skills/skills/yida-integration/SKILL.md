@@ -16,6 +16,7 @@ description: 宜搭集成&自动化配置。支持创建、查询、开启、关
 - **创建/发布前必须确认**：执行集成自动化创建或发布操作前，必须向用户展示逻辑流配置摘要（触发条件、节点列表、通知对象），获得用户明确同意后再执行
 - 创建前先确认触发表单的 formUuid 和相关字段 ID
 - 创建成功后记录逻辑流 ID 到 `.cache/<项目名>-schema.json`
+- `--spec`、连接器输入等 JSON 文件必须先用结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/integration/`；不要用 shell heredoc、`cat`/`echo`/`printf`/`tee` 或重定向写文件，也不要写仓库根目录或系统临时目录
 - 参考官方示例时不要只看默认页面 schema：集成自动化示例的默认页通常只是触发表单或说明页，逻辑流本体需要通过集成自动化接口/命令查询或创建
 
 ## 适用场景
@@ -242,9 +243,11 @@ openyida integration create APP_XXX FORM-A-XXX "调用 HTTP 连接器" \
 
 ```bash
 openyida integration create APP_XXX FORM-XXX "获取自身后分支更新" \
-  --spec project/integration/get-self-update.json \
+  --spec .cache/openyida/<项目名或任务名>/integration/get-self-update.json \
   --publish
 ```
+
+> `--spec` 文件先用 create_file / Write / file edit tool 创建。上方路径默认从 OpenYida project 工作目录执行；从 workspace 根执行命令时路径加 `project/` 前缀。
 
 ## 字段变量引用格式
 

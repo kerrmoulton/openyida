@@ -24,8 +24,9 @@
 
 ```bash
 # 方式 1：从文件读取
-echo "上述内容" > meeting.txt
-openyida flash-to-prd --file meeting.txt --name 员工积分管理系统
+# 先使用 create_file / Write / file edit tool 创建：
+# <projectRoot>/.cache/openyida/员工积分管理系统/flash-note/meeting.txt
+openyida flash-to-prd --file .cache/openyida/员工积分管理系统/flash-note/meeting.txt --name 员工积分管理系统
 
 # 方式 2：直接发给 AI 智能体（推荐）
 # 将文本直接粘贴到对话框，AI 自动识别并触发本技能

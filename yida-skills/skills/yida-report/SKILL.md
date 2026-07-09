@@ -11,6 +11,7 @@ description: "宜搭原生报表创建，支持 16 种图表/表格/筛选器组
 - 不要编造 `reportId`、`datasetId`、`fieldId`，必须从报表 Schema 或 URL 中提取
 - 不要将本技能与 `yida-chart` 混淆：本技能负责创建原生报表（数据源），`yida-chart` 负责 ECharts 可视化
 - 不要在没有原生报表的情况下直接使用 ECharts，ECharts 必须依赖原生报表作为数据源
+- 不要用 shell heredoc、`cat`/`echo`/`printf`/`tee` 或重定向生成报表配置 JSON
 
 ## 严格要求 (MUST DO)
 
@@ -19,7 +20,7 @@ description: "宜搭原生报表创建，支持 16 种图表/表格/筛选器组
 - 参考官方示例时先确认 schema 证据：只有 `formType: "report"` 或组件树出现 `Youshu*` 报表组件时才按原生报表处理；`report` 标签但默认页是 `receipt` 或自定义页时，先判断是否只是数据准备页或看板页
 - 调用报表数据 API 前必须确认 `reportId` 和 `datasetId` 来自真实报表
 - 解析报表数据时必须处理 `data.rows` 为空的情况，避免页面崩溃
-- 报表配置 JSON 需要落盘时，必须写入 `.cache/openyida/<项目名>/`，例如 `.cache/openyida/pm/pm-report-team.json`；不要在仓库根目录生成 `*-report*.json`
+- 报表配置 JSON 需要落盘时，必须用结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/`，例如 `<projectRoot>/.cache/openyida/pm/pm-report-team.json`；不要在仓库根目录、系统临时目录或 `.cache/` 顶层生成 `*-report*.json`
 - 本技能不读写 memory，报表配置通过 `openyida create-report` 命令写入宜搭平台，不依赖跨会话的 memory 状态
 
 ## 适用场景
@@ -381,8 +382,10 @@ console.log(JSON.stringify(reportPageSchema, null, 2));
 
 ```bash
 openyida create-report <appType> "<报表名称>" <配置JSON文件路径>
-# 配置文件路径示例：.cache/openyida/<项目名>/<报表名>-report.json
+# 配置文件路径示例：.cache/openyida/<项目名或任务名>/<报表名>-report.json
 ```
+
+> 配置 JSON 先用 create_file / Write / file edit tool 创建。上方路径默认从 OpenYida project 工作目录执行；从 workspace 根执行命令时传 `project/.cache/openyida/<项目名或任务名>/<报表名>-report.json`。
 
 **⚠️ 第二个参数是报表名称，必须使用业务含义的中文名称**（如"任务管理数据报表"），不要传 formUuid。
 

@@ -87,8 +87,10 @@ openyida publish project/pages/src/<页面名>.canvas.jsx <appType> <formUuid>
 #    扩展名不规范但确为 Canvas 源码时，显式加 --canvas。
 
 # 6. 发布后回读 Schema 验收：确认组件树存在 YidaCodeCanvas，且 runtimeCode 非空
-openyida get-schema <appType> <formUuid> > .cache/openyida/<页面名>-schema.json
+openyida get-schema <appType> <formUuid>
 ```
+
+如需保存完整 Schema，使用 create_file / Write / file edit tool 创建 `<projectRoot>/.cache/openyida/<页面名或任务名>/<页面名>-schema.json`；从 workspace 根执行后续命令时路径加 `project/` 前缀。不要把 `openyida` stdout 通过 shell 重定向保存成 JSON。
 
 ## 与其他技能分工
 

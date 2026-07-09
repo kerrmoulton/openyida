@@ -10,11 +10,13 @@ description: 宜搭 HTTP 连接器创建与管理。打通钉钉/自建系统/�
 - 不要在代码中硬编码 API Key、密码等凭证，通过连接器鉴权配置管理
 - 不要编造 connector-id 或 action-id，必须从命令返回中提取
 - 不要删除连接器前确认是否有表单/页面正在使用
+- 不要用 shell heredoc、`cat`/`echo`/`printf`/`tee` 或重定向生成连接器 action/config JSON
 
 ## 严格要求 (MUST DO)
 
 - 优先使用 `smart-create` 从 curl 命令或接口文档智能创建
 - 创建连接器后，将 connector-id 记录到 `.cache/<项目名>-schema.json`
+- `--operations`、`--action` 等文件参数必须先用结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/connector/` 或该技能更具体的目录，再传给命令；不要写仓库根目录或系统临时目录
 - **本技能不读写 memory**：连接器配置通过 CLI 命令写入宜搭平台，不依赖跨会话的 memory 状态
 
 ## 适用场景
@@ -106,6 +108,8 @@ openyida connector delete-action <connector-id> <action-id>
 # 测试连接器
 openyida connector test --connector-id <id> --action <action-file>
 ```
+
+> `<action-file>` 先用 create_file / Write / file edit tool 创建，例如 `.cache/openyida/<项目名或任务名>/connector/actions.json`；从 workspace 根执行命令时路径加 `project/` 前缀。
 
 ### 鉴权账号管理
 

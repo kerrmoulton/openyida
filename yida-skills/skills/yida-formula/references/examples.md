@@ -9,8 +9,8 @@
 ### 前置步骤：获取字段 ID
 
 ```bash
-openyida get-schema APP_XXX FORM-YYY > .cache/schema.json 2>&1
-# 从 schema.json 中找到各字段的 fieldId：
+openyida get-schema APP_XXX FORM-YYY
+# 从 stdout 中找到各字段的 fieldId，并用结构化文件写入工具更新 <projectRoot>/.cache/<项目名>-schema.json：
 # 交通费：numberField_transport
 # 住宿费：numberField_hotel
 # 餐饮费：numberField_meal
@@ -19,7 +19,7 @@ openyida get-schema APP_XXX FORM-YYY > .cache/schema.json 2>&1
 
 ### 执行：update 模式配置公式
 
-创建 `formula-config.json`：
+使用 create_file / Write / file edit tool 创建 `<projectRoot>/.cache/openyida/expense/formula-config.json`：
 
 ```json
 [
@@ -40,7 +40,7 @@ openyida get-schema APP_XXX FORM-YYY > .cache/schema.json 2>&1
 ```
 
 ```bash
-openyida create-form APP_XXX FORM-YYY formula-config.json
+openyida create-form update APP_XXX FORM-YYY .cache/openyida/expense/formula-config.json
 ```
 
 ### 输出

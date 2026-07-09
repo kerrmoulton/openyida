@@ -20,7 +20,7 @@ description: 将 OpenYida 原普通自定义页面链路升级/迁移为宜搭 C
 | --- | --- |
 | 登录态只读验证 | `openyida env --json` + `openyida login --check-only --json` |
 | 原页面源码 | 找到 `.oyd.jsx` / `.jsx` 源文件；不要只看 dist 编译产物 |
-| 目标页面 Schema | `openyida get-schema <appType> <formUuid> > .cache/openyida/canvas-upgrade/<name>-schema.json` |
+| 目标页面 Schema | 先执行 `openyida get-schema <appType> <formUuid>`，再用 create_file / Write / file edit tool 按需保存到 `<projectRoot>/.cache/openyida/canvas-upgrade/<name>-schema.json`；不要用 shell 重定向 |
 | Code Canvas 发布能力 | 已内置：产出的 `.canvas.jsx` 用 `openyida publish <源文件> <appType> <formUuid>` 即自动走 Canvas 链路（`.canvas.jsx` 扩展名识别，CLI 本地用 Babel 编译出 `runtimeCode` + `importedModules` 并写 `YidaCodeCanvas` Schema），无需设计器手工添加 |
 | 原页面数据依赖 | 列出 `this.utils.yida.*`、`this.dataSourceMap.*`、连接器、外部脚本、全局变量 |
 

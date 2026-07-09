@@ -8,6 +8,7 @@ description: 流程表单一体化创建（创建表单 → 转流程 → 获取
 
 - 不要编造 processCode，必须从命令返回的 JSON 中提取
 - 不要在流程定义中使用猜测的 fieldId，必须先用 `yida-get-schema` 获取
+- 不要用 shell heredoc、`cat`/`echo`/`printf`/`tee` 或重定向生成字段定义、流程定义 JSON 文件
 
 ## 严格要求 (MUST DO)
 
@@ -15,7 +16,7 @@ description: 流程表单一体化创建（创建表单 → 转流程 → 获取
 - 优先使用用法 2（先创建表单获取字段 ID，再 `--formUuid` 转流程）
 - 创建成功后，将 formUuid 和 processCode 记录到 `.cache/<项目名>-schema.json`
 - 流程定义中字段 ≥ 3 且审批节点 ≥ 2 时，必须自动配置字段权限
-- 字段定义和流程定义文件必须写入 `.cache/openyida/<项目名>/`，不要在仓库根目录生成 `fields.json`、`process-definition.json` 等临时文件
+- 字段定义和流程定义文件必须用 agent 的结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/`；不要在仓库根目录、系统临时目录或 `.cache/` 顶层生成 `fields.json`、`process-definition.json` 等临时文件
 - **本技能不读写 memory**：formUuid 和 processCode 输出到 stdout，通过 `.cache/<项目名>-schema.json` 持久化，不依赖跨会话的 memory 状态
 
 ## 适用场景
@@ -66,11 +67,16 @@ openyida create-process <appType> --formUuid <formUuid> <processDefinitionFile>
 
 ## 推荐两步流程
 
-```bash
-# Step 1: 创建表单获取字段 ID
-openyida create-form create "APP_XXX" "订单处理表" .cache/openyida/order/order-fields.json
+1. 使用 create_file / Write / file edit tool 创建字段定义：
+   `<projectRoot>/.cache/openyida/order/order-fields.json`
+2. 执行表单创建命令，获取真实 `formUuid` 和 `fieldId`。
+3. 使用结构化文件写入工具创建流程定义：
+   `<projectRoot>/.cache/openyida/order/process-definition.json`
+4. 执行流程转换命令。
 
-# Step 2: 将已有表单转为流程表单
+```bash
+# 以下命令默认在 OpenYida project 工作目录内执行；从 workspace 根执行时路径加 project/ 前缀。
+openyida create-form create "APP_XXX" "订单处理表" .cache/openyida/order/order-fields.json
 openyida create-process "APP_XXX" --formUuid "FORM-YYY" .cache/openyida/order/process-definition.json
 ```
 

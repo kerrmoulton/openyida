@@ -13,6 +13,7 @@ description: 宜搭完整应用开发技能。从零到一搭建完整宜搭应�
 - 不要跳过 `openyida env` 环境检测直接开始开发
 - 不要在未读取各子技能 SKILL.md 的情况下执行对应操作
 - 不要编造任何 ID（appType/formUuid/fieldId），必须从命令返回中提取
+- 不要用 shell heredoc、`cat`/`echo`/`printf`/`tee` 或重定向生成 OpenYida 命令输入文件
 
 ## 严格要求 (MUST DO)
 
@@ -20,7 +21,7 @@ description: 宜搭完整应用开发技能。从零到一搭建完整宜搭应�
 - 按照本文档的流程编排顺序执行，不要跳步
 - 每个关键 ID 创建后立即记录到 `.cache/<项目名>-schema.json`
 - 业务需求记录到 `prd/<项目名>.md`
-- 临时字段配置、流程配置、报表配置、导入数据和一次性执行脚本统一写入 `.cache/openyida/`，不要写到仓库根目录
+- 临时字段配置、流程配置、报表配置、连接器配置、导入数据和一次性执行脚本统一用结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/`；从 workspace 根执行命令时传 `project/.cache/...`，从 OpenYida project 工作目录执行时传 `.cache/...`；不要写到仓库根目录或系统临时目录
 - 首次生成完整应用后，必须基于业务信息架构整理导航顺序：面向决策者的总览/驾驶舱看板作为门面靠前，数据录入/明细表单在后；同级多个专题看板按业务优先级排，不要把所有自定义页面无脑堆最前
 - 导航整理完成后，若应用含表单，默认向核心表单灌入 2-3 条覆盖关键维度的示例数据，让看板首屏有真实聚合效果；`DateField`/`CascadeDateField` 用 13 位毫秒时间戳，灌后 `openyida data query` 抽查至少 1 条确认字段值非空（用户明确说"不要示例数据"时才跳过）
 - **本技能不读写 memory**：所有关键 ID（appType、formUuid 等）通过 `.cache/<项目名>-schema.json` 持久化，不依赖跨会话的 memory 状态
@@ -276,7 +277,9 @@ openyida create-page <appType> "<页面名称>" [--mode dashboard]
 
 **当页面需要收集/存储数据时**，调用 `yida-create-form-page` 技能。
 
-#### 4.1 定义字段，写入 `.cache/openyida/<项目名>/xxx-fields.json`
+#### 4.1 定义字段，写入 `<projectRoot>/.cache/openyida/<项目名或任务名>/xxx-fields.json`
+
+使用 create_file / Write / file edit tool 创建字段定义文件；不要用 shell heredoc 或重定向写 JSON。若从 workspace 根执行命令，路径写作 `project/.cache/openyida/<项目名或任务名>/xxx-fields.json`。
 
 ```json
 [
@@ -290,7 +293,7 @@ openyida create-page <appType> "<页面名称>" [--mode dashboard]
 #### 4.2 创建表单
 
 ```bash
-openyida create-form create <appType> "<表单名称>" .cache/openyida/<项目名>/xxx-fields.json
+openyida create-form create <appType> "<表单名称>" .cache/openyida/<项目名或任务名>/xxx-fields.json
 ```
 
 **输出**：`formUuid` 和各字段的 `fieldId`（如 `textField_xxxxxxxx`）。
@@ -326,8 +329,10 @@ openyida create-form create <appType> "<表单名称>" .cache/openyida/<项目�
 **当需求含「审批」「流程」「申请」「审核」「工单」等关键词时必须执行**。
 
 ```bash
-openyida create-process <appType> --formUuid <formUuid> <流程定义文件>
+openyida create-process <appType> --formUuid <formUuid> .cache/openyida/<项目名或任务名>/process-definition.json
 ```
+
+流程定义文件先用结构化文件写入工具创建；从 workspace 根执行命令时路径加 `project/` 前缀。
 
 > 📖 详见 [`skills/yida-create-process/SKILL.md`](../yida-create-process/SKILL.md)
 
@@ -397,10 +402,11 @@ openyida nav-group order <appType> <总览看板> <专题看板...> <核心表�
 新建应用的表单默认无数据，看板首屏会空。导航整理完成后，默认向核心表单灌入 **2-3 条**覆盖关键维度（不同活动/渠道/日期等）的示例记录，调用 `yida-data-management` 技能：
 
 ```bash
-openyida data create form <appType> <formUuid> --data-json '{"selectField_xxx":"双11","dateField_xxx":1730995200000,"numberField_xxx":1200000}'
+openyida data create form <appType> <formUuid> --data-file .cache/openyida/<项目名或任务名>/data-import/sample-record-1.json
 ```
 
 **要点**：
+- 示例数据 JSON 先用结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/data-import/`；从 workspace 根执行命令时路径加 `project/` 前缀。
 - `DateField`/`CascadeDateField` 必须用 13 位毫秒时间戳，不要传 `YYYY-MM-DD`。
 - 字段 ID 从 `.cache/<项目名>-schema.json` 或 `openyida get-schema` 获取，不能猜。
 - 灌完执行 `openyida data query form <appType> <formUuid>` 抽查至少 1 条，确认 `formData` 字段有实际值。
@@ -431,7 +437,7 @@ openyida data create form <appType> <formUuid> --data-json '{"selectField_xxx":"
 
 **测试数据/修数脚本约定**：
 - 一次性造数、旧数据修正、字段迁移可以使用 Python 或 JS，选择更快更清晰的实现即可；不要求为了“宜搭”强行写 JS。
-- 脚本放在 `.cache/openyida/scripts/` 下，导入数据放在 `.cache/openyida/data-import/` 下；执行前先 `openyida get-schema` / `openyida data query` 确认字段和记录，批量更新单次不超过 30 条。
+- 脚本放在 `<projectRoot>/.cache/openyida/<项目名或任务名>/scripts/` 下，导入数据放在 `<projectRoot>/.cache/openyida/<项目名或任务名>/data-import/` 下，均由结构化文件写入工具创建；执行前先 `openyida get-schema` / `openyida data query` 确认字段和记录，批量更新单次不超过 30 条。
 - 脚本可以通过 `openyida data ...` 命令或宜搭官方接口执行，但字段 ID、formInstId、appType 必须来自真实查询结果，不能猜。
 
 ---

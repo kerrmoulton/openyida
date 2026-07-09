@@ -9,15 +9,15 @@
 ### 前置步骤：获取字段 ID
 
 ```bash
-openyida get-schema APP_XXX FORM-EXPENSE > .cache/expense-schema.json 2>&1
-# 从 schema.json 中提取字段 ID：
+openyida get-schema APP_XXX FORM-EXPENSE
+# 从 stdout 中提取字段 ID，并用结构化文件写入工具更新 <projectRoot>/.cache/<项目名>-schema.json：
 # 报销金额：numberField_amount
 # 报销类型：selectField_expenseType
 # 报销说明：textareaField_remark
 # 附件：attachmentField_receipt
 ```
 
-### 创建流程定义文件 `.cache/openyida/process/expense-process.json`
+### 使用结构化文件写入工具创建流程定义文件 `<projectRoot>/.cache/openyida/expense/process/expense-process.json`
 
 ```json
 {
@@ -76,7 +76,7 @@ openyida get-schema APP_XXX FORM-EXPENSE > .cache/expense-schema.json 2>&1
 ### 执行命令
 
 ```bash
-openyida configure-process APP_XXX FORM-EXPENSE .cache/openyida/process/expense-process.json
+openyida configure-process APP_XXX FORM-EXPENSE .cache/openyida/expense/process/expense-process.json
 ```
 
 ### 输出
@@ -100,7 +100,7 @@ openyida configure-process APP_XXX FORM-EXPENSE .cache/openyida/process/expense-
 
 质检流程：取样 → 检验 → 判断结果（合格/不合格）。不合格时跳回检验节点重新检验。
 
-### 流程定义 `.cache/openyida/process/quality-process.json`
+### 流程定义 `<projectRoot>/.cache/openyida/quality/process/quality-process.json`
 
 ```json
 {
@@ -157,7 +157,7 @@ openyida configure-process APP_XXX FORM-EXPENSE .cache/openyida/process/expense-
 ### 执行命令
 
 ```bash
-openyida configure-process APP_XXX FORM-QUALITY .cache/openyida/process/quality-process.json
+openyida configure-process APP_XXX FORM-QUALITY .cache/openyida/quality/process/quality-process.json
 ```
 
 ---
@@ -188,7 +188,7 @@ openyida configure-process APP_XXX FORM-QUALITY .cache/openyida/process/quality-
 
 订单处理流程：检查订单 → 订单有效判断 → 库存判断（充足/不足）→ 对应处理。
 
-### 流程定义 `.cache/openyida/process/order-process.json`
+### 流程定义 `<projectRoot>/.cache/openyida/order/process/order-process.json`
 
 ```json
 {
@@ -266,7 +266,7 @@ openyida configure-process APP_XXX FORM-QUALITY .cache/openyida/process/quality-
 ### 执行命令
 
 ```bash
-openyida configure-process APP_XXX FORM-ORDER .cache/openyida/process/order-process.json
+openyida configure-process APP_XXX FORM-ORDER .cache/openyida/order/process/order-process.json
 ```
 
 ---
@@ -277,7 +277,7 @@ openyida configure-process APP_XXX FORM-ORDER .cache/openyida/process/order-proc
 
 配置流程后，钉钉工作通知推送的链接需要指向自定义详情页，而非原生 `taskDetail.htm`。
 
-### 流程定义 `.cache/openyida/process/custom-detail-process.json`
+### 流程定义 `<projectRoot>/.cache/openyida/custom-detail/process/custom-detail-process.json`
 
 ```json
 {
@@ -296,7 +296,7 @@ openyida configure-process APP_XXX FORM-ORDER .cache/openyida/process/order-proc
 ### 执行命令
 
 ```bash
-openyida configure-process APP_XXX FORM-XXX .cache/openyida/process/custom-detail-process.json
+openyida configure-process APP_XXX FORM-XXX .cache/openyida/custom-detail/process/custom-detail-process.json
 ```
 
 ### 说明
@@ -311,7 +311,7 @@ openyida configure-process APP_XXX FORM-XXX .cache/openyida/process/custom-detai
 
 审批流程：部门主管审核 → 财务部审核（拒绝时跳回部门主管审核）→ 结束。
 
-### 流程定义 `.cache/openyida/process/jump-rule-process.json`
+### 流程定义 `<projectRoot>/.cache/openyida/jump-rule/process/jump-rule-process.json`
 
 ```json
 {
@@ -336,7 +336,7 @@ openyida configure-process APP_XXX FORM-XXX .cache/openyida/process/custom-detai
 ### 执行命令
 
 ```bash
-openyida configure-process APP_XXX FORM-XXX .cache/openyida/process/jump-rule-process.json
+openyida configure-process APP_XXX FORM-XXX .cache/openyida/jump-rule/process/jump-rule-process.json
 ```
 
 ### 流程
