@@ -142,4 +142,4 @@ openyida update-form-config <appType> <formUuid> false "<页面名>"
 | [核心示例](references/examples.md) | SLIDES、状态、生命周期、渲染、导航、全屏、i18n、主题、hash | 编写页面代码前必读 |
 | [dark-tech 主题](references/dark-tech-theme.md) | CSS 动画库、转场配置、样式预设、Canvas 粒子、背景层、主框架 | 用户选择 `dark-tech` 时必读 |
 | [ECharts race 示例](references/echarts-race-example.md) | 动态柱状图完整实现、数据结构、插值动画、清理逻辑 | 需要 `echarts-race` 类型时必读 |
-| [自定义页面规范](../yida-custom-page/SKILL.md) | 宜搭 React 16 页面模式、编码限制、发布前检查 | 不确定页面运行时规则时阅读 |
+| `yida-custom-page` 子技能 | 宜搭 React 16 页面模式、编码限制、发布前检查 | 不确定页面运行时规则时调用 `use_skill("yida-custom-page", "确认宜搭自定义页面运行时规则")` |

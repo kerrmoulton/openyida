@@ -6,12 +6,15 @@ description: 宜搭完整应用开发技能。从零到一搭建完整宜搭应�
 # yida-app — 宜搭完整应用开发编排技能
 
 > 本文档是**流程编排层**，描述各子技能的调用时机、决策逻辑和数据流转。
-> 各子技能的详细参数和示例请查阅对应的子技能文档（见主 `SKILL.md` 索引表）。
+> 在支持 `use_skill` 的宿主中，只在进入对应阶段前调用 `use_skill("<技能名>", "<本阶段目的>")` 加载该阶段子技能；不要预读未来阶段技能。
+> 如果宿主没有 `use_skill` / `search_skills`，按根技能路由表逐阶段定位子技能，并只读取当前阶段唯一必要的子技能文档；`skills-index.json` 不是普通宿主的运行前置条件。
 
 ## 严格禁止 (NEVER DO)
 
 - 不要跳过 `openyida env` 环境检测直接开始开发
-- 不要在未读取各子技能 SKILL.md 的情况下执行对应操作
+- 不要在未加载对应阶段子技能的情况下执行该阶段操作
+- 不要用 `Read` / `read_file` / `cat` 读取子技能 `SKILL.md` 路径；支持 `use_skill` 时必须走 `use_skill`
+- 不要在开头预读未来阶段技能，也不要并发批量加载多个子技能
 - 不要编造任何 ID（appType/formUuid/fieldId），必须从命令返回中提取
 - 不要用 shell heredoc、`cat`/`echo`/`printf`/`tee` 或重定向生成 OpenYida 命令输入文件
 
@@ -25,6 +28,22 @@ description: 宜搭完整应用开发技能。从零到一搭建完整宜搭应�
 - 首次生成完整应用后，必须基于业务信息架构整理导航顺序：面向决策者的总览/驾驶舱看板作为门面靠前，数据录入/明细表单在后；同级多个专题看板按业务优先级排，不要把所有自定义页面无脑堆最前
 - 导航整理完成后，若应用含表单，默认向核心表单灌入 2-3 条覆盖关键维度的示例数据，让看板首屏有真实聚合效果；`DateField`/`CascadeDateField` 用 13 位毫秒时间戳，灌后 `openyida data query` 抽查至少 1 条确认字段值非空（用户明确说"不要示例数据"时才跳过）
 - **本技能不读写 memory**：所有关键 ID（appType、formUuid 等）通过 `.cache/<项目名>-schema.json` 持久化，不依赖跨会话的 memory 状态
+
+## 阶段式子技能加载
+
+完整应用搭建时，开头只加载 `yida-app` 本编排技能。进入下列阶段前，再加载该阶段唯一必要的子技能：
+
+| 阶段 | 加载方式 |
+|------|----------|
+| 创建应用 | `use_skill("yida-create-app", "创建应用并获取 appType")` |
+| 创建表单 | `use_skill("yida-create-form-page", "设计并创建表单字段结构")` |
+| 创建页面 | `use_skill("yida-create-page", "创建自定义页面容器并获取 formUuid")` |
+| 编写页面 | `use_skill("yida-custom-page", "编写宜搭自定义页面 JSX")` |
+| 发布页面 | `use_skill("yida-publish-page", "编译并发布自定义页面")` |
+| 整理导航 | `use_skill("yida-nav-group", "整理应用导航顺序")` |
+| 示例数据 | `use_skill("yida-data-management", "写入和抽查示例数据")` |
+
+按需阶段也遵守同一规则：需要流程时再调用 `use_skill("yida-create-process", "创建或配置流程表单")`；需要视觉方向时再调用 `use_skill("yida-page-uiux", "确定自定义页面视觉方向")`；需要报表或图表时，分别在进入报表阶段前调用 `use_skill("yida-report", "创建原生报表")` 或 `use_skill("yida-chart", "创建 ECharts 可视化页面")`。
 
 ## 适用场景
 
@@ -48,14 +67,14 @@ description: 宜搭完整应用开发技能。从零到一搭建完整宜搭应�
               ↓
 [Step 2] 需求分析 → 写入 prd/<项目名>.md
               ↓
-[Step 3] 创建自定义页面 → openyida create-page    → 获得 formUuid（自定义页面）
+[Step 3]（按需）创建/更新表单 → openyida create-form → 获得 formUuid + fieldId（表单）
               ↓
-[Step 4]（按需）创建/更新表单 → openyida create-form → 获得 formUuid（表单）
+[Step 4] 创建自定义页面 → openyida create-page    → 获得 formUuid（自定义页面）
               ↓
 [Step 5]（按需，需求含「审批」「流程」「申请」「审核」「工单」等关键词时必须执行）
-          配置流程 → 读取 skills/yida-create-process/SKILL.md → openyida create-process / configure-process
+          配置流程 → use_skill("yida-create-process", "创建或配置流程表单") → openyida create-process / configure-process
               ↓
-[Step 6] 编写自定义页面代码 → 先 yida-page-uiux 定视觉方向，再 yida-custom-page 落地 → pages/src/<项目名>.oyd.jsx
+[Step 6] 编写自定义页面代码 → use_skill("yida-custom-page", "编写宜搭自定义页面 JSX") → pages/src/<项目名>.oyd.jsx
               ↓  （首次生成必做：先用 yida-page-uiux 产出「视觉方向决策块」，避免统一灰白圆角的 AI 味模板脸）
               ↓  openyida check-page / compile 预检（.oyd.jsx 自动兼容构建）
               ↓  （列表/表格类页面：参考 yida-density 技能选择合适的信息密度）
@@ -71,9 +90,14 @@ description: 宜搭完整应用开发技能。从零到一搭建完整宜搭应�
 [Step 10] 输出访问链接，用系统浏览器打开
 ```
 
-### 编写自定义页面代码前先读 `skills/yida-page-uiux/SKILL.md` 定视觉方向，再完整学习 `skills/yida-custom-page/SKILL.md`
+### 阶段加载提醒
 
-### 生成表单 schema 前必须完整学习 `skills/yida-create-form-page/SKILL.md`
+- 创建应用阶段：先加载 `yida-create-app`。
+- 生成表单 schema 阶段：先加载 `yida-create-form-page`。
+- 创建自定义页面阶段：先加载 `yida-create-page`。
+- 编写自定义页面代码阶段：先加载 `yida-custom-page`；首次生成面向用户页面时，再按需加载 `yida-page-uiux` 产出视觉方向决策块。
+- 发布阶段：先加载 `yida-publish-page`。
+- 导航和示例数据阶段：分别加载 `yida-nav-group`、`yida-data-management`。
 
 ### 使用模板文件确保一次性成功
 
@@ -85,7 +109,7 @@ description: 宜搭完整应用开发技能。从零到一搭建完整宜搭应�
 | yida-data-management | `openyida sample yida-data-management form-field-template` | 表单字段定义和数据插入 |
 | yida-create-app | `openyida sample yida-create-app ipd-app-template` | 完整应用创建示例 |
 
-表单详情页视觉优化不走 `openyida publish`。当用户要求“详情页美化 / formDetail 样式优化”时，读取 `skills/yida-form-detail/SKILL.md`，通过表单 Schema 注入 Html 组件承载 CSS。
+表单详情页视觉优化不走 `openyida publish`。当用户要求“详情页美化 / formDetail 样式优化”时，调用 `use_skill("yida-form-detail", "通过表单 Schema 注入详情页 CSS")`，通过表单 Schema 注入 Html 组件承载 CSS。
 
 **代码生成前必须**：
 
@@ -102,9 +126,9 @@ description: 宜搭完整应用开发技能。从零到一搭建完整宜搭应�
 ```
 用户需求
     │
-    ├── 纯展示 / 静态内容 → 跳过 Step 5（无需创建表单）
+    ├── 纯展示 / 静态内容 → 跳过 Step 3（无需创建表单）
     │
-    └── 需要收集 / 存储数据 → Step 5 创建表单
+    └── 需要收集 / 存储数据 → Step 3 创建表单
 ```
 
 ### 决策 2：是否需要审批流程？
@@ -112,9 +136,9 @@ description: 宜搭完整应用开发技能。从零到一搭建完整宜搭应�
 ```
 表单创建后
     │
-    ├── 无审批需求 → 直接进入 Step 6 编写代码
+    ├── 无审批需求 → 直接进入 Step 4 创建页面 / Step 6 编写代码
     │
-    └── 有审批需求 → 调用 yida-create-process 配置流程后再编写代码
+    └── 有审批需求 → 加载 yida-create-process 配置流程后再编写代码
 ```
 
 ### 决策 3：是否需要数据可视化报表？
@@ -122,9 +146,9 @@ description: 宜搭完整应用开发技能。从零到一搭建完整宜搭应�
 ```
 应用功能需求
     │
-    ├── 标准统计报表 → 调用 yida-report 创建原生报表
+    ├── 标准统计报表 → 加载 yida-report 创建原生报表
     │
-    └── 高级 ECharts 大屏 → 先 yida-report 创建数据源，再 yida-chart 创建可视化页面
+    └── 高级 ECharts 大屏 → 先加载 yida-report 创建数据源，再加载 yida-chart 创建可视化页面
 ```
 
 ### 决策 4：corpId 一致性检查（创建页面前必须执行）
@@ -147,15 +171,13 @@ description: 宜搭完整应用开发技能。从零到一搭建完整宜搭应�
 
 ### Step 1：创建应用
 
-调用 `yida-create-app` 技能，创建宜搭应用并获取 `appType`：
+进入本阶段前调用 `use_skill("yida-create-app", "创建应用并获取 appType")`，创建宜搭应用并获取 `appType`：
 
 ```bash
 openyida create-app "<应用名称>" "[描述]"
 ```
 
 **输出**：`appType`（如 `APP_XXXXXX`），自动写入 prd 文档的应用配置表。
-
-> 📖 详见 [`skills/yida-create-app/SKILL.md`](../yida-create-app/SKILL.md)
 
 ---
 
@@ -259,25 +281,11 @@ openyida create-app "<应用名称>" "[描述]"
 
 ---
 
-### Step 3：创建自定义页面
+### Step 3：创建表单（按需）
 
-确认 corpId 一致后，调用 `yida-create-page` 技能：
+**当页面需要收集/存储数据时**，进入本阶段前调用 `use_skill("yida-create-form-page", "设计并创建表单字段结构")`。
 
-```bash
-openyida create-page <appType> "<页面名称>" [--mode dashboard]
-```
-
-**输出**：`formUuid`（如 `FORM-XXXXXX`），写入 `.cache/<项目名>-schema.json`。
-
-> 📖 详见 [`skills/yida-create-page/SKILL.md`](../yida-create-page/SKILL.md)
-
----
-
-### Step 4：创建表单（按需）
-
-**当页面需要收集/存储数据时**，调用 `yida-create-form-page` 技能。
-
-#### 4.1 定义字段，写入 `<projectRoot>/.cache/openyida/<项目名或任务名>/xxx-fields.json`
+#### 3.1 定义字段，写入 `<projectRoot>/.cache/openyida/<项目名或任务名>/xxx-fields.json`
 
 使用 create_file / Write / file edit tool 创建字段定义文件；不要用 shell heredoc 或重定向写 JSON。若从 workspace 根执行命令，路径写作 `project/.cache/openyida/<项目名或任务名>/xxx-fields.json`。
 
@@ -290,7 +298,7 @@ openyida create-page <appType> "<页面名称>" [--mode dashboard]
 ]
 ```
 
-#### 4.2 创建表单
+#### 3.2 创建表单
 
 ```bash
 openyida create-form create <appType> "<表单名称>" .cache/openyida/<项目名或任务名>/xxx-fields.json
@@ -298,7 +306,7 @@ openyida create-form create <appType> "<表单名称>" .cache/openyida/<项目�
 
 **输出**：`formUuid` 和各字段的 `fieldId`（如 `textField_xxxxxxxx`）。
 
-#### 4.3 将 Schema ID 写入 `.cache/<项目名>-schema.json`
+#### 3.3 将 Schema ID 写入 `.cache/<项目名>-schema.json`
 
 ```json
 {
@@ -320,13 +328,24 @@ openyida create-form create <appType> "<表单名称>" .cache/openyida/<项目�
 }
 ```
 
-> 📖 详见 [`skills/yida-create-form-page/SKILL.md`](../yida-create-form-page/SKILL.md)
+---
+
+### Step 4：创建自定义页面
+
+确认 corpId 一致后，进入本阶段前调用 `use_skill("yida-create-page", "创建自定义页面容器并获取 formUuid")`：
+
+```bash
+openyida create-page <appType> "<页面名称>" [--mode dashboard]
+```
+
+**输出**：`formUuid`（如 `FORM-XXXXXX`），写入 `.cache/<项目名>-schema.json`。
 
 ---
 
 ### Step 5：配置流程（按需）
 
 **当需求含「审批」「流程」「申请」「审核」「工单」等关键词时必须执行**。
+进入本阶段前调用 `use_skill("yida-create-process", "创建或配置流程表单")`。
 
 ```bash
 openyida create-process <appType> --formUuid <formUuid> .cache/openyida/<项目名或任务名>/process-definition.json
@@ -334,14 +353,12 @@ openyida create-process <appType> --formUuid <formUuid> .cache/openyida/<项目�
 
 流程定义文件先用结构化文件写入工具创建；从 workspace 根执行命令时路径加 `project/` 前缀。
 
-> 📖 详见 [`skills/yida-create-process/SKILL.md`](../yida-create-process/SKILL.md)
-
 ---
 
 ### Step 6：编写自定义页面代码
 
 **编写前必须**：
-1. 完整读取 [`skills/yida-custom-page/SKILL.md`](../yida-custom-page/SKILL.md)
+1. 调用 `use_skill("yida-custom-page", "编写宜搭自定义页面 JSX")`
 2. 执行 `openyida sample yida-custom-page custom-page-template` 获取模板，再用 `read_file` 读取 `.cache/samples/custom-page-template.js`
 3. 读取 prd 文档和 `.cache/<项目名>-schema.json` 获取所有 ID
 
@@ -365,13 +382,11 @@ openyida check-page pages/src/<项目名>.oyd.jsx
 openyida compile pages/src/<项目名>.oyd.jsx
 ```
 
-> 📖 详见 [`skills/yida-custom-page/SKILL.md`](../yida-custom-page/SKILL.md)
-
 ---
 
 ### Step 7：发布页面
 
-调用 `yida-publish-page` 技能，将源码编译并部署到宜搭平台：
+进入本阶段前调用 `use_skill("yida-publish-page", "编译并发布自定义页面")`，将源码编译并部署到宜搭平台：
 
 ```bash
 openyida publish <源文件路径> <appType> <formUuid> [--health-check]
@@ -379,13 +394,11 @@ openyida publish <源文件路径> <appType> <formUuid> [--health-check]
 
 **发布流程**：Babel 编译 JSX → ES5 → UglifyJS 压缩 → 调用 `saveFormSchema` 保存 Schema
 
-> 📖 详见 [`skills/yida-publish-page/SKILL.md`](../yida-publish-page/SKILL.md)
-
 ---
 
 ### Step 8：整理导航顺序（含看板/多页面时必做）
 
-首次生成完整应用后，导航是创建时的默认顺序（通常表单在前、看板在后），必须基于业务信息架构重排。调用 `yida-nav-group` 技能：
+首次生成完整应用后，导航是创建时的默认顺序（通常表单在前、看板在后），必须基于业务信息架构重排。进入本阶段前调用 `use_skill("yida-nav-group", "整理应用导航顺序")`：
 
 ```bash
 openyida nav-group order <appType> <总览看板> <专题看板...> <核心表单...>
@@ -393,13 +406,11 @@ openyida nav-group order <appType> <总览看板> <专题看板...> <核心表�
 
 **默认原则**：面向决策者的**总览/驾驶舱看板作为应用门面靠前**，数据录入/明细表单在其后；同级多个专题看板按业务优先级排，不要把所有页面无脑堆最前。
 
-> 📖 详见 [`skills/yida-nav-group/SKILL.md`](../yida-nav-group/SKILL.md)
-
 ---
 
 ### Step 9：灌入示例数据（有表单时默认执行）
 
-新建应用的表单默认无数据，看板首屏会空。导航整理完成后，默认向核心表单灌入 **2-3 条**覆盖关键维度（不同活动/渠道/日期等）的示例记录，调用 `yida-data-management` 技能：
+新建应用的表单默认无数据，看板首屏会空。导航整理完成后，默认向核心表单灌入 **2-3 条**覆盖关键维度（不同活动/渠道/日期等）的示例记录。进入本阶段前调用 `use_skill("yida-data-management", "写入和抽查示例数据")`：
 
 ```bash
 openyida data create form <appType> <formUuid> --data-file .cache/openyida/<项目名或任务名>/data-import/sample-record-1.json
@@ -411,8 +422,6 @@ openyida data create form <appType> <formUuid> --data-file .cache/openyida/<项�
 - 字段 ID 从 `.cache/<项目名>-schema.json` 或 `openyida get-schema` 获取，不能猜。
 - 灌完执行 `openyida data query form <appType> <formUuid>` 抽查至少 1 条，确认 `formData` 字段有实际值。
 - 用户明确说"不要示例数据 / 不要 mock 数据"时才跳过。
-
-> 📖 详见 [`skills/yida-data-management/SKILL.md`](../yida-data-management/SKILL.md)
 
 ---
 
@@ -427,8 +436,8 @@ openyida data create form <appType> <formUuid> --data-file .cache/openyida/<项�
 | 步骤 | 产出 | 用途 |
 |------|------|------|
 | create-app | `appType` | 所有后续命令的必填参数 |
-| create-page | `pageId` (即 `formUuid`) | 发布自定义页面时指定目标页面 |
 | create-form | `formUuid` + `fieldId` | 自定义页面代码中调用表单 API |
+| create-page | `pageId` (即 `formUuid`) | 发布自定义页面时指定目标页面 |
 | get-schema | `fieldId` 列表 | 公式字段、权限配置、数据查询时引用 |
 
 **存储约定**：
@@ -447,39 +456,39 @@ openyida data create form <appType> <formUuid> --data-file .cache/openyida/<项�
 ### 场景 1：一句话生成应用（如"生日祝福小游戏"）
 
 ```
-1. yida-create-app → 创建应用，获取 appType
+1. 加载子技能 `yida-create-app` → 创建应用，获取 appType
 2. 需求分析 → 写入 prd/birthday-game.md
-3. yida-create-page → 创建自定义页面，获取 pageId
-4. yida-create-form-page → 创建祝福记录表单，获取 formUuid + fieldId
-5. yida-custom-page → 编写游戏页面代码
-6. yida-publish-page → 发布，输出访问链接
-7. yida-nav-group → 按“游戏首页 → 祝福记录表”整理导航
-8. yida-data-management → 向祝福记录表灌 2-3 条示例数据
+3. 加载子技能 `yida-create-form-page` → 创建祝福记录表单，获取 formUuid + fieldId
+4. 加载子技能 `yida-create-page` → 创建自定义页面，获取 pageId
+5. 加载子技能 `yida-custom-page` → 编写游戏页面代码
+6. 加载子技能 `yida-publish-page` → 发布，输出访问链接
+7. 加载子技能 `yida-nav-group` → 按“游戏首页 → 祝福记录表”整理导航
+8. 加载子技能 `yida-data-management` → 向祝福记录表灌 2-3 条示例数据
 ```
 
 ### 场景 2：带审批的 CRM 系统
 
 ```
-1. yida-create-app → 创建 CRM 应用
+1. 加载子技能 `yida-create-app` → 创建 CRM 应用
 2. 需求分析 → 写入 prd/crm.md
-3. yida-create-form-page → 创建客户信息表、跟进记录表
-4. yida-create-process → 配置客户审批流程
-5. yida-report → 创建销售数据报表
-6. yida-create-page → 创建 CRM 首页
-7. yida-custom-page → 编写首页代码（集成表单 + 报表）
-8. yida-publish-page → 发布
-9. yida-nav-group → 按“CRM 首页/看板 → 客户信息表 → 跟进记录表 → 审批流程/报表”整理导航
-10. yida-data-management → 向客户信息表、跟进记录表灌 2-3 条示例数据
+3. 加载子技能 `yida-create-form-page` → 创建客户信息表、跟进记录表
+4. 加载子技能 `yida-create-process` → 配置客户审批流程
+5. 加载子技能 `yida-report` → 创建销售数据报表
+6. 加载子技能 `yida-create-page` → 创建 CRM 首页
+7. 加载子技能 `yida-custom-page` → 编写首页代码（集成表单 + 报表）
+8. 加载子技能 `yida-publish-page` → 发布
+9. 加载子技能 `yida-nav-group` → 按“CRM 首页/看板 → 客户信息表 → 跟进记录表 → 审批流程/报表”整理导航
+10. 加载子技能 `yida-data-management` → 向客户信息表、跟进记录表灌 2-3 条示例数据
 ```
 
 ### 场景 3：数据大屏（ECharts 可视化）
 
 ```
-1. yida-create-app → 创建应用
-2. yida-create-form-page → 创建数据录入表单
-3. yida-report → 创建原生报表（作为 ECharts 数据源）
-4. yida-chart → 创建 ECharts 自定义页面（引用原生报表数据）
-5. yida-publish-page → 发布
+1. 加载子技能 `yida-create-app` → 创建应用
+2. 加载子技能 `yida-create-form-page` → 创建数据录入表单
+3. 加载子技能 `yida-report` → 创建原生报表（作为 ECharts 数据源）
+4. 加载子技能 `yida-chart` → 创建 ECharts 自定义页面（引用原生报表数据）
+5. 加载子技能 `yida-publish-page` → 发布
 ```
 
 ---

@@ -7,7 +7,7 @@ description: 将 JSX 源码编译发布到宜搭自定义页面。Babel 转 ES5 
 
 ## 严格禁止 (NEVER DO)
 
-- 不要在未读取 `yida-custom-page` SKILL.md 的情况下编写 JSX 源码
+- 不要在未加载 `yida-custom-page` 子技能的情况下编写 JSX 源码
 - 不要把 AI 生成的普通 React 项目代码直接发布；源码应使用 OpenYida 页面源码格式（推荐 `.oyd.jsx`）并通过 `check-page` / `compile` 预检
 - 不要在宜搭原生 `export function renderJsx()` 页面里手写 Hooks；如确需 `useState/useEffect`，必须使用 `.oyd.jsx` 的 `export default function Page()` authoring 模式，让 OpenYida 兼容编译器降级
 - 不要编造 appType 和 formUuid，必须从已有记录或命令返回中获取
@@ -112,7 +112,7 @@ body { background-color: #f2f3f5; }
 
 - 发布目标地址由 `.cache/cookies.json` 中的 `base_url` 决定
 - 碰到组织 corpId 不匹配时，询问用户是否创建新应用发布
-- **编写源码前必须先读取 `yida-custom-page` 的 SKILL.md**；原生 `renderJsx` 写法不要使用 Hooks，现代 authoring 写法必须走 `.oyd.jsx` 兼容编译
+- **编写源码前必须先加载 `yida-custom-page` 子技能**：调用 `use_skill("yida-custom-page", "编写宜搭自定义页面 JSX")`；原生 `renderJsx` 写法不要使用 Hooks，现代 authoring 写法必须走 `.oyd.jsx` 兼容编译
 
 ## 异常处理
 

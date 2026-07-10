@@ -47,7 +47,7 @@ OpenYida CLI 已支持发布 `YidaCodeCanvas` 页面：把 Code Canvas 源码写
 
 ## 视觉方向：先定方向，再写代码
 
-写页面前先定视觉方向，避免首次就生成「默认蓝 + 大圆角 + emoji」的 AI 味套版。视觉决策是**栈无关**的，与 native 链路共用决策层技能 `yida-page-uiux`：读它的 `SKILL.md` 按页面类型（工作台/仪表盘/列表/详情）做 5 维差异化、走去 AI 味清单、严禁 emoji。
+写页面前先定视觉方向，避免首次就生成「默认蓝 + 大圆角 + emoji」的 AI 味套版。视觉决策是**栈无关**的，与 native 链路共用决策层技能 `yida-page-uiux`：需要视觉方向时调用 `use_skill("yida-page-uiux", "确定 Code Canvas 页面的视觉方向")`，按页面类型（工作台/仪表盘/列表/详情）做 5 维差异化、走去 AI 味清单、严禁 emoji。
 
 Canvas 这套栈（React18 + antd + Tailwind）怎么把「主色跟随 App 品牌」落地由 [references/canvas-design-system.md](references/canvas-design-system.md) 负责。一句话记忆：**CSS 变量 `var(--color-brand1-*)` 对普通 DOM / Tailwind 直接可用（Canvas 跑在真 window、节点在宿主树内会级联）；antd token 和图表颜色是 JS 消费，需用 `getComputedStyle` 把品牌色解析成真实色值再喂进去。** 语义色（成功/警告/错误）保持固定，不随主题变。
 

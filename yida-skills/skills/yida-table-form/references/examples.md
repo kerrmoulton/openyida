@@ -39,7 +39,7 @@ var COLUMNS = [
 openyida create-page APP_XXX "员工批量录入"
 # 输出：formUuid = FORM-BATCHINPUT
 
-# Step 2：编写表格表单代码（参考 SKILL.md 完整示例代码）
+# Step 2：编写表格表单代码（参考 yida-table-form 主技能的完整示例代码）
 # 输出到 project/pages/src/employee-batch.js
 
 # Step 3：发布页面

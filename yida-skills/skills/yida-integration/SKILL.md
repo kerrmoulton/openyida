@@ -7,7 +7,7 @@ description: 宜搭集成&自动化配置。支持创建、查询、开启、关
 
 ## 严格禁止 (NEVER DO)
 
-- 不要在未读取本 SKILL.md 的情况下编写逻辑流定义，节点格式复杂且易出错
+- 不要在未加载本技能内容的情况下编写逻辑流定义，节点格式复杂且易出错
 - 不要编造 formUuid 或 fieldId，必须从已有记录或 `yida-get-schema` 获取
 - 不要用此技能配置审批流程，应使用 `yida-process-rule`
 

@@ -526,7 +526,7 @@ setTimeout(function () {
 }, 100);
 ```
 
-> **适用场景**：ECharts 图表初始化、Canvas 绑定、第三方库挂载等需要操作 DOM 的场景。详见 [`yida-chart` 技能](../../yida-chart/SKILL.md)的「图表渲染时序」章节。
+> **适用场景**：ECharts 图表初始化、Canvas 绑定、第三方库挂载等需要操作 DOM 的场景。需要图表级渲染时序规则时，调用 `use_skill("yida-chart", "确认 ECharts 图表渲染时序")`。
 
 ### 15. 调试技巧
 

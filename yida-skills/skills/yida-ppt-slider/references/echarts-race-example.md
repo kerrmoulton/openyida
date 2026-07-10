@@ -1,6 +1,6 @@
 # ECharts Bar Chart Race 动态柱状图示例
 
-> 完整的 Bar Chart Race 实现代码，从 `yida-ppt-slider/SKILL.md` 提取。
+> 完整的 Bar Chart Race 实现代码，从 `yida-ppt-slider` 主技能提取。
 > 用于在 PPT 幻灯片中集成 ECharts 动态柱状图，展示中国历代经济排名变化。
 
 ## SLIDES 数据结构

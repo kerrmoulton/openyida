@@ -26,9 +26,9 @@
 - **配置闭环**：只要页面内自绘应用级导航，发布后必须执行 `openyida update-form-config <appType> <formUuid> false "<页面标题>"` 隐藏宜搭原导航，并验证最终 URL 仍带 `isRenderNav=false`。
 - **移动端**：侧边栏在窄屏要能收起为抽屉/底部标签，仍走 `isMobile` 响应式。
 
-**导航壳形态选型**：侧边栏 / 顶部 / 顶部+侧边混合 / 浮动胶囊 / 标签页——按顶级模块数量和是否常驻选。选型表、每种形态的骨架、选中态、移动端收敛、native + Canvas 代码示例见独立 skill [yida-nav-shell](../../yida-nav-shell/SKILL.md)。
+**导航壳形态选型**：侧边栏 / 顶部 / 顶部+侧边混合 / 浮动胶囊 / 标签页——按顶级模块数量和是否常驻选。需要选型表、每种形态的骨架、选中态、移动端收敛、native + Canvas 代码示例时，调用 `use_skill("yida-nav-shell", "设计页面内自绘导航壳")`。
 
-> 导航壳的**视觉方向**仍走 Step 1–6（多为 workbench/门户形态）；导航壳的**形态与实现**（选型、多视图切换、URL 拼接）见独立 skill [yida-nav-shell](../../yida-nav-shell/SKILL.md)，交 `yida-custom-page` / `yida-canvas-custom-page` 落地。
+> 导航壳的**视觉方向**仍走 Step 1–6（多为 workbench/门户形态）；导航壳的**形态与实现**（选型、多视图切换、URL 拼接）需要调用 `use_skill("yida-nav-shell", "设计页面内自绘导航壳")`，再交 `yida-custom-page` / `yida-canvas-custom-page` 落地。
 
 ## 产出
 

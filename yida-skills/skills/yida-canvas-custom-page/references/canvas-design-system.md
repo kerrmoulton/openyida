@@ -2,7 +2,7 @@
 
 本文件是 Code Canvas 页面的**实现层**引导：怎么让首次生成的页面跟随宿主 App 的品牌主题色，而不是永远一片 antd 默认蓝。视觉方向怎么定（页面类型、差异化、去 AI 味）是**栈无关**的，走共用的决策层技能 `yida-page-uiux`，本文件只讲 Canvas（React18 + antd + Tailwind）这套栈怎么把主色落地。
 
-> 决策层：读 `yida-page-uiux/SKILL.md` 定视觉方向（先做 Step 0 导航形态判定，再定工作台/仪表盘/列表/详情、5 维差异化、去 AI 味、禁 emoji）。
+> 决策层：需要视觉方向时调用 `use_skill("yida-page-uiux", "确定 Code Canvas 页面视觉方向")`（先做 Step 0 导航形态判定，再定工作台/仪表盘/列表/详情、5 维差异化、去 AI 味、禁 emoji）。
 > 实现层：本文件负责把「主色跟随 App 品牌」落到 antd token / Tailwind / 图表。
 
 > **前提是导航可见**：跟随品牌主色是为了跟应用框架融合。若页面隐藏了应用导航（`isRenderNav=false`，沉浸/独立/门户/大屏，由 `yida-page-uiux` Step 0 判定），主色相可自立、不必严格跟品牌——此时把下文 `readBrandColor` 的取值换成自定的主色即可（antd `colorPrimary` / 图表色都改喂自定色），**语义色仍固定、去 AI 味红线仍生效**。拿不准就按「跟随品牌」这个更安全的默认走。

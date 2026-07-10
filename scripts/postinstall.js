@@ -251,32 +251,32 @@ openyida copy
 
 ## 子技能索引
 
-根据用户意图选择最匹配的子技能，并在执行前读取对应 \`SKILL.md\`：
+根据用户意图选择最匹配的子技能。支持 \`use_skill\` / \`search_skills\` 的宿主中，必须调用 \`use_skill("<技能名>", "<本次目的>")\` 加载子技能；不要用 Read / read_file / cat 读取 SKILL.md 路径。\`skills-index.json\` 仅供 yida-agent 或同构宿主机器发现，不支持该索引的宿主忽略它。完全没有 \`use_skill\` 的本地工具，才允许按根技能路由表和技能包相对路径逐个读取当前阶段唯一必要的 SKILL.md，禁止并发批量读取多个 SKILL.md。
 
 | 意图 | 子技能 |
 | --- | --- |
-| 完整应用开发编排 | \`../yida-app/SKILL.md\` |
-| 登录态管理 | \`../yida-login/SKILL.md\` |
-| 退出登录 / 切换账号 | \`../yida-logout/SKILL.md\` |
-| 创建应用 | \`../yida-create-app/SKILL.md\` |
-| 创建自定义页面 | \`../yida-create-page/SKILL.md\` |
-| 创建 / 更新表单页面 | \`../yida-create-form-page/SKILL.md\` |
-| 创建流程表单 | \`../yida-create-process/SKILL.md\` |
-| 获取单个 / 全部表单 Schema | \`../yida-get-schema/SKILL.md\` |
-| 自定义页面 JSX 开发 | \`../yida-custom-page/SKILL.md\` |
-| 发布自定义页面 | \`../yida-publish-page/SKILL.md\` |
-| 页面公开访问 / 分享配置 | \`../yida-page-config/SKILL.md\` |
-| 表单权限 | \`../yida-form-permission/SKILL.md\` |
-| 数据查询与管理 | \`../yida-data-management/SKILL.md\` |
-| 流程规则 | \`../yida-process-rule/SKILL.md\` |
-| 集成自动化 | \`../yida-integration/SKILL.md\` |
-| HTTP 连接器 | \`../yida-connector/SKILL.md\` |
-| 图表页面 | \`../yida-chart/SKILL.md\` |
-| 原生报表 | \`../yida-report/SKILL.md\` |
-| 公式字段 | \`../yida-formula/SKILL.md\` |
-| 公式静态检查 | \`../yida-formula-evaluate/SKILL.md\` |
-| VOC 反馈整理 | \`../yida-voc/SKILL.md\` |
-| 闪记 / 会议纪要转 PRD | \`../yida-flash-note-to-prd/SKILL.md\` |
+| 完整应用开发编排 | \`yida-app\` |
+| 登录态管理 | \`yida-login\` |
+| 退出登录 / 切换账号 | \`yida-logout\` |
+| 创建应用 | \`yida-create-app\` |
+| 创建自定义页面 | \`yida-create-page\` |
+| 创建 / 更新表单页面 | \`yida-create-form-page\` |
+| 创建流程表单 | \`yida-create-process\` |
+| 获取单个 / 全部表单 Schema | \`yida-get-schema\` |
+| 自定义页面 JSX 开发 | \`yida-custom-page\` |
+| 发布自定义页面 | \`yida-publish-page\` |
+| 页面公开访问 / 分享配置 | \`yida-page-config\` |
+| 表单权限 | \`yida-form-permission\` |
+| 数据查询与管理 | \`yida-data-management\` |
+| 流程规则 | \`yida-process-rule\` |
+| 集成自动化 | \`yida-integration\` |
+| HTTP 连接器 | \`yida-connector\` |
+| 图表页面 | \`yida-chart\` |
+| 原生报表 | \`yida-report\` |
+| 公式字段 | \`yida-formula\` |
+| 公式静态检查 | \`yida-formula-evaluate\` |
+| VOC 反馈整理 | \`yida-voc\` |
+| 闪记 / 会议纪要转 PRD | \`yida-flash-note-to-prd\` |
 
 ## 执行规则
 

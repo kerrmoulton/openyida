@@ -57,7 +57,7 @@ Step 0 导航形态判定 → Step 1 页面类型 → Step 2 意图解码 → St
 | 文档 | 覆盖范围 | 何时阅读 |
 |------|---------|---------|
 | [视觉决策引擎](references/visual-decision-engine.md) | 5 个风格意图 + 反默认组合表 + 5 个差异化维度 + 强制第二选择 + 差异化自检 | Step 4 做视觉决策时（所有场景共用） |
-| [页面内自绘导航壳（独立 skill）](../yida-nav-shell/SKILL.md) | 页面隐藏应用导航后用 JSX 自建侧边/顶部/混合/浮动/标签导航壳：选型表 + 骨架 + native/Canvas 代码 + 多视图切换 | Step 0 判定导航隐藏、需自建导航壳时 |
+| `yida-nav-shell` 子技能 | 页面隐藏应用导航后用 JSX 自建侧边/顶部/混合/浮动/标签导航壳：选型表 + 骨架 + native/Canvas 代码 + 多视图切换 | Step 0 判定导航隐藏、需自建导航壳时调用 `use_skill("yida-nav-shell", "设计页面内自绘导航壳")` |
 | [scene-workbench](references/scenes/workbench.md) | 工作台/门户首页的骨架/密度/焦点/组件套餐/去 AI 味要点 | 页面类型 = 工作台时 |
 | [scene-dashboard](references/scenes/dashboard.md) | 数据看板/驾驶舱 | 页面类型 = 看板时 |
 | [scene-list](references/scenes/list.md) | 列表/管理页 | 页面类型 = 列表时 |

@@ -90,7 +90,7 @@ openyida create-process "APP_XXX" --formUuid "FORM-YYY" .cache/openyida/order/pr
 2. **🔄 跳转规则**：存在回退/循环语义时，自动配置 `routeRules`
 3. **🔀 并行/办理/高级组件**：需要并行会审、办理节点或连接器/数据/消息等官方组件节点时，流程定义格式直接参考 `yida-process-rule`
 
-详见 `yida-process-rule` 的 SKILL.md。
+需要流程规则细节时，调用 `use_skill("yida-process-rule", "配置已有流程节点、分支和字段权限")`。
 
 ## 异常处理
 
@@ -98,7 +98,7 @@ openyida create-process "APP_XXX" --formUuid "FORM-YYY" .cache/openyida/order/pr
 |---------|----------|
 | 命令返回失败 | 检查 appType 和 formUuid 是否正确，确认登录态有效 |
 | processCode 获取失败 | 确认表单已成功转为流程表单类型，重新执行 |
-| 流程定义 JSON 格式错误 | 参考 `yida-process-rule` SKILL.md 中的 JSON 格式说明 |
+| 流程定义 JSON 格式错误 | 加载 `yida-process-rule` 子技能，按其中的 JSON 格式说明修正 |
 | 返回 JSON 中无 processCode | 不要猜测 processCode，重新执行命令获取 |
 | 流程发布失败 | 检查流程定义中的 fieldId 是否为真实 ID（先 get-schema 获取） |
 | 登录态失效 | 执行 `openyida login` 重新登录后再试 |

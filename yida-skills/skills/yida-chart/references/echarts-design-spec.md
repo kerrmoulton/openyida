@@ -1,7 +1,7 @@
 # ECharts 报表视觉风格规范
 
 > 本文档包含 ECharts 报表页面的默认视觉风格、配色方案、图表配置模板等。
-> 由 `yida-chart/SKILL.md` 拆分而来，设计 ECharts 页面样式时参考本文档。
+> 由 `yida-chart` 主技能拆分而来，设计 ECharts 页面样式时参考本文档。
 
 ---
 

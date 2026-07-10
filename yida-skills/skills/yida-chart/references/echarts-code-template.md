@@ -1,7 +1,7 @@
 # ECharts 页面代码模板
 
 > 本文档包含 ECharts 自定义页面的必备代码结构、数据请求函数模板、初始化流程等。
-> 由 `yida-chart/SKILL.md` 拆分而来，编写 ECharts 页面代码时必须读取本文档。
+> 由 `yida-chart` 主技能拆分而来，编写 ECharts 页面代码时必须读取本文档。
 
 ---
 

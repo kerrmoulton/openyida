@@ -8,7 +8,7 @@ description: 为已有流程表单配置审批规则（审批/办理/抄送、�
 ## 严格禁止 (NEVER DO)
 
 - 不要在流程定义中使用猜测的 fieldId，必须先用 `yida-get-schema` 获取
-- 不要在未读取本 SKILL.md 的情况下编写流程定义 JSON，格式复杂且易出错
+- 不要在未加载本技能内容的情况下编写流程定义 JSON，格式复杂且易出错
 - 不要用此技能创建流程表单，应使用 `yida-create-process`
 - 不要用 shell heredoc、`cat`/`echo`/`printf`/`tee` 或重定向生成流程定义 JSON
 

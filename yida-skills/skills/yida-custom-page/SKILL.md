@@ -32,7 +32,7 @@ description: 宜搭 native 自定义页面 JSX 开发规范（React 16 宜搭原
 
 影响代码质量和用户体验：
 
-0. **写 UI 前先定视觉方向**：面向用户的页面在动手写 JSX 前，先读 `skills/yida-page-uiux/SKILL.md` 完成「视觉方向决策」（页面类型判定 + 差异化 + 去 AI 味自检），拿到「视觉方向决策块」后再按本技能 `references/design-system.md` 的 token/组件实现；不要直接套用统一灰白底 + 8px 圆角卡片网格的默认模板（那正是 AI 味来源）。
+0. **写 UI 前先定视觉方向**：面向用户的页面在动手写 JSX 前，调用 `use_skill("yida-page-uiux", "确定自定义页面视觉方向")` 完成「视觉方向决策」（页面类型判定 + 差异化 + 去 AI 味自检），拿到「视觉方向决策块」后再按本技能 `references/design-system.md` 的 token/组件实现；不要直接套用统一灰白底 + 8px 圆角卡片网格的默认模板（那正是 AI 味来源）。
 1. **代码生成前确认功能摘要**：详见 [编码指南 编注 0](references/coding-guide.md)
 2. **pageSize 推荐 50，最大 100**：列表/看板默认 `pageSize: 50`；分页接口 `searchFormDatas` 等的 `pageSize` 最大 100
 3. **didUnmount 清理定时器**：在 `didUnmount` 中清理所有 `setInterval`/`setTimeout`，防止内存泄漏
@@ -176,7 +176,7 @@ openyida check-page pages/src/home.oyd.jsx --json      # 输出机器可读的�
 | 文档 | 覆盖范围 | 何时阅读 |
 |------|---------|---------|
 | **本技能文档** | | |
-| [视觉方向决策（去 AI 味）](../yida-page-uiux/SKILL.md) | 页面类型 playbook、5 维差异化引擎、去 AI 味黑名单/8 问自检、图标策略 | 实现面向用户的 UI 且要求好看/去 AI 味时，**先于写代码**阅读并产出决策块 |
+| `yida-page-uiux` 子技能 | 页面类型 playbook、5 维差异化引擎、去 AI 味黑名单/8 问自检、图标策略 | 实现面向用户的 UI 且要求好看/去 AI 味时，调用 `use_skill("yida-page-uiux", "确定自定义页面视觉方向")` 并产出决策块 |
 | [编码指南](references/coding-guide.md) | 文件结构模板、状态管理、生命周期、19 条编码规范 | 编写任何页面代码前必读 |
 | [运行时护栏](references/runtime-guardrails.md) | pageSize、loading 恢复、ECharts DOM 时序、setState 约束、check-page 规则映射 | 编写列表、看板、图表或接口页面前必读 |
 | [设计规范](references/design-system.md) | 色彩/圆角/字体/间距系统、7 类组件样式模板、8 条反模式 | 实现 UI 样式时必读 |
