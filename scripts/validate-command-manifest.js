@@ -4,7 +4,11 @@
 
 const fs = require('fs');
 const path = require('path');
-const { COMMAND_GROUPS, flattenCommandManifest } = require('../lib/core/command-manifest');
+const {
+  COMMAND_GROUPS,
+  flattenCommandManifest,
+  listCommandSideEffectIds,
+} = require('../lib/core/command-manifest');
 
 const ROOT = path.resolve(__dirname, '..');
 const ROUTER_FILE = path.join(ROOT, 'bin/yida.js');
@@ -99,6 +103,14 @@ function validateGroupReferences() {
 
 function validateSideEffects(commands) {
   const allowedKinds = new Set(['local_read', 'local_write', 'remote_read', 'remote_write', 'mixed']);
+  const commandIds = new Set(commands.map(entry => entry.id));
+
+  for (const sideEffectId of listCommandSideEffectIds()) {
+    if (!commandIds.has(sideEffectId)) {
+      errors.push(`Side effect metadata references unknown command id: ${sideEffectId}`);
+    }
+  }
+
   for (const entry of commands) {
     const sideEffect = entry.sideEffect;
     if (!sideEffect || typeof sideEffect !== 'object') {
@@ -113,6 +125,17 @@ function validateSideEffects(commands) {
     }
     if (typeof sideEffect.mutates_local !== 'boolean') {
       errors.push(`Command manifest id "${entry.id}" sideEffect.mutates_local must be boolean`);
+    }
+    if (sideEffect.kind === 'mixed') {
+      if (sideEffect.action_dependent !== true) {
+        errors.push(`Command manifest id "${entry.id}" mixed sideEffect.action_dependent must be true`);
+      }
+      if (!Array.isArray(sideEffect.read_actions)) {
+        errors.push(`Command manifest id "${entry.id}" mixed sideEffect.read_actions must be an array`);
+      }
+      if (!Array.isArray(sideEffect.mutating_actions)) {
+        errors.push(`Command manifest id "${entry.id}" mixed sideEffect.mutating_actions must be an array`);
+      }
     }
   }
 }

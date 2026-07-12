@@ -168,6 +168,15 @@ describe('CLI offline smoke', () => {
     expect(parsed).toHaveProperty('schema_version', 1);
     expect(parsed).toHaveProperty('name', 'openyida');
     expect(parsed).toHaveProperty('version', version);
+    expect(parsed.side_effect_schema).toMatchObject({
+      version: 1,
+      kinds: {
+        mixed: expect.stringContaining('Action-dependent command'),
+      },
+      fields: {
+        action_dependent: expect.stringContaining('mixed commands'),
+      },
+    });
     expect(commands).toContain('env');
     expect(commands).toContain('login');
     expect(commands).toContain('corp-efficiency');
@@ -264,11 +273,14 @@ describe('CLI offline smoke', () => {
       kind: 'mixed',
       mutates_yida: true,
       mutates_local: false,
+      action_dependent: true,
+      note: expect.stringContaining('Action-dependent command'),
     });
     expect(commandById['db-seq-fix'].side_effect).toMatchObject({
       kind: 'mixed',
       mutates_yida: true,
       mutates_local: false,
+      action_dependent: true,
       read_actions: ['default', '--dry-run'],
       mutating_actions: ['--fix'],
     });
@@ -288,6 +300,12 @@ describe('CLI offline smoke', () => {
       skills: {
         index_file: 'skills-index.json',
         entry: 'openyida',
+      },
+    });
+    expect(parsed.command_manifest.side_effect_schema).toMatchObject({
+      version: 1,
+      kinds: {
+        mixed: expect.stringContaining('Action-dependent command'),
       },
     });
     expect(parsed.login).toHaveProperty('status');
@@ -331,11 +349,13 @@ describe('CLI offline smoke', () => {
       kind: 'mixed',
       mutates_yida: true,
       mutates_local: false,
+      action_dependent: true,
     });
     expect(commandById['batch.file'].side_effect).toMatchObject({
       kind: 'mixed',
       mutates_yida: true,
       mutates_local: true,
+      action_dependent: true,
     });
     expect(commandById.auth.side_effect).toMatchObject({
       kind: 'mixed',
