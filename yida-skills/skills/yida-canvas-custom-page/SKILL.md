@@ -1,6 +1,6 @@
 ---
 name: yida-canvas-custom-page
-description: 宜搭 Code Canvas / 代码画布自定义页面开发规范，是**自定义页面的默认链路**——现代 React 交互、hooks 状态、可视化、AI 生成或需要崩溃隔离的页面都用它（真 React18 + `runtimeCode` + `importedModules`）。只需通过开放 API（HTTP fetch）读写宜搭数据的页面也用它——Canvas 无 this 数据桥，在 YidaComp 内自写 HTTP 桥即可。也覆盖用户明确提到 code canvas、代码画布、YidaCodeCanvas、runtimeCode、importedModules，或在 Code Canvas 中使用 EmployeeField、SelectField、DepartmentSelectField 等原生组件的场景。仅当页面强依赖原生实例数据桥（this.$(fieldId) 双向绑定、this.utils.yida.*、dataSourceMap、提交流程深度耦合）时才回退 yida-custom-page。
+description: 宜搭 Code Canvas / 代码画布自定义页面开发规范。Code Canvas 尚未在宜搭平台全量，只有用户明确要求代码画布、已有页面为 YidaCodeCanvas，或已确认当前组织/页面支持 Canvas 时使用；默认兼容链路仍是 yida-custom-page。
 ---
 
 # 宜搭 Code Canvas 自定义页面开发
@@ -8,6 +8,8 @@ description: 宜搭 Code Canvas / 代码画布自定义页面开发规范，是*
 ## 核心定位
 
 Code Canvas 是宜搭的**代码画布自定义页面链路**：以 `YidaCodeCanvas` 物料为承载，用户写标准 React18 函数组件源码，编译为 `runtimeCode` + 依赖清单（OpenYida CLI 本地用 Babel 完成），运行时按依赖白名单加载资源并 `new Function` 执行，渲染出真正的 React 组件。相较宜搭原生 `.oyd.jsx` 页面，它提供现代 hooks 写法、组件级崩溃隔离（ErrorBoundary）、Tailwind 运行时样式，适合现代交互 / 可视化 / AI 生成页面。
+
+> **可用性边界**：Code Canvas 组件在宜搭平台侧尚未全量。完整应用 `fast_build` 和未确认 Canvas 能力的组织默认使用 `yida-custom-page` native 链路；本技能只在用户明确要求、已有页面是 `YidaCodeCanvas`，或已确认当前组织/页面支持 Canvas 时使用。
 
 运行链路（源码核实自 `vc-deep-yida` 物料）：
 
@@ -21,12 +23,13 @@ Code Canvas 是宜搭的**代码画布自定义页面链路**：以 `YidaCodeCan
 
 | 证据 | 判断 |
 | --- | --- |
-| 现代 React 交互 / hooks 状态 / 可视化 / AI 生成 / 需崩溃隔离的自定义页 | **默认使用本技能** |
+| 用户明确要求 Code Canvas / 代码画布 / runtimeCode / importedModules | 使用本技能 |
+| 已确认当前组织/页面支持 `YidaCodeCanvas`，且需要现代 React 交互 / hooks 状态 / 可视化 / AI 生成 / 崩溃隔离 | 使用本技能 |
 | 页面 Schema 或组件树里有 `componentName: "YidaCodeCanvas"` | 使用本技能 |
-| 需求明确是“代码画布 / Code Canvas / runtimeCode / importedModules” | 使用本技能 |
 | 需求明确是“从 OpenYida 原链路升级/迁移到 Canvas” | 切到 `yida-canvas-upgrade` |
-| 只需通过开放 API（HTTP）读写宜搭数据的页面 | **仍用本技能**：在 `YidaComp` 内自写 fetch 调开放 API / 连接器代理（Canvas 无 `this` 桥，需自建 HTTP 数据桥） |
-| 强依赖原生实例数据桥：表单内字段双向绑定 `this.$(fieldId)`、`this.utils.yida.*`、`dataSourceMap`、提交流程深度耦合 | 回退 `yida-custom-page`（该实例桥仅 native 免费提供） |
+| 未确认 Canvas 能力，或只是完整应用 `fast_build` 的主入口页 | 使用 `yida-custom-page` |
+| 只需通过开放 API（HTTP）读写宜搭数据，但未确认 Canvas 能力 | 使用 `yida-custom-page`；不要为了 HTTP 数据读取默认切 Canvas |
+| 强依赖原生实例数据桥：表单内字段双向绑定 `this.$(fieldId)`、`this.utils.yida.*`、`dataSourceMap`、提交流程深度耦合 | 使用 `yida-custom-page`（该实例桥仅 native 免费提供） |
 | 需要字段结构、公式、联动、权限、报表、流程 | 切到对应配置型技能，不用 Code Canvas 承载 |
 
 OpenYida CLI 已支持发布 `YidaCodeCanvas` 页面：把 Code Canvas 源码写成 `.canvas.jsx`（推荐 `project/pages/src/<页面名>.canvas.jsx`），执行 `openyida publish <源文件> <appType> <formUuid>` 即自动走 Canvas 链路——`.canvas.jsx` 扩展名会被识别，CLI **本地用 Babel 编译**出 `runtimeCode` + `importedModules`（无需在线编译服务、无需登录态即可完成编译），构造 `YidaCodeCanvas` 组件的 Schema 并保存。扩展名不规范但确为 Canvas 源码时，加 `--canvas` 显式指定。**不要**把 Canvas 源码用普通 `.oyd.jsx`/`.jsx` 走 native 链路发布（会被 Babel 兼容编译器当 `renderJsx` 处理而失败）。
@@ -45,9 +48,9 @@ OpenYida CLI 已支持发布 `YidaCodeCanvas` 页面：把 Code Canvas 源码写
 > 🔌 在 `YidaComp` 内自写 HTTP 桥读写宜搭数据（连接器代理 / 同源 fetch / 可复用 hook）→ [references/data-bridge-guide.md](references/data-bridge-guide.md)
 > 🎨 主色跟随 App 品牌：antd `ConfigProvider.colorPrimary` / Tailwind CSS 变量 / 图表配色的落地写法 → [references/canvas-design-system.md](references/canvas-design-system.md)
 
-## 视觉方向：先定方向，再写代码
+## 视觉方向：按需定方向
 
-写页面前先定视觉方向，避免首次就生成「默认蓝 + 大圆角 + emoji」的 AI 味套版。视觉决策是**栈无关**的，与 native 链路共用决策层技能 `yida-page-uiux`：需要视觉方向时调用 `use_skill("yida-page-uiux", "确定 Code Canvas 页面的视觉方向")`，按页面类型（工作台/仪表盘/列表/详情）做 5 维差异化、走去 AI 味清单、严禁 emoji。
+单点页面美化、用户明确要求好看/去 AI 味，或 `yida-app` 进入 `deep_design` 时，再调用 `use_skill("yida-page-uiux", "确定 Code Canvas 页面的视觉方向")`。`yida-app fast_build` 默认不加载 `yida-page-uiux`：直接使用克制的 MVP 工作台/列表/入口布局，禁 emoji、少装饰、主色跟随 App 品牌即可。
 
 Canvas 这套栈（React18 + antd + Tailwind）怎么把「主色跟随 App 品牌」落地由 [references/canvas-design-system.md](references/canvas-design-system.md) 负责。一句话记忆：**CSS 变量 `var(--color-brand1-*)` 对普通 DOM / Tailwind 直接可用（Canvas 跑在真 window、节点在宿主树内会级联）；antd token 和图表颜色是 JS 消费，需用 `getComputedStyle` 把品牌色解析成真实色值再喂进去。** 语义色（成功/警告/错误）保持固定，不随主题变。
 
@@ -100,7 +103,7 @@ openyida get-schema <appType> <formUuid>
 | 发布 Canvas 页（`.canvas.jsx` → `openyida publish` 自动走 Canvas 链路） | 本技能开发流程 step 4 |
 | 编译并发布 native `.oyd.jsx`/`.jsx` 页面 | `yida-publish-page` |
 | 创建空白自定义页面 | `yida-create-page` |
-| 通过数据源调用连接器 | `yida-data-source-connectors` |
+| 用户明确要求通过设计器数据源调用连接器 | `yida-data-source-connectors`；`fast_build` 不默认加载 |
 | 创建或管理 HTTP 连接器 | `yida-connector` |
 | 配表单字段结构，如真正的 EmployeeField 字段 | `yida-create-form-page` |
 

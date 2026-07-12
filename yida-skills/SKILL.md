@@ -25,7 +25,7 @@ description: >
 
 > ⚡ **前置门槛**：确认 openyida 已安装、Node/npm 依赖达标、登录态就绪。**未通过只读验证前，禁止创建应用/页面/表单或发布等任何真实资源操作。**
 
-**怎么做**：优先跑一次 `openyida agent-capabilities --json`。该命令一次返回 version、cwd、AI 工具环境、推荐工作目录、登录态摘要、commands 和 sideEffects，避免反复 `which openyida`、`openyida --version`、`openyida --help`、`openyida env`、`login --check-only`。
+**怎么做**：优先跑一次 `openyida agent-capabilities --json`。该命令一次返回 version、cwd、AI 工具环境、推荐工作目录、登录态摘要、commands、command count、sideEffects 和默认 `fast_build` 契约，避免反复 `which openyida`、`openyida --version`、`openyida --help`、`openyida env`、`login --check-only`。
 
 若当前 OpenYida 版本还没有 `agent-capabilities`，退回跑 `openyida env --json` 和 `openyida login --check-only --json`。旧版本地 agent 不需要认识 `skills-index.json`，也不需要支持 `agent-capabilities` 才能继续执行。
 
@@ -36,7 +36,7 @@ description: >
 | `login.status` 不是 `ok` 且 `login.can_auto_use` 不是 true | 未登录 → `openyida login`（指定入口带 URL 或 flag） |
 | `active.projectRootExists` 为 false | 无工作目录 → `openyida copy` 初始化 |
 
-**👉 完整命令解读、悟空降级、Codex handoff 等特殊分支 → [references/setup-and-env.md](references/setup-and-env.md)（必读）。**
+**👉 环境异常、登录失败、悟空降级、Codex handoff 等特殊分支 → [references/setup-and-env.md](references/setup-and-env.md)。正常 `agent-capabilities` 通过时不要默认读取该 reference。**
 
 ---
 
@@ -57,9 +57,13 @@ description: >
 > 加载子技能 `yida-app`，由它负责完整应用 workflow、阶段子技能加载、关键 ID 流转、PRD 与 schema cache 约束。
 > 用户说“按默认方案 / 不要追问 / 直接创建 / 尽快搭建”时，`yida-app` 选择 `fast_build`：创建应用、必要表单、主页面、发布并输出链接。
 
+**默认链路**：`fast_build` 必须只做 `创建应用 → 核心表单 → 主页面 → 编写主页面源码 → 发布 → 返回访问链接`。不要因为应用名里有“看板 / 系统 / 管理”就升级到 `deep_design` 或 `full_demo`。
+
+**fast_build 默认加载边界**：只加载 `yida-app` 和当前阶段必需的子技能：`yida-create-app`、`yida-create-form-page`、`yida-create-page`、`yida-custom-page`、`yida-publish-page`。Code Canvas 尚未全量，只有用户明确要求、已有页面为 `YidaCodeCanvas`，或已确认当前组织/页面支持时才加载 `yida-canvas-custom-page`。不要默认加载 `yida-page-uiux`、`yida-data-source-connectors`、`yida-data-management`、`yida-nav-group`、`yida-dashboard`，也不要默认深读 `references/`。
+
 **doneWhen**：`yida-app` 发布主页面成功并输出可访问 URL。到这里默认完成；不要发布后继续 TaskCreate、重复读技能或继续规划。
 
-**optionalAfterDone**：导航整理、示例数据、公开访问、截图验证、深度视觉方向、报表/大屏，只在用户明确要求或 `yida-app` 模式为 `full_demo` / `deep_design` 时执行。
+**optionalAfterDone**：导航整理、示例数据、公开访问、截图验证、深度视觉方向、数据源/连接器深度接入、报表/大屏，只在用户明确要求或 `yida-app` 模式为 `full_demo` / `deep_design` 时执行。
 
 ---
 
@@ -73,12 +77,12 @@ description: >
 
 > ⚠️ **同类易错先分清**：改字段结构→`create-form-page`｜只读 Schema→`get-schema`｜改数据记录→`data-management`｜详情页美化→`form-detail`；自定义页视觉方向/去AI味→`page-uiux`(定方向)｜token/组件实现→`custom-page`(design-system)；加导航先分清→平台左侧菜单分组/排序→`nav-group`｜页面隐藏应用导航后页面内自绘导航壳→`nav-shell`（必须隐藏原导航，并让导航项 URL 带 `isRenderNav=false` 等参数）；字段实时校验→`formula`｜提交后编排→`integration`｜跨表高级函数→`business-rule`；从零建流程→`create-process`｜改已有流程→`process-rule`；权限按层级：组织→`corp-manager`／应用→`app-permission`／表单→`form-permission`／页面分享→`page-config`；**自定义页面选路见下方专表**。
 
-> 🧭 **自定义页面选路（默认 Code Canvas，按顺序命中即停）**：
-> 1. **默认 → Code Canvas** `yida-canvas-custom-page`：现代 React 交互 / hooks 状态 / 可视化 / AI 生成 / 需崩溃隔离，**以及只需通过开放 API（HTTP）读取宜搭数据的页面**（Canvas 自写 fetch 即可拿数据）；
-> 2. 仅当页面强依赖**原生实例数据桥**——表单内字段双向绑定 `this.$(fieldId)`、`this.utils.yida.*`、`dataSourceMap`、提交流程 / 设计器数据源深度耦合，且用开放 API 重写代价过高 → 回退 **native** `yida-custom-page`；
-> 3. 已有普通 `.oyd.jsx` 要迁到 Canvas → `yida-canvas-upgrade`。
+> 🧭 **自定义页面选路（兼容优先，按顺序命中即停）**：
+> 1. **默认 → native** `yida-custom-page`：平台全量兼容的 `.oyd.jsx` 链路，适合完整应用 `fast_build` 和未确认 Canvas 能力的组织；
+> 2. 仅当用户明确要求 Code Canvas / 代码画布，已有页面 Schema 是 `YidaCodeCanvas`，或已确认当前组织/页面支持 Canvas → `yida-canvas-custom-page`；
+> 3. 已有普通 `.oyd.jsx` 要迁到 Canvas，且目标组织支持 Canvas → `yida-canvas-upgrade`。
 >
-> 依据（源码核实）：Canvas 代码在宿主页真实 `window` 中 `new Function` 执行，但物料只透传 `code/runtimeCode/importedModules/pageType`，**无 `this` 上下文、无 `dataSourceMap`**，`this.utils.yida.*` 不可用；宿主 window 全局（`__yida_plugin_runtime__` 插件系统、`__VcDeepYidaUtils__`）均非表单数据桥，也无 `window.Deep` 字段组件。Canvas 读宜搭数据 = 在 `YidaComp` 内自写 HTTP 调开放 API。只有需要免费 `this` 实例桥的页才留 native。
+> 依据：Code Canvas 组件在宜搭平台侧尚未全量。native `.oyd.jsx` 是默认兼容链路；Canvas 代码在宿主页真实 `window` 中 `new Function` 执行，但物料只透传 `code/runtimeCode/importedModules/pageType`，无 `this` 上下文、无 `dataSourceMap`，`this.utils.yida.*` 不可用。需要实例桥或未确认 Canvas 支持时留 native。
 
 | 分组 | 加载目标 | 何时选择（关键区别已内联） |
 |------|------|--------------------------|
@@ -89,10 +93,10 @@ description: >
 | **页面与表单** | 加载子技能 `yida-create-page` | 创建空白自定义页面拿 formUuid，后续写 JSX |
 | | 加载子技能 `yida-create-form-page` | 创建/更新表单、增删改**字段结构**（普通表单，无审批） |
 | | 加载子技能 `yida-create-process` | 从零建**带审批**流程表单（表单还不存在，一步到位） |
-| | 加载子技能 `yida-page-uiux` | 写自定义页面 UI 前先定视觉方向、去 AI 味（工作台/看板/列表/详情/官网落地页；产出决策块，不写代码；canvas / native 两链路通用） |
-| | 加载子技能 `yida-canvas-custom-page` | **自定义页面默认链路**：现代 React 交互 / hooks / 可视化 / AI 页，含只需开放 API HTTP 读数据的页（Code Canvas，`runtimeCode` + `importedModules`，真 React18 + 崩溃隔离） |
-| | 加载子技能 `yida-custom-page` | 回退项：仅当强依赖原生实例数据桥（`this.$(fieldId)` 双向绑定 / `this.utils.yida.*` / `dataSourceMap` / 提交流程深度耦合）时才用（native `.oyd.jsx` 链路） |
-| | 加载子技能 `yida-canvas-upgrade` | 将已有普通 `.oyd.jsx` / `Jsx` 页面升级迁移到 Code Canvas / `YidaCodeCanvas` 链路 |
+| | 加载子技能 `yida-page-uiux` | 单点页面美化、用户明确要求视觉方向/去 AI 味，或 `yida-app` 进入 `deep_design` 时使用；`fast_build` 不默认加载 |
+| | 加载子技能 `yida-custom-page` | **自定义页面默认兼容链路**：native `.oyd.jsx`，适合完整应用 `fast_build` 和未确认 Canvas 能力的组织 |
+| | 加载子技能 `yida-canvas-custom-page` | Code Canvas 可选链路：用户明确要求代码画布、已有页面为 `YidaCodeCanvas`，或已确认当前组织/页面支持 Canvas 时使用 |
+| | 加载子技能 `yida-canvas-upgrade` | 将已有普通 `.oyd.jsx` / `Jsx` 页面升级迁移到 Code Canvas / `YidaCodeCanvas` 链路；仅在目标组织支持 Canvas 时执行 |
 | | 加载子技能 `yida-nav-shell` | 自定义页**隐藏应用导航**（`isRenderNav=false`，沉浸/门户/大屏/分享）后，页面内用 JSX 自绘侧边/顶部/浮动/标签导航壳；发布后要配置隐藏原导航，跨页导航项要拼完整 URL 并合并 `isRenderNav=false` / `corpid` / 业务参数（**区别** `yida-nav-group` 平台左侧菜单分组：那是真实导航树，本项是页面内自建导航） |
 | | 加载子技能 `yida-publish-page` | JSX 写完后编译并发布 |
 | | 加载子技能 `yida-openyida-publish-guard` | 发布已有自定义页面前检查线上设计器状态，避免本地旧源码覆盖用户在线改动 |
@@ -104,7 +108,7 @@ description: >
 | | 加载子技能 `yida-dashboard` | 完整看板 / 驾驶舱产品化交付 |
 | **连接器** | 加载子技能 `yida-connector` | 创建/管理连接器、配鉴权 |
 | | 加载子技能 `yida-connector-safe-actions` | 连接器已有，从 API 代码生成执行动作 |
-| | 加载子技能 `yida-data-source-connectors` | 自定义页面中通过数据源调用连接器 |
+| | 加载子技能 `yida-data-source-connectors` | 用户明确要求通过设计器数据源/连接器调用外部 API 时使用；完整应用 `fast_build` 不默认加载 |
 | **数据与公式** | 加载子技能 `yida-data-management` | 增删改查**数据记录**，不动字段结构 |
 | | 加载子技能 `yida-get-schema` | **只读**查 Schema / 字段 ID，不改结构 |
 | | 加载子技能 `yida-formula` | 配在**字段属性**上的实时计算/默认值/校验 |
@@ -157,7 +161,7 @@ description: >
 9. **报表美化先问方案**：用户说"优化/美化报表"时先问选原生报表(`yida-report`)还是 ECharts(`yida-chart`)。
 10. **按 schema 证据选技能**：先看 `formType`、组件树、`dataSource.online`；`receipt/process/report` 分别落到表单/流程/报表技能。
 11. **官方示例范式优先**：蒸馏官方示例时先理解脱敏 schema 承载方式，不凭截图/标题/视觉判断。
-12. **默认完成即停止**：完整应用默认以发布成功并输出 URL 为 doneWhen；示例数据、导航、截图、TaskCreate 和深度设计都是 optionalAfterDone。
+12. **默认完成即停止**：完整应用默认以发布成功并输出 URL 为 doneWhen；UIUX、数据源深读、示例数据、导航、截图、TaskCreate 和深度设计都是 optionalAfterDone。
 
 > 📖 每条规则的完整说明、PRD 质量门槛、临时文件路径规范、报表美化话术 → [references/development-rules.md](references/development-rules.md)
 

@@ -70,7 +70,7 @@
       "name": "yida-canvas-custom-page",
       "path": "skills/yida-canvas-custom-page/SKILL.md",
       "display_name": "Code Canvas 自定义页面",
-      "description": "宜搭 Code Canvas / 代码画布自定义页面开发规范，覆盖现代 React 交互、hooks 状态、可视化、AI 生成和开放 API 数据读取页面。",
+      "description": "宜搭 Code Canvas / 代码画布自定义页面开发规范。Canvas 尚未全量，仅在用户明确要求、已有页面为 YidaCodeCanvas，或已确认组织/页面支持时使用。",
       "category": "yida/page",
       "tags": ["Code Canvas", "React18", "runtimeCode", "自定义页面"],
       "aliases": ["代码画布", "Canvas 页面"]
@@ -169,7 +169,7 @@
       "name": "yida-custom-page",
       "path": "skills/yida-custom-page/SKILL.md",
       "display_name": "Native 自定义页面 JSX 开发",
-      "description": "宜搭自定义页面 React 16 / JSX 开发规范、运行时限制、UI 与数据源调用约束。",
+      "description": "宜搭 native 自定义页面 React 16 / JSX 开发规范，默认兼容链路，适合完整应用 fast_build 和未确认 Code Canvas 能力的组织。",
       "category": "yida/page",
       "tags": ["JSX", "自定义页面", "React 16", "页面代码"],
       "aliases": ["页面开发", "native 页面"]

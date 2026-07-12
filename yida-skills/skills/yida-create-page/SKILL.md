@@ -11,9 +11,9 @@ description: 在宜搭应用中创建自定义展示页面（display 类型）�
 
 ## 严格要求 (MUST DO)
 
-- **创建前必须确认**：执行创建命令前，必须向用户确认页面名称和目标应用，获得用户明确同意后再执行
+- **创建前必须确认**：单点创建页面时，执行创建命令前必须向用户确认页面名称和目标应用。由 `yida-app fast_build` 编排且用户已说“默认方案 / 不要追问 / 直接创建”时，合理命名并直接创建，不再二次追问。
 - 创建成功后，将 formUuid 记录到 `.cache/<项目名>-schema.json`
-- 创建页面后，必须继续执行 `yida-custom-page` 编写 JSX 代码，再用 `yida-publish-page` 发布
+- 创建页面后，必须继续执行 `yida-custom-page`（默认兼容链路）或 `yida-canvas-custom-page`（用户明确要求或已确认支持 Canvas 时）编写 JSX 代码，再用 `yida-publish-page` 发布
 - **本技能不读写 memory**：formUuid 等信息输出到 stdout，通过 `.cache/<项目名>-schema.json` 持久化，不依赖跨会话的 memory 状态
 
 ## 适用场景
@@ -52,7 +52,7 @@ openyida create-page <appType> <pageName> [--mode dashboard]
 {"success":true,"pageId":"FORM-XXX","pageName":"驾驶舱","appType":"APP_XXX","mode":"dashboard","chromeless":true,"url":"{base_url}/APP_XXX/custom/FORM-XXX?isRenderNav=false","workbenchUrl":"{base_url}/APP_XXX/workbench/FORM-XXX"}
 ```
 
-> 创建后使用 `yida-custom-page` 编写 JSX 代码，再用 `openyida publish` 发布。
+> 创建后默认使用 `yida-custom-page` 编写 `.oyd.jsx` 代码，并通过 `openyida check-page` / `openyida compile` / `openyida publish` 发布；Code Canvas 仅在用户明确要求或已确认支持时使用。
 > 如需创建表单页面（带字段的数据收集页），请使用 `yida-create-form-page`。
 
 ## 异常处理

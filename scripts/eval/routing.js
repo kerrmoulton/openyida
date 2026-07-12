@@ -28,7 +28,7 @@ function loadRoutingContext(skillMdPath = DEFAULT_SKILL_MD) {
 
 /**
  * 加载 scenarios 目录下的 *.json golden 用例。
- * @returns {Array<{id, prompt, expectedSkill, expectedStages?, rubric?}>}
+ * @returns {Array<{id, prompt, expectedSkill, expectedMode?, forbiddenDefaultSkills?, expectedStages?, rubric?}>}
  */
 function loadScenarios(dir) {
   if (!dir || !fs.existsSync(dir)) {return [];}
@@ -58,7 +58,7 @@ function normalizeSkill(name) {
 function buildRoutingPrompt({ request, routingContext, skillNames }) {
   return [
     '下面是宜搭 AI 应用开发技能（openyida）的路由说明文档。请严格依据它，',
-    '判断针对用户请求应当选择哪一个**子技能**来处理。',
+    '判断针对用户请求应当选择哪一个**子技能**来处理。如果是完整应用搭建，还要判断 yida-app 的模式。',
     '',
     '=== 路由说明文档开始 ===',
     routingContext,
@@ -69,8 +69,20 @@ function buildRoutingPrompt({ request, routingContext, skillNames }) {
     `用户请求：「${request}」`,
     '',
     '只输出一个 JSON 对象，不要任何其它文字，形如：',
-    '{"skill": "yida-dashboard", "reason": "一句话理由"}',
+    '{"skill": "yida-app", "mode": "fast_build", "defaultLoadSkills": ["yida-app"], "reason": "一句话理由"}',
+    '',
+    '要求：',
+    '- skill 必须是上面可选子技能名之一。',
+    '- 只有完整应用搭建才填写 mode；默认方案 / 不要追问 / 直接创建 必须是 fast_build。',
+    '- defaultLoadSkills 只列默认会加载的技能；optionalAfterDone 不要列入默认加载。',
   ].join('\n');
+}
+
+function normalizeSkillList(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map(normalizeSkill).filter(Boolean);
 }
 
 /**
@@ -111,13 +123,28 @@ function evaluateScenario(options = {}) {
   }
 
   const actual = res.json && res.json.skill ? res.json.skill : null;
-  const hit = actual !== null
+  const skillHit = actual !== null
     && normalizeSkill(actual) === normalizeSkill(scenario.expectedSkill);
+  const actualMode = res.json && res.json.mode ? String(res.json.mode).trim() : null;
+  const modeHit = scenario.expectedMode
+    ? normalizeSkill(actualMode) === normalizeSkill(scenario.expectedMode)
+    : null;
+  const defaultLoadSkills = normalizeSkillList(res.json && res.json.defaultLoadSkills);
+  const forbiddenDefaultSkillHits = normalizeSkillList(scenario.forbiddenDefaultSkills)
+    .filter(skillName => defaultLoadSkills.includes(skillName));
+  const hit = skillHit
+    && (modeHit !== false)
+    && forbiddenDefaultSkillHits.length === 0;
 
   return {
     id: scenario.id,
     expected: scenario.expectedSkill,
     actual,
+    expectedMode: scenario.expectedMode || null,
+    actualMode,
+    modeHit,
+    defaultLoadSkills,
+    forbiddenDefaultSkillHits,
     reason: res.json ? res.json.reason : null,
     hit,
     status: actual === null ? 'unparsed' : 'ok',

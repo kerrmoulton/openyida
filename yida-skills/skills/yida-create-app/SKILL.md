@@ -8,7 +8,7 @@ description: 创建宜搭应用，返回 appType。搭建应用的第一步。�
 ## 严格禁止 (NEVER DO)
 - 不要编造 appType，必须从命令返回的 JSON 中提取
 - 不要在未确认 corpId 的情况下创建应用（先运行 `openyida env` 确认登录态）
-- 不要重复创建同名应用，先询问用户是否已有应用
+- 不要在同一轮已成功创建应用后重复创建。若接口明确返回名称冲突，单点任务先询问用户；`yida-app fast_build` 可追加短后缀重试一次，不要为了查重额外探测。
 
 ## 严格要求 (MUST DO)
 
@@ -20,7 +20,7 @@ description: 创建宜搭应用，返回 appType。搭建应用的第一步。�
 
 用户说"创建应用"、"新建系统"、"搭建平台"时使用此技能。
 创建应用后，通常需要继续执行：创建表单（`yida-create-form-page`）→ 创建页面（`yida-create-page`）→ 发布页面（`yida-publish-page`）。
-后续如果需要自定义页面，默认走 OpenYida 页面源码链路：源码写到 `project/pages/src/<页面名>.oyd.jsx`，先 `openyida check-page` / `openyida compile`，再 `openyida publish`。不要回到旧的普通 `.jsx` 直发链路。
+后续如果需要自定义页面，默认走 native 兼容链路：源码写到 `project/pages/src/<页面名>.oyd.jsx`，先 `openyida check-page` / `openyida compile`，再 `openyida publish`。Code Canvas 尚未全量，只有用户明确要求或已确认当前组织/页面支持时才走 `.canvas.jsx` 链路。
 
 ---
 

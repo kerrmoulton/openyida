@@ -1,11 +1,11 @@
 ---
 name: yida-custom-page
-description: 宜搭 native 自定义页面 JSX 开发规范（React 16 宜搭原生 export function renderJsx 模式、宜搭 JS API、状态管理与编码约束）。是**回退链路**：仅当页面强依赖原生实例数据桥（this.$(fieldId) 表单字段双向绑定、this.utils.yida.*、dataSourceMap、提交流程深度耦合）时才用；纯展示无刷新页也可用。其余自定义页面（含只需开放 API HTTP 读数据的页）默认走 yida-canvas-custom-page。
+description: 宜搭 native 自定义页面 JSX 开发规范（React 16 宜搭原生 export function renderJsx 模式、宜搭 JS API、状态管理与编码约束）。这是默认兼容链路，适合完整应用 fast_build、未确认 Code Canvas 能力的组织，以及强依赖 this.$(fieldId)、this.utils.yida.*、dataSourceMap 的页面。
 ---
 
 # 自定义页面开发
 
-> **先确认链路**：自定义页面**默认走 Code Canvas** `yida-canvas-custom-page`（现代 React 交互 / hooks / 可视化 / AI / 需崩溃隔离，含只需开放 API HTTP 读数据的页）。本 native 技能是**回退链路**，只处理：① 强依赖原生实例数据桥——表单内字段双向绑定 `this.$(fieldId)`、`this.utils.yida.*`、`dataSourceMap`、提交流程深度耦合——的页面（Canvas 无 `this` 桥，重写代价过高时留 native）；② 纯展示、无运行态刷新页。把已有 native 页升级到 Canvas 走 `yida-canvas-upgrade`。
+> **先确认链路**：Code Canvas 在宜搭平台侧尚未全量。自定义页面默认走 native 兼容链路 `yida-custom-page`（`.oyd.jsx` + `check-page` / `compile` / `publish`）。只有用户明确要求 Code Canvas / 代码画布，已有页面 Schema 是 `YidaCodeCanvas`，或已确认当前组织/页面支持 Canvas 时，才切到 `yida-canvas-custom-page`；把已有 native 页升级到 Canvas 走 `yida-canvas-upgrade`。
 
 ## 核心规则
 
@@ -32,7 +32,7 @@ description: 宜搭 native 自定义页面 JSX 开发规范（React 16 宜搭原
 
 影响代码质量和用户体验：
 
-0. **写 UI 前先定视觉方向**：面向用户的页面在动手写 JSX 前，调用 `use_skill("yida-page-uiux", "确定自定义页面视觉方向")` 完成「视觉方向决策」（页面类型判定 + 差异化 + 去 AI 味自检），拿到「视觉方向决策块」后再按本技能 `references/design-system.md` 的 token/组件实现；不要直接套用统一灰白底 + 8px 圆角卡片网格的默认模板（那正是 AI 味来源）。
+0. **视觉方向按需加载**：单点页面美化、用户明确要求好看/去 AI 味，或 `yida-app` 进入 `deep_design` 时，调用 `use_skill("yida-page-uiux", "确定自定义页面视觉方向")` 完成「视觉方向决策」。`yida-app fast_build` 默认不加载该技能，直接使用克制的 MVP 工作台/列表/入口布局，禁 emoji、少装饰、主色跟随 App 品牌即可。
 1. **代码生成前确认功能摘要**：详见 [编码指南 编注 0](references/coding-guide.md)
 2. **pageSize 推荐 50，最大 100**：列表/看板默认 `pageSize: 50`；分页接口 `searchFormDatas` 等的 `pageSize` 最大 100
 3. **didUnmount 清理定时器**：在 `didUnmount` 中清理所有 `setInterval`/`setTimeout`，防止内存泄漏
@@ -59,7 +59,7 @@ description: 宜搭 native 自定义页面 JSX 开发规范（React 16 宜搭原
 | 层 | 默认内容 | 生成要求 |
 | --- | --- | --- |
 | 状态层 | `loading`、`list/tableData`、`currentPage`、`pageSize`、`totalCount`、`filters/searchFieldJson`、`selectedRowKeys`、`dialogVisible` | 放入 `_customState`，所有失败路径必须恢复 `loading: false` |
-| 数据源层 | 表单查询、保存、更新、删除、流程发起、任务列表、连接器动作 | 优先调用已有 `this.dataSourceMap.<name>.load()`；没有数据源且是宜搭内置数据时用 `this.utils.yida.*`；第三方/连接器必须先走 `yida-data-source-connectors` |
+| 数据源层 | 表单查询、保存、更新、删除、流程发起、任务列表、连接器动作 | 优先调用已有 `this.dataSourceMap.<name>.load()`；没有数据源且是宜搭内置数据时用 `this.utils.yida.*`；第三方/连接器且用户明确要求设计器数据源时才走 `yida-data-source-connectors`，`fast_build` 不默认加载 |
 | 交互层 | 筛选栏、表格/卡片列表、分页、弹窗、Tab/Collapse、操作按钮 | `renderJsx` 只负责展示和事件分发，业务逻辑拆成 `export function` |
 
 默认页面结构按官方高频组件范式转译为 JSX：顶部筛选/操作区、主体表格或卡片列表、分页、详情/编辑弹窗、空态/错误态。不要把数据查询、复杂计算和大段 DOM 混在一个 `renderJsx` 里。
@@ -176,7 +176,7 @@ openyida check-page pages/src/home.oyd.jsx --json      # 输出机器可读的�
 | 文档 | 覆盖范围 | 何时阅读 |
 |------|---------|---------|
 | **本技能文档** | | |
-| `yida-page-uiux` 子技能 | 页面类型 playbook、5 维差异化引擎、去 AI 味黑名单/8 问自检、图标策略 | 实现面向用户的 UI 且要求好看/去 AI 味时，调用 `use_skill("yida-page-uiux", "确定自定义页面视觉方向")` 并产出决策块 |
+| `yida-page-uiux` 子技能 | 页面类型 playbook、5 维差异化引擎、去 AI 味黑名单/8 问自检、图标策略 | 用户明确要求好看/去 AI 味或 `deep_design` 时加载；`fast_build` 不默认加载 |
 | [编码指南](references/coding-guide.md) | 文件结构模板、状态管理、生命周期、19 条编码规范 | 编写任何页面代码前必读 |
 | [运行时护栏](references/runtime-guardrails.md) | pageSize、loading 恢复、ECharts DOM 时序、setState 约束、check-page 规则映射 | 编写列表、看板、图表或接口页面前必读 |
 | [设计规范](references/design-system.md) | 色彩/圆角/字体/间距系统、7 类组件样式模板、8 条反模式 | 实现 UI 样式时必读 |

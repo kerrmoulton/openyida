@@ -177,6 +177,32 @@ describe('CLI offline smoke', () => {
         action_dependent: expect.stringContaining('mixed commands'),
       },
     });
+    expect(parsed.summary).toMatchObject({
+      command_count: parsed.commands.length,
+      group_count: parsed.groups.length,
+    });
+    expect(parsed.summary.side_effect_counts.remote_write).toBeGreaterThan(0);
+    expect(parsed.summary.read_only_command_ids).toContain('agent-capabilities');
+    expect(parsed.summary.mutating_command_ids).toContain('create-app');
+    expect(parsed.summary.core_workflows.full_app_fast_build).toMatchObject({
+      mode: 'fast_build',
+      default_page_skill_id: 'yida-custom-page',
+      optional_canvas_skill_id: 'yida-canvas-custom-page',
+      required_command_ids: expect.arrayContaining([
+        'agent-capabilities',
+        'create-app',
+        'create-form.create',
+        'create-page',
+        'publish',
+      ]),
+      do_not_default_skill_ids: expect.arrayContaining([
+        'yida-page-uiux',
+        'yida-canvas-custom-page',
+        'yida-data-source-connectors',
+        'yida-data-management',
+        'yida-nav-group',
+      ]),
+    });
     expect(commands).toContain('env');
     expect(commands).toContain('login');
     expect(commands).toContain('corp-efficiency');
@@ -302,17 +328,46 @@ describe('CLI offline smoke', () => {
         entry: 'openyida',
       },
     });
+    expect(parsed.commands).toMatchObject({
+      count: parsed.command_manifest.commands.length,
+      group_count: parsed.command_manifest.groups.length,
+    });
+    expect(parsed.commands.side_effect_counts.remote_write).toBeGreaterThan(0);
+    expect(parsed.commands.read_only_command_ids).toContain('agent-capabilities');
+    expect(parsed.commands.core_workflows.full_app_fast_build).toMatchObject({
+      mode: 'fast_build',
+      default_page_skill_id: 'yida-custom-page',
+      optional_canvas_skill_id: 'yida-canvas-custom-page',
+      required_command_ids: expect.arrayContaining([
+        'create-app',
+        'create-form.create',
+        'create-page',
+        'publish',
+      ]),
+      do_not_default_skill_ids: expect.arrayContaining([
+        'yida-page-uiux',
+        'yida-canvas-custom-page',
+        'yida-data-source-connectors',
+        'yida-data-management',
+        'yida-nav-group',
+      ]),
+    });
+    expect(parsed.recommended.default_full_app_workflow).toMatchObject({
+      mode: 'fast_build',
+      completion_contract: expect.stringContaining('Create app'),
+    });
     expect(parsed.command_manifest.side_effect_schema).toMatchObject({
       version: 1,
       kinds: {
         mixed: expect.stringContaining('Action-dependent command'),
       },
     });
+    expect(parsed.command_manifest.summary.command_count).toBe(parsed.command_manifest.commands.length);
     expect(parsed.login).toHaveProperty('status');
     expect(parsed.login).not.toHaveProperty('cookies');
     expect(parsed.login).not.toHaveProperty('csrf_token');
     expect(parsed.sideEffects.read_only_preflight).toContain('openyida agent-capabilities --json');
-    expect(parsed.sideEffects.completion_contracts.full_app).toContain('Publishing the primary page');
+    expect(parsed.sideEffects.completion_contracts.full_app).toContain('creating the app');
     const commandIds = parsed.command_manifest.commands.map(entry => entry.id);
     const commandById = Object.fromEntries(parsed.command_manifest.commands.map(entry => [entry.id, entry]));
     expect(commandIds).toContain('agent-capabilities');

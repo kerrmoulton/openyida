@@ -66,6 +66,21 @@
     "note": "从零多步骤全流程 → yida-app 编排"
   },
   {
+    "id": "full-app-visitor-fast-build",
+    "prompt": "帮我搭建一个访客系统，按默认方案搭建，不要追问，直接创建",
+    "expectedSkill": "yida-app",
+    "expectedMode": "fast_build",
+    "forbiddenDefaultSkills": [
+      "yida-page-uiux",
+      "yida-canvas-custom-page",
+      "yida-data-source-connectors",
+      "yida-data-management",
+      "yida-nav-group",
+      "yida-dashboard"
+    ],
+    "note": "默认方案/不要追问/直接创建 → yida-app fast_build；Canvas、UIUX、数据源、示例数据、导航整理均为 optionalAfterDone"
+  },
+  {
     "id": "table-form",
     "prompt": "我要一个像 Excel 那样可以多行批量录入再一次提交的页面",
     "expectedSkill": "yida-table-form",

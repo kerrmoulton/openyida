@@ -65,6 +65,8 @@ describe('eval routing', () => {
     expect(p).toContain('ROUTING-DOC');
     expect(p).toContain('做个看板');
     expect(p).toContain('yida-dashboard');
+    expect(p).toContain('mode');
+    expect(p).toContain('defaultLoadSkills');
   });
 
   test('evaluateScenario 命中判定', () => {
@@ -77,6 +79,75 @@ describe('eval routing', () => {
     });
     expect(r.hit).toBe(true);
     expect(r.status).toBe('ok');
+  });
+
+  test('evaluateScenario 校验默认建访客系统走 yida-app fast_build 且不默认加载可选技能', () => {
+    const scenario = {
+      id: 'visitor-fast-build',
+      prompt: '帮我搭建一个访客系统，按默认方案搭建，不要追问，直接创建',
+      expectedSkill: 'yida-app',
+      expectedMode: 'fast_build',
+      forbiddenDefaultSkills: [
+        'yida-page-uiux',
+        'yida-canvas-custom-page',
+        'yida-data-source-connectors',
+        'yida-data-management',
+        'yida-nav-group',
+      ],
+    };
+    const fakeAgent = () => ({
+      available: true,
+      json: {
+        skill: 'yida-app',
+        mode: 'fast_build',
+        defaultLoadSkills: [
+          'yida-app',
+          'yida-create-app',
+          'yida-create-form-page',
+          'yida-create-page',
+          'yida-custom-page',
+          'yida-publish-page',
+        ],
+        reason: '默认方案直接创建',
+      },
+    });
+    const r = evaluateScenario({
+      scenario,
+      routingContext: 'doc',
+      skillNames: ['yida-app', 'yida-page-uiux', 'yida-data-source-connectors'],
+      runAgent: fakeAgent,
+    });
+
+    expect(r.hit).toBe(true);
+    expect(r.modeHit).toBe(true);
+    expect(r.defaultLoadSkills).toContain('yida-app');
+    expect(r.forbiddenDefaultSkillHits).toEqual([]);
+  });
+
+  test('evaluateScenario 把默认链路加载 UIUX / Canvas / 数据源判为未命中', () => {
+    const fakeAgent = () => ({
+      available: true,
+      json: {
+        skill: 'yida-app',
+        mode: 'fast_build',
+        defaultLoadSkills: ['yida-app', 'yida-page-uiux', 'yida-canvas-custom-page', 'yida-data-source-connectors'],
+      },
+    });
+    const r = evaluateScenario({
+      scenario: {
+        id: 'visitor-fast-build',
+        prompt: '帮我搭建一个访客系统，按默认方案搭建，不要追问，直接创建',
+        expectedSkill: 'yida-app',
+        expectedMode: 'fast_build',
+        forbiddenDefaultSkills: ['yida-page-uiux', 'yida-canvas-custom-page', 'yida-data-source-connectors'],
+      },
+      routingContext: 'doc',
+      skillNames: ['yida-app', 'yida-page-uiux', 'yida-data-source-connectors'],
+      runAgent: fakeAgent,
+    });
+
+    expect(r.hit).toBe(false);
+    expect(r.forbiddenDefaultSkillHits).toEqual(['yida-page-uiux', 'yida-canvas-custom-page', 'yida-data-source-connectors']);
   });
 
   test('evaluateScenario 未命中与 agent 不可用', () => {
