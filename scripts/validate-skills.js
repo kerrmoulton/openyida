@@ -10,7 +10,31 @@ const SKILLS_ROOT = path.join(ROOT, 'yida-skills');
 const SKILLS_DIR = path.join(SKILLS_ROOT, 'skills');
 const INDEX_FILE = path.join(SKILLS_ROOT, 'SKILL.md');
 const SKILLS_INDEX_FILE = path.join(SKILLS_ROOT, 'skills-index.json');
+const GENERATED_SKILL_ROOT = path.join(ROOT, 'dist', 'skills', 'openyida');
 const MAX_RECOMMENDED_LINES = 500;
+const SKILLS_INDEX_ENTRY_ALLOWED_FIELDS = new Set([
+  'name',
+  'path',
+  'display_name',
+  'description',
+  'category',
+  'tags',
+  'aliases',
+  'priority',
+  'requires',
+  'capabilities',
+  'modes',
+  'requires_login',
+]);
+const SKILLS_INDEX_PROMPT_FIELDS = new Set([
+  'prompt',
+  'instructions',
+  'rules',
+  'workflow',
+  'steps',
+  'doneWhen',
+  'optionalAfterDone',
+]);
 
 const errors = [];
 const warnings = [];
@@ -195,6 +219,7 @@ function validateSkillsIndex(skillDirNames) {
   const expectedPaths = new Set(skillDirNames.map(function(skillDirName) {
     return 'skills/' + skillDirName + '/SKILL.md';
   }));
+  const expectedNames = new Set(skillDirNames);
   const seenNames = new Set();
   const seenPaths = new Set();
 
@@ -207,12 +232,24 @@ function validateSkillsIndex(skillDirNames) {
       continue;
     }
 
+    for (const key of Object.keys(entry)) {
+      if (!SKILLS_INDEX_ENTRY_ALLOWED_FIELDS.has(key)) {
+        errors.push(entryLabel + ': unsupported field "' + key + '"; skills-index.json must stay a machine registry');
+      }
+      if (SKILLS_INDEX_PROMPT_FIELDS.has(key)) {
+        errors.push(entryLabel + ': prompt/workflow field "' + key + '" belongs in SKILL.md, not skills-index.json');
+      }
+    }
+
     if (!entry.name || typeof entry.name !== 'string') {
       errors.push(entryLabel + ': missing string field "name"');
     } else if (seenNames.has(entry.name)) {
       errors.push(entryLabel + ': duplicate name "' + entry.name + '"');
     } else {
       seenNames.add(entry.name);
+      if (!expectedNames.has(entry.name)) {
+        errors.push(entryLabel + ': orphan skill name "' + entry.name + '" has no matching skills/<name>/ directory');
+      }
     }
 
     if (!entry.path || typeof entry.path !== 'string') {
@@ -223,6 +260,9 @@ function validateSkillsIndex(skillDirNames) {
       errors.push(entryLabel + ': duplicate path "' + entry.path + '"');
     } else {
       seenPaths.add(entry.path);
+      if (!expectedPaths.has(entry.path)) {
+        errors.push(entryLabel + ': orphan path "' + entry.path + '" has no matching skills directory');
+      }
     }
 
     if (!/^skills\/[a-z0-9-]+\/SKILL\.md$/.test(entry.path)) {
@@ -253,6 +293,8 @@ function validateSkillsIndex(skillDirNames) {
     }
     if (!entry.description || typeof entry.description !== 'string') {
       errors.push(entryLabel + ': missing string field "description"');
+    } else if (entry.description.length > 280) {
+      errors.push(entryLabel + ': description must stay concise for machine search (<= 280 chars)');
     }
     if (!entry.category || typeof entry.category !== 'string') {
       errors.push(entryLabel + ': missing string field "category"');
@@ -265,6 +307,38 @@ function validateSkillsIndex(skillDirNames) {
   for (const expectedPath of expectedPaths) {
     if (!seenPaths.has(expectedPath)) {
       errors.push(toRelative(SKILLS_INDEX_FILE) + ': missing skill path "' + expectedPath + '"');
+    }
+  }
+  for (const expectedName of expectedNames) {
+    if (!seenNames.has(expectedName)) {
+      errors.push(toRelative(SKILLS_INDEX_FILE) + ': missing skill name "' + expectedName + '"');
+    }
+  }
+}
+
+function validateGeneratedSkillRoot() {
+  if (!fs.existsSync(GENERATED_SKILL_ROOT)) {
+    warnings.push(toRelative(GENERATED_SKILL_ROOT) + ': generated skill root not found; run npm run build:skills to validate package output');
+    return;
+  }
+
+  for (const fileName of ['SKILL.md', 'skills-index.json']) {
+    const filePath = path.join(GENERATED_SKILL_ROOT, fileName);
+    if (!fs.existsSync(filePath)) {
+      errors.push(toRelative(GENERATED_SKILL_ROOT) + ': generated skill root must contain ' + fileName);
+    }
+  }
+
+  const generatedIndexFile = path.join(GENERATED_SKILL_ROOT, 'skills-index.json');
+  if (fs.existsSync(generatedIndexFile)) {
+    try {
+      const sourceIndex = readJson(SKILLS_INDEX_FILE);
+      const generatedIndex = readJson(generatedIndexFile);
+      if (JSON.stringify(generatedIndex) !== JSON.stringify(sourceIndex)) {
+        errors.push(toRelative(generatedIndexFile) + ': must match source yida-skills/skills-index.json');
+      }
+    } catch (error) {
+      errors.push(toRelative(generatedIndexFile) + ': invalid JSON: ' + error.message);
     }
   }
 }
@@ -390,7 +464,7 @@ function run() {
       validateIndexEntry(skillDirName, skillFile);
     }
 
-    validateSkillsIndex(skillDirNamesWithSkillFile);
+    validateSkillsIndex(skillDirNames);
   }
 
   const markdownFiles = [];
@@ -412,6 +486,7 @@ function run() {
     }
   }
   validateSkillLoadingInstructions(instructionFiles);
+  validateGeneratedSkillRoot();
 
   if (warnings.length > 0) {
     console.warn('Skill validation warnings:');

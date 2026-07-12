@@ -9,6 +9,7 @@ const zlib = require('zlib');
 const ROOT = path.resolve(__dirname, '..');
 const SOURCE_ROOT = path.join(ROOT, 'yida-skills');
 const SOURCE_SUBSKILLS_ROOT = path.join(SOURCE_ROOT, 'skills');
+const SOURCE_SKILLS_INDEX_FILE = path.join(SOURCE_ROOT, 'skills-index.json');
 const DEFAULT_OUTPUT_ROOT = path.join(ROOT, 'dist', 'skills', 'openyida');
 const DEFAULT_ZIP_OUT = path.join(ROOT, 'openyida-skills.zip');
 
@@ -121,6 +122,19 @@ function writeRootSkill(src, dest) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.writeFileSync(dest, content, 'utf8');
   return 1;
+}
+
+function copySkillsIndex(outputRoot) {
+  const dest = path.join(outputRoot, 'skills-index.json');
+  fs.copyFileSync(readRequiredFilePath(SOURCE_SKILLS_INDEX_FILE), dest);
+  return 1;
+}
+
+function readRequiredFilePath(src) {
+  if (!fs.existsSync(src)) {
+    throw new Error('Missing required file: ' + path.relative(ROOT, src));
+  }
+  return src;
 }
 
 function transformSubskillReference(content) {
@@ -253,6 +267,15 @@ function assertNoSourceSkillLinks(outputRoot) {
   }
 }
 
+function assertGeneratedRootFiles(outputRoot) {
+  for (const fileName of ['SKILL.md', 'skills-index.json']) {
+    const filePath = path.join(outputRoot, fileName);
+    if (!fs.existsSync(filePath)) {
+      throw new Error('Generated OpenYida skill root missing required file: ' + path.relative(ROOT, filePath));
+    }
+  }
+}
+
 function buildSkillsPackage(outputRoot) {
   if (!fs.existsSync(SOURCE_ROOT)) {
     throw new Error('Missing source skills directory: yida-skills');
@@ -266,6 +289,7 @@ function buildSkillsPackage(outputRoot) {
     path.join(SOURCE_ROOT, 'SKILL.md'),
     path.join(outputRoot, 'SKILL.md'),
   );
+  count += copySkillsIndex(outputRoot);
   count += copyReferencesRecursive(
     path.join(SOURCE_ROOT, 'references'),
     path.join(outputRoot, 'references'),
@@ -275,6 +299,7 @@ function buildSkillsPackage(outputRoot) {
   assertSingleWukongSkill(outputRoot);
   assertWukongFrontmatter(outputRoot);
   assertNoSourceSkillLinks(outputRoot);
+  assertGeneratedRootFiles(outputRoot);
 
   return count;
 }
@@ -287,7 +312,8 @@ function buildZipPackage(outputRoot, zipOut) {
   fs.mkdirSync(path.dirname(zipOut), { recursive: true });
   fs.rmSync(zipOut, { force: true });
 
-  const zipBuffer = createZipBuffer(outputRoot);
+  const zipBuffer = createZipBuffer(outputRoot, { excludeRootSkillsIndex: true });
+  assertZipExcludesRootSkillsIndex(zipBuffer, outputRoot);
   fs.writeFileSync(zipOut, zipBuffer);
 
   const stat = fs.statSync(zipOut);
@@ -389,15 +415,26 @@ function writeCentralHeader(entry, nameBuffer, compressed, uncompressed, crc, me
   return header;
 }
 
-function createZipBuffer(outputRoot) {
+function isExcludedZipEntry(entry, outputRoot, options) {
+  if (!options.excludeRootSkillsIndex || entry.isDirectory) {
+    return false;
+  }
+  const relativePath = path.relative(outputRoot, entry.absPath).split(path.sep).join('/');
+  return relativePath === 'skills-index.json';
+}
+
+function createZipBuffer(outputRoot, options = {}) {
   const entries = [];
   collectZipEntries(outputRoot, path.basename(outputRoot), entries);
+  const zipEntries = entries.filter(function(entry) {
+    return !isExcludedZipEntry(entry, outputRoot, options);
+  });
 
   const chunks = [];
   const centralChunks = [];
   let offset = 0;
 
-  for (const entry of entries) {
+  for (const entry of zipEntries) {
     const nameBuffer = Buffer.from(entry.entryName.replace(/\\/g, '/'), 'utf8');
     const uncompressed = entry.isDirectory ? Buffer.alloc(0) : fs.readFileSync(entry.absPath);
     const method = entry.isDirectory ? 0 : 8;
@@ -421,13 +458,53 @@ function createZipBuffer(outputRoot) {
   end.writeUInt32LE(0x06054b50, 0);
   end.writeUInt16LE(0, 4);
   end.writeUInt16LE(0, 6);
-  end.writeUInt16LE(entries.length, 8);
-  end.writeUInt16LE(entries.length, 10);
+  end.writeUInt16LE(zipEntries.length, 8);
+  end.writeUInt16LE(zipEntries.length, 10);
   end.writeUInt32LE(centralSize, 12);
   end.writeUInt32LE(centralOffset, 16);
   end.writeUInt16LE(0, 20);
 
   return Buffer.concat(chunks.concat(centralChunks, end));
+}
+
+function findEndOfCentralDirectory(zipBuffer) {
+  for (let offset = zipBuffer.length - 22; offset >= 0; offset--) {
+    if (zipBuffer.readUInt32LE(offset) === 0x06054b50) {
+      return offset;
+    }
+  }
+  throw new Error('Invalid zip package: missing end of central directory');
+}
+
+function listZipEntryNames(zipBuffer) {
+  const endOffset = findEndOfCentralDirectory(zipBuffer);
+  const entryCount = zipBuffer.readUInt16LE(endOffset + 10);
+  let offset = zipBuffer.readUInt32LE(endOffset + 16);
+  const names = [];
+
+  for (let index = 0; index < entryCount; index++) {
+    if (zipBuffer.readUInt32LE(offset) !== 0x02014b50) {
+      throw new Error('Invalid zip package: malformed central directory');
+    }
+
+    const nameLength = zipBuffer.readUInt16LE(offset + 28);
+    const extraLength = zipBuffer.readUInt16LE(offset + 30);
+    const commentLength = zipBuffer.readUInt16LE(offset + 32);
+    const nameStart = offset + 46;
+    const nameEnd = nameStart + nameLength;
+    names.push(zipBuffer.slice(nameStart, nameEnd).toString('utf8'));
+    offset = nameEnd + extraLength + commentLength;
+  }
+
+  return names;
+}
+
+function assertZipExcludesRootSkillsIndex(zipBuffer, outputRoot) {
+  const rootIndexEntryName = path.basename(outputRoot).replace(/\\/g, '/') + '/skills-index.json';
+  const names = listZipEntryNames(zipBuffer);
+  if (names.includes(rootIndexEntryName)) {
+    throw new Error('Wukong upload zip must not include root skills-index.json: ' + rootIndexEntryName);
+  }
 }
 
 function formatBytes(size) {

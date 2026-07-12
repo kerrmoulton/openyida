@@ -55,7 +55,7 @@ function shouldRunUpdateCheck() {
   if (!command || command === '--help' || command === '-h' || command === '--version' || command === '-v') {
     return false;
   }
-  if (command === 'commands' || command === 'mcp') {
+  if (command === 'commands' || command === 'agent-capabilities' || command === 'mcp') {
     return false;
   }
   if (args.includes('--json') || args.includes('--check-only')) {
@@ -512,6 +512,12 @@ async function main() {
     case 'commands': {
       const manifest = buildCommandManifest({ t, version: currentVersion });
       console.log(JSON.stringify(manifest, null, 2));
+      break;
+    }
+
+    case 'agent-capabilities': {
+      const { run } = require('../lib/core/agent-capabilities');
+      await run(args);
       break;
     }
 

@@ -16,22 +16,24 @@ description: >
 
 - 如果当前宿主提供 `use_skill` / `search_skills`：必须通过 `use_skill("<技能名>", "<本阶段目的>")` 加载主技能和子技能，禁止用 `Read` / `read_file` / `cat` 读取 `SKILL.md` 路径；`use_skill` 会稳定返回技能内容和可读取的辅助文件列表。
 - `skills-index.json` 仅供 yida-agent 或同构宿主做机器可读发现；不支持该索引的宿主忽略它，不要把它当作运行前置条件。
-- 如果当前宿主没有 `use_skill` / `search_skills`：按本文的技能路由表选定技能名，再按技能包相对路径逐个读取当前阶段唯一必要的 `SKILL.md`；禁止并发批量读取多个 `SKILL.md`；禁止预读未来阶段技能。
+- 如果当前宿主没有 `use_skill` / `search_skills`：按本文的技能路由表选定技能名，按 `skills/<技能名>/SKILL.md` 定位当前阶段唯一必要的子技能文档；禁止并发批量读取多个 `SKILL.md`；禁止预读未来阶段技能。
 - `references/`、`scripts/`、`assets/` 等辅助文件只能在已加载对应技能后按需读取。
 
 ---
 
-## 第一步：环境与登录态检测（必做必读，先于一切操作）
+## 第一步：只读预检（先于真实资源操作）
 
 > ⚡ **前置门槛**：确认 openyida 已安装、Node/npm 依赖达标、登录态就绪。**未通过只读验证前，禁止创建应用/页面/表单或发布等任何真实资源操作。**
 
-**怎么做**：跑 `openyida env --json`（能跑 = 已安装，输出含 AI 工具 / project / 登录态）和 `openyida login --check-only --json`（只读登录态），再据结果对症处理：
+**怎么做**：优先跑一次 `openyida agent-capabilities --json`。该命令一次返回 version、cwd、AI 工具环境、推荐工作目录、登录态摘要、commands 和 sideEffects，避免反复 `which openyida`、`openyida --version`、`openyida --help`、`openyida env`、`login --check-only`。
+
+若当前 OpenYida 版本还没有 `agent-capabilities`，退回跑 `openyida env --json` 和 `openyida login --check-only --json`。旧版本地 agent 不需要认识 `skills-index.json`，也不需要支持 `agent-capabilities` 才能继续执行。
 
 | 检测结果 | 处理 |
 |---------|------|
 | 命令跑不了（`command not found`） | openyida 未安装 → `npm install -g openyida` |
 | Node/npm 版本不达标 | 先升级 Node（≥16）再装/升级 openyida |
-| `login.loggedIn` 为 false | 未登录 → `openyida login`（指定入口带 URL 或 flag） |
+| `login.status` 不是 `ok` 且 `login.can_auto_use` 不是 true | 未登录 → `openyida login`（指定入口带 URL 或 flag） |
 | `active.projectRootExists` 为 false | 无工作目录 → `openyida copy` 初始化 |
 
 **👉 完整命令解读、悟空降级、Codex handoff 等特殊分支 → [references/setup-and-env.md](references/setup-and-env.md)（必读）。**
@@ -44,7 +46,7 @@ description: >
 
 | 用户诉求信号 | 判定 | 走哪条路线 |
 |------------|------|-----------|
-| 创建/搭建/做一个 + 应用/系统/管理系统；或明确表达从零开始 | **全量搭建** | 走 [完整开发流程](#完整开发流程全量搭建)，从 Step 1 顺序执行 |
+| 创建/搭建/做一个 + 应用/系统/管理系统；或明确表达从零开始 | **全量搭建** | 加载子技能 `yida-app`，由它执行完整应用 workflow |
 | 对已有应用/表单/页面的单点操作（加字段、查改数据、配公式、建报表、改权限、发布、美化…） | **单一 / 增量任务** | 到 [技能路由](#技能路由单一--增量任务) 选定 **1 个**，加载对应子技能执行，不回退流程 |
 
 ---
@@ -52,39 +54,12 @@ description: >
 ## 完整开发流程（全量搭建）
 
 > 📌 仅当第二步判定为「全量搭建」时进入；单一/增量任务请跳「技能路由」。
-> 在支持 `use_skill` 的宿主中，先加载 `yida-app` 流程编排技能；进入每个阶段前，再加载该阶段唯一需要的子技能，不要预读未来阶段技能。
+> 加载子技能 `yida-app`，由它负责完整应用 workflow、阶段子技能加载、关键 ID 流转、PRD 与 schema cache 约束。
+> 用户说“按默认方案 / 不要追问 / 直接创建 / 尽快搭建”时，`yida-app` 选择 `fast_build`：创建应用、必要表单、主页面、发布并输出链接。
 
-```
-[Step 1] 创建应用 → openyida create-app          → 获得 appType
-              ↓
-[Step 2] 需求分析 → 写入 prd/<项目名>.md
-              ↓      （必须含 MVP 边界、角色权限、核心旅程、状态机、数据约束、验收标准）
-              ↓
-[Step 3]（按需）创建/更新表单 → openyida create-form → 获得 formUuid + fieldId（表单）
-              ↓
-[Step 4] 创建自定义页面 → openyida create-page    → 获得 formUuid（看板用 --mode dashboard）
-              ↓
-[Step 5] 编写自定义页面代码 → 先按「自定义页面选路」定链路（**默认 Code Canvas yida-canvas-custom-page**，含开放 API 读数据页；仅强依赖原生实例数据桥的页回退 native yida-custom-page）
-              ↓  （首次生成面向用户的页必做：先用 yida-page-uiux 产出「视觉方向决策块」，避免统一灰白圆角的 AI 味模板脸，再交所选链路落地）
-              ↓
-[Step 6] 发布页面 → openyida publish
-              ↓
-[Step 7]（含看板/多页面时必做）整理导航顺序 → openyida nav-group order
-              ↓      （总览/驾驶舱看板作为门面靠前，数据录入/明细表单在后）
-              ↓
-[Step 8]（有表单时默认执行）灌入示例数据 → openyida data create form
-              ↓      （2-3 条覆盖关键维度的记录，让看板首屏有真实数据；DateField 用 13 位毫秒时间戳，灌后 query 抽查非空）
-              ↓
-[Step 9]（按需）配置公开访问 → openyida verify-short-url / save-share-config
-              ↓
-[Step 10] 输出访问链接，用系统浏览器打开
-```
+**doneWhen**：`yida-app` 发布主页面成功并输出可访问 URL。到这里默认完成；不要发布后继续 TaskCreate、重复读技能或继续规划。
 
-> **Step 5 先定视觉方向（首次生成面向用户页必做）**：写 JSX 前调用 `use_skill("yida-page-uiux", "确定自定义页面视觉方向并产出决策块")` 锁定视觉方向（页面类型判定 → 意图解码 → 差异化决策 → 去 AI 味自检），产出「视觉方向决策块」，再交所选链路（默认 `yida-canvas-custom-page`，回退 `yida-custom-page`）按 `design-system.md` token 落地。跳过此步会直接套用统一灰白圆角模板，生成有 AI 味的平庸页面。
->
-> **Step 7 导航整理（含看板/多页面时必做）**：首次生成完整应用后，必须基于业务信息架构重排导航，不能保留创建时的默认顺序。默认原则：面向决策者的**总览/驾驶舱看板作为应用门面靠前**，数据录入/明细表单在其后；同级多个专题看板按业务优先级排，不要把所有页面无脑堆最前。进入本阶段前调用 `use_skill("yida-nav-group", "整理应用导航顺序")`。
->
-> **Step 8 灌入示例数据（有表单时默认执行）**：新建应用的表单默认无数据，看板会空。导航整理完成后，默认向核心表单灌入 **2-3 条**覆盖关键维度（如不同活动/渠道/日期）的示例记录，让看板首屏可展示真实聚合效果。`DateField`/`CascadeDateField` 必须用 13 位毫秒时间戳；灌后执行 `openyida data query` 抽查至少 1 条，确认字段值非空。进入本阶段前调用 `use_skill("yida-data-management", "写入和抽查示例数据")`。
+**optionalAfterDone**：导航整理、示例数据、公开访问、截图验证、深度视觉方向、报表/大屏，只在用户明确要求或 `yida-app` 模式为 `full_demo` / `deep_design` 时执行。
 
 ---
 
@@ -107,7 +82,7 @@ description: >
 
 | 分组 | 加载目标 | 何时选择（关键区别已内联） |
 |------|------|--------------------------|
-| **应用与登录** | 加载子技能 `yida-app` | 从零搭建整个应用（多步骤全流程编排） |
+| **应用与登录** | 加载子技能 `yida-app` | 从零搭建整个应用；默认 `fast_build`，发布主页面拿到 URL 即完成 |
 | | 加载子技能 `yida-create-app` | 只需创建应用、拿 appType |
 | | 加载子技能 `yida-login` | 手动触发登录（通常自动触发） |
 | | 加载子技能 `yida-logout` | 切换账号或组织 |
@@ -166,7 +141,7 @@ description: >
 
 1. **技能加载唯一入口**：执行任何子技能前，支持 `use_skill` 的宿主必须调用 `use_skill("<技能名>", "<本阶段目的>")` 加载对应技能；不要用 `Read` / `read_file` / `cat` 读取 SKILL.md 路径，不凭记忆猜参数格式。
 2. **corpId 一致性检查**：创建页面前对比 prd 与 `.cache/cookies.json` 的 corpId，不一致必须询问用户（重新登录 or 当前组织新建）。
-3. **发布前本地校验**：自定义页面发布前跑 `openyida check-page` + `openyida compile`；JSON 配置写盘后先解析校验，再调用平台命令。
+3. **发布前本地校验**：native `.oyd.jsx` / `.jsx` 页面发布前跑 `openyida check-page` + `openyida compile`；Code Canvas `.canvas.jsx` 不跑这两个 native 检查，改由 `openyida publish` 的 Canvas 编译阶段或 `compileCanvasLocal` 快检校验；JSON 配置写盘后先解析校验，再调用平台命令。
 4. **命令输入文件禁止 shell 写入**：当 OpenYida 命令需要 JSON/YAML/CSV/config/script 文件参数时，先使用当前 agent 运行时提供的结构化文件写入工具（如 create_file / Write / file edit tool）创建文件，再把路径传给命令；禁止用 shell heredoc、`cat`/`echo`/`printf`/`tee` 加输出重定向，或把命令 stdout 重定向成业务文件。
 
 ### 重要规则（IMPORTANT，影响质量/性能/可维护性）
@@ -182,6 +157,7 @@ description: >
 9. **报表美化先问方案**：用户说"优化/美化报表"时先问选原生报表(`yida-report`)还是 ECharts(`yida-chart`)。
 10. **按 schema 证据选技能**：先看 `formType`、组件树、`dataSource.online`；`receipt/process/report` 分别落到表单/流程/报表技能。
 11. **官方示例范式优先**：蒸馏官方示例时先理解脱敏 schema 承载方式，不凭截图/标题/视觉判断。
+12. **默认完成即停止**：完整应用默认以发布成功并输出 URL 为 doneWhen；示例数据、导航、截图、TaskCreate 和深度设计都是 optionalAfterDone。
 
 > 📖 每条规则的完整说明、PRD 质量门槛、临时文件路径规范、报表美化话术 → [references/development-rules.md](references/development-rules.md)
 

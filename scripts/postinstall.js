@@ -29,6 +29,7 @@ const os = require('os');
 const PACKAGE_ROOT = path.resolve(__dirname, '..');
 const PACKAGE_JSON = require(path.join(PACKAGE_ROOT, 'package.json'));
 const SKILLS_DIR = path.join(PACKAGE_ROOT, 'yida-skills');
+const SKILLS_INDEX_FILE = path.join(SKILLS_DIR, 'skills-index.json');
 const HOME_DIR = os.homedir();
 const CODEX_MARKETPLACE_NAME = 'openyida';
 const CODEX_PLUGIN_NAME = 'openyida';
@@ -205,9 +206,10 @@ description: >
 在执行任何会创建、修改或发布真实宜搭资源的操作前，先运行只读检查：
 
 \`\`\`bash
-openyida env --json
-openyida login --check-only --json
+openyida agent-capabilities --json
 \`\`\`
+
+该命令一次返回版本、当前工作目录、AI 工具环境、登录态摘要和命令清单，避免反复探测 \`which\`、\`--version\`、\`--help\`、\`env\` 和 \`login --check-only\`。
 
 如果 \`openyida\` 不存在，先提醒用户需要安装，或在用户同意后执行：
 
@@ -251,7 +253,7 @@ openyida copy
 
 ## 子技能索引
 
-根据用户意图选择最匹配的子技能。支持 \`use_skill\` / \`search_skills\` 的宿主中，必须调用 \`use_skill("<技能名>", "<本次目的>")\` 加载子技能；不要用 Read / read_file / cat 读取 SKILL.md 路径。\`skills-index.json\` 仅供 yida-agent 或同构宿主机器发现，不支持该索引的宿主忽略它。完全没有 \`use_skill\` 的本地工具，才允许按根技能路由表和技能包相对路径逐个读取当前阶段唯一必要的 SKILL.md，禁止并发批量读取多个 SKILL.md。
+根据用户意图选择最匹配的子技能。支持 \`use_skill\` / \`search_skills\` 的宿主中，必须调用 \`use_skill("<技能名>", "<本次目的>")\` 加载子技能；不要用 Read / read_file / cat 读取 SKILL.md 路径。\`skills-index.json\` 仅供 yida-agent 或同构宿主机器发现，不支持该索引的宿主忽略它。完全没有 \`use_skill\` 的本地工具，才允许按根技能路由表选定技能，并按 \`skills/<技能名>/SKILL.md\` 定位当前阶段唯一必要的 SKILL.md，禁止并发批量读取多个 SKILL.md。
 
 | 意图 | 子技能 |
 | --- | --- |
@@ -282,7 +284,7 @@ openyida copy
 
 - 不要编造 \`appType\`、\`formUuid\`、\`fieldId\`、\`reportId\`；必须从命令输出、缓存或 schema 中读取。
 - 同一命令失败后，根据错误信息检查登录态、组织、参数和字段 ID；不要无修改地连续重试。
-- 自定义页面发布前先运行 \`openyida check-page\` 和 \`openyida compile\`。
+- native 自定义页面发布前先运行 \`openyida check-page\` 和 \`openyida compile\`；Code Canvas \`.canvas.jsx\` 页面不跑这两个 native 检查，使用 \`openyida publish\` 的 Canvas 编译阶段或 \`compileCanvasLocal\` 快检。
 - JSON 配置写入文件后先解析校验，再调用会修改平台资源的命令。
 - 新增用户可见文案或 CLI 行为时，遵循当前 OpenYida 仓库的 \`AGENTS.md\` 开发规范。
 `;
@@ -380,6 +382,10 @@ function installCodexPlugin() {
     path.join(pluginRoot, 'skills', CODEX_PLUGIN_NAME, 'SKILL.md'),
     createCodexPluginSkill(),
     'utf8',
+  );
+  fs.copyFileSync(
+    SKILLS_INDEX_FILE,
+    path.join(pluginRoot, 'skills', CODEX_PLUGIN_NAME, 'skills-index.json'),
   );
 
   writeCodexMarketplace(marketplaceRoot);

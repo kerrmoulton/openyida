@@ -97,6 +97,26 @@ function validateGroupReferences() {
   }
 }
 
+function validateSideEffects(commands) {
+  const allowedKinds = new Set(['local_read', 'local_write', 'remote_read', 'remote_write', 'mixed']);
+  for (const entry of commands) {
+    const sideEffect = entry.sideEffect;
+    if (!sideEffect || typeof sideEffect !== 'object') {
+      errors.push(`Command manifest id "${entry.id}" is missing sideEffect metadata`);
+      continue;
+    }
+    if (!allowedKinds.has(sideEffect.kind)) {
+      errors.push(`Command manifest id "${entry.id}" has invalid sideEffect.kind "${sideEffect.kind}"`);
+    }
+    if (typeof sideEffect.mutates_yida !== 'boolean') {
+      errors.push(`Command manifest id "${entry.id}" sideEffect.mutates_yida must be boolean`);
+    }
+    if (typeof sideEffect.mutates_local !== 'boolean') {
+      errors.push(`Command manifest id "${entry.id}" sideEffect.mutates_local must be boolean`);
+    }
+  }
+}
+
 function run() {
   const commands = flattenCommandManifest();
 
@@ -104,6 +124,7 @@ function run() {
   validateGroupReferences();
   validateRouterCoverage(commands);
   validateReadmeCoverage(commands);
+  validateSideEffects(commands);
 
   if (errors.length > 0) {
     console.error('Command manifest validation failed:');
