@@ -34,7 +34,7 @@
       "name": "yida-app",
       "path": "skills/yida-app/SKILL.md",
       "display_name": "宜搭完整应用开发",
-      "description": "从零到一搭建完整宜搭应用的流程编排技能。默认 fast_build 只创建应用、必要表单、主页面、发布并输出链接；导航、示例数据和深度设计按需后置。",
+      "description": "从零到一搭建完整宜搭应用的流程编排技能。默认 fast_build 只创建应用、必要表单、主页面、发布并输出链接；不默认使用未绑定 dataSourceMap，导航、示例数据和深度设计按需后置。",
       "category": "yida/app",
       "tags": ["宜搭", "完整应用", "搭建", "管理系统", "访客系统"],
       "aliases": ["完整应用", "应用搭建", "管理系统搭建"]
@@ -169,9 +169,9 @@
       "name": "yida-custom-page",
       "path": "skills/yida-custom-page/SKILL.md",
       "display_name": "Native 自定义页面 JSX 开发",
-      "description": "宜搭 native 自定义页面 React 16 / JSX 开发规范，默认兼容链路，适合完整应用 fast_build 和未确认 Code Canvas 能力的组织。",
+      "description": "宜搭 native 自定义页面 React 16 / JSX 开发规范，默认兼容链路；fast_build 默认使用 this.utils.yida.* 或入口型页面，只有已绑定设计器数据源时才用 dataSourceMap。",
       "category": "yida/page",
-      "tags": ["JSX", "自定义页面", "React 16", "页面代码"],
+      "tags": ["JSX", "自定义页面", "React 16", "页面代码", "fast_build"],
       "aliases": ["页面开发", "native 页面"]
     },
     {
@@ -277,7 +277,7 @@
       "name": "yida-get-schema",
       "path": "skills/yida-get-schema/SKILL.md",
       "display_name": "获取表单 Schema",
-      "description": "获取表单完整 Schema 结构，用于确认 fieldId 和组件配置。",
+      "description": "获取表单 Schema 或 compact 字段映射；页面开发优先用 --summary-json / --field-map-json 确认 fieldId。",
       "category": "yida/schema",
       "tags": ["Schema", "fieldId", "formUuid", "字段定义"],
       "aliases": ["查字段ID"]
@@ -394,7 +394,7 @@
       "name": "yida-publish-page",
       "path": "skills/yida-publish-page/SKILL.md",
       "display_name": "发布自定义页面",
-      "description": "将自定义页面源码编译为宜搭可运行 Schema，并发布到目标 formUuid。",
+      "description": "将自定义页面源码编译为宜搭可运行 Schema 并发布；源码依赖 dataSourceMap 但发布无数据源时不能视为完成。",
       "category": "yida/page",
       "tags": ["发布", "publish", "compile", "check-page"],
       "aliases": ["页面发布"]

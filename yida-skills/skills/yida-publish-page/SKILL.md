@@ -21,6 +21,7 @@ description: 将 JSX 源码编译发布到宜搭自定义页面。Babel 转 ES5 
 - 发布前确认 `openyida env` 检测通过，登录态有效
 - corpId 不匹配时，必须询问用户是否切换组织，不得强行发布
 - 重新发布已有自定义页面时，`openyida publish` 会自动读取目标页面现有 Schema 并合并页面级 `dataSource`；不要靠 Agent 口头承诺“保留数据源”，必须使用新版 CLI 的默认保护能力
+- 如果源码包含 `this.dataSourceMap.`，而发布输出包含 `No custom page data sources to preserve`，本次发布不能视为完成；说明源码依赖设计器数据源但目标页没有可保留数据源。必须改为 `this.utils.yida.*` / 入口型页面后重新 check、compile、publish，或先通过 `yida-data-source-connectors` 创建并绑定数据源后重新发布
 - **本技能不读写 memory**：发布操作通过 CLI 命令写入宜搭平台，不依赖跨会话的 memory 状态
 
 ## 适用场景
@@ -74,6 +75,11 @@ openyida list-forms <appType> --keyword <页面名>
 `openyida publish` 默认是非破坏式发布：保存新 JSX Schema 前会调用 `getFormSchema` 读取目标自定义页面已有 Schema，提取 Page 组件上的 `dataSource`，再与发布脚本内置的 `urlParams`、`timestamp` 数据源合并。用户在宜搭设计器里手工创建的 HTTP / VALUE / URI 等页面级数据源会随新源码一起保留。
 
 如果读取旧 Schema 失败，发布会停止，避免在无法确认的情况下把已有数据源清空。遇到用户明确要求“保留原有数据源”时，不需要手写额外合并脚本，直接运行新版 `openyida publish` 即可。
+
+发布后判定：
+
+- 源码不含 `this.dataSourceMap.`，发布输出 `No custom page data sources to preserve` 是正常情况，说明没有设计器数据源需要保留。
+- 源码含 `this.dataSourceMap.`，发布输出 `No custom page data sources to preserve` 不是完成态。不要把 API 发布成功等同于页面可用，必须补数据源或改源码后重新发布。
 
 ## OpenYida 兼容编译
 

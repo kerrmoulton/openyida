@@ -374,7 +374,7 @@ Run `openyida --help` or `openyida <command> --help` for detailed usage.
 | `openyida create-form add-option <appType> <formUuid> <fieldLabel> <option1> [option2] ...` | Update a form page |
 | `openyida list-forms <appType> [--keyword <text>]` | List forms/pages in an app |
 | `openyida aggregate-table <list\|create-empty\|inspect\|preview\|save\|publish\|status> <appType> ...` | Manage aggregate tables (virtualView) |
-| `openyida get-schema <appType> <formUuid\|--all>` | Get one form Schema or all form Schemas |
+| `openyida get-schema <appType> <formUuid\|--all> [--summary-json\|--field-map-json]` | Get one form Schema or all form Schemas |
 | `openyida er <appType> [--format mermaid\|json] [--output file] [--include-system] [--include-pages]` | Export app entity relationship diagram |
 | `openyida create-page <appType> "<name>" [--mode dashboard] [--locale zh_CN\|en_US\|ja_JP] [--open\|--no-open]` | Create a custom display page |
 | `openyida generate-page <template>` | Generate page from curated template |

@@ -20,6 +20,8 @@ const utils = require('../lib/core/utils');
 const { fetchFormPageList } = require('../lib/app/form-navigation');
 const {
   extractFieldSummary,
+  extractOptionSummary,
+  buildSchemaSummary,
   buildComponentAliasMaps,
   parseArgs,
   filterForms,
@@ -63,11 +65,22 @@ describe('parseArgs', () => {
       keyword: '客户',
       field: '',
       json: false,
+      summaryJson: false,
     });
   });
 
   test('keeps existing single form mode', () => {
     expect(parseArgs(['APP_XXX', 'FORM-AAA']).formUuid).toBe('FORM-AAA');
+  });
+
+  test('parses compact field-map aliases', () => {
+    expect(parseArgs(['APP_XXX', 'FORM-AAA', '--summary-json'])).toMatchObject({
+      appType: 'APP_XXX',
+      formUuid: 'FORM-AAA',
+      summaryJson: true,
+    });
+    expect(parseArgs(['APP_XXX', 'FORM-AAA', '--field-map-json']).summaryJson).toBe(true);
+    expect(parseArgs(['APP_XXX', 'FORM-AAA', '--field-map']).summaryJson).toBe(false);
   });
 });
 
@@ -95,7 +108,16 @@ describe('extractFieldSummary', () => {
                     children: [
                       {
                         componentName: 'SelectField',
-                        props: { fieldId: 'selectField_status', label: { en_US: 'Status' } },
+                        props: {
+                          fieldId: 'selectField_status',
+                          label: { en_US: 'Status' },
+                          dataSource: {
+                            options: [
+                              { label: { zh_CN: '待访' }, value: 'pending' },
+                              { text: '已离开', value: 'left' },
+                            ],
+                          },
+                        },
                       },
                     ],
                   },
@@ -114,6 +136,9 @@ describe('extractFieldSummary', () => {
         fieldId: 'textField_name',
         alias: 'customerName',
         reportFieldCode: 'textField_name',
+        options: [],
+        optionCount: 0,
+        optionsTruncated: false,
       },
       {
         label: 'Status',
@@ -121,8 +146,52 @@ describe('extractFieldSummary', () => {
         fieldId: 'selectField_status',
         alias: '',
         reportFieldCode: 'selectField_status_value',
+        options: [
+          { label: '待访', value: 'pending' },
+          { label: '已离开', value: 'left' },
+        ],
+        optionCount: 2,
+        optionsTruncated: false,
       },
     ]);
+  });
+
+  test('extracts lightweight options from static props', () => {
+    expect(extractOptionSummary({
+      options: ['待访', { label: '已离开', value: 'left' }, { label: 0, value: 0 }, { label: false, value: false }],
+    })).toEqual([
+      { label: '待访', value: '待访' },
+      { label: '已离开', value: 'left' },
+      { label: '0', value: '0' },
+      { label: 'false', value: 'false' },
+    ]);
+  });
+
+  test('marks option summaries as truncated when option count exceeds compact limit', () => {
+    const options = Array.from({ length: 55 }, (_, index) => ({ label: `选项${index}`, value: index }));
+    const [field] = extractFieldSummary({
+      content: {
+        pages: [
+          {
+            componentsTree: [
+              {
+                componentName: 'FormContainer',
+                children: [
+                  {
+                    componentName: 'SelectField',
+                    props: { fieldId: 'selectField_many', label: '大量选项', options },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(field.options).toHaveLength(50);
+    expect(field.optionCount).toBe(55);
+    expect(field.optionsTruncated).toBe(true);
   });
 
   test('builds alias maps and finds fields by alias', () => {
@@ -157,6 +226,43 @@ describe('extractFieldSummary', () => {
     expect(aliasMaps.aliasByFieldId.textField_name).toBe('customerName');
     expect(aliasMaps.fieldIdByAlias.customerName).toBe('textField_name');
     expect(findFieldNode(nodes, 'customerName', aliasMaps.aliasByFieldId).props.fieldId).toBe('textField_name');
+  });
+});
+
+describe('buildSchemaSummary', () => {
+  test('builds compact field map without full schema pages', () => {
+    const summary = buildSchemaSummary('APP_XXX', 'FORM-A', {
+      content: {
+        pages: [
+          {
+            componentsTree: [
+              {
+                componentName: 'FormContainer',
+                children: [
+                  {
+                    componentName: 'TextField',
+                    props: { fieldId: 'textField_name', label: '姓名' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(summary).toMatchObject({
+      success: true,
+      appType: 'APP_XXX',
+      formUuid: 'FORM-A',
+      fieldCount: 1,
+    });
+    expect(summary.fields[0]).toMatchObject({
+      label: '姓名',
+      fieldId: 'textField_name',
+    });
+    expect(summary).not.toHaveProperty('content');
+    expect(summary).not.toHaveProperty('pages');
   });
 });
 
@@ -218,6 +324,47 @@ describe('run --all', () => {
     const output = JSON.parse(mockLog.mock.calls[mockLog.mock.calls.length - 1][0]);
     expect(output.successCount).toBe(1);
     expect(output.outputDir).toBe(outputDir);
+    mockLog.mockRestore();
+  });
+
+  test('summary-json keeps batch stdout and index compact', async () => {
+    const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openyida-schemas-compact-'));
+    fetchFormPageList.mockResolvedValue([
+      { formUuid: 'FORM-A', formName: '客户信息', formType: 'form', pathName: 'customer' },
+    ]);
+    utils.httpGet.mockResolvedValue({
+      success: true,
+      content: {
+        pages: [
+          {
+            componentsTree: [
+              {
+                componentName: 'FormContainer',
+                children: [
+                  {
+                    componentName: 'TextField',
+                    props: { fieldId: 'textField_name', label: '姓名' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await run(['APP_XXX', '--all', '--summary-json', '--output-dir', outputDir]);
+
+    const index = JSON.parse(fs.readFileSync(path.join(outputDir, 'index.json'), 'utf-8'));
+    expect(index[0]).toHaveProperty('fieldSummary');
+    expect(index[0]).toHaveProperty('schemaFile');
+    expect(index[0]).not.toHaveProperty('schema');
+
+    const output = JSON.parse(mockLog.mock.calls[mockLog.mock.calls.length - 1][0]);
+    expect(output.summaryOnly).toBe(true);
+    expect(output.forms[0]).toHaveProperty('fieldSummary');
+    expect(output.forms[0]).not.toHaveProperty('schema');
     mockLog.mockRestore();
   });
 });

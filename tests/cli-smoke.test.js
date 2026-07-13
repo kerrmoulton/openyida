@@ -202,6 +202,10 @@ describe('CLI offline smoke', () => {
         'yida-data-management',
         'yida-nav-group',
       ]),
+      recommended_read_commands: expect.arrayContaining([
+        expect.stringContaining('--summary-json'),
+      ]),
+      default_data_contract: expect.stringContaining('this.dataSourceMap'),
     });
     expect(commands).toContain('env');
     expect(commands).toContain('login');
@@ -351,6 +355,10 @@ describe('CLI offline smoke', () => {
         'yida-data-management',
         'yida-nav-group',
       ]),
+      recommended_read_commands: expect.arrayContaining([
+        expect.stringContaining('--summary-json'),
+      ]),
+      default_data_contract: expect.stringContaining('this.dataSourceMap'),
     });
     expect(parsed.recommended.default_full_app_workflow).toMatchObject({
       mode: 'fast_build',
@@ -368,6 +376,7 @@ describe('CLI offline smoke', () => {
     expect(parsed.login).not.toHaveProperty('csrf_token');
     expect(parsed.sideEffects.read_only_preflight).toContain('openyida agent-capabilities --json');
     expect(parsed.sideEffects.completion_contracts.full_app).toContain('creating the app');
+    expect(parsed.sideEffects.fast_build_data_contract).toContain('this.dataSourceMap');
     const commandIds = parsed.command_manifest.commands.map(entry => entry.id);
     const commandById = Object.fromEntries(parsed.command_manifest.commands.map(entry => [entry.id, entry]));
     expect(commandIds).toContain('agent-capabilities');

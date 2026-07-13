@@ -43,6 +43,13 @@ description: 宜搭完整应用开发编排技能。从零搭建应用时使用�
 
 `fast_build` 不默认执行：`yida-page-uiux`、`yida-canvas-custom-page`（除非已确认 Canvas 支持或用户明确要求）、`yida-data-source-connectors`、`yida-data-management`、`yida-nav-group`、`yida-dashboard`、导航重排、示例数据、截图验收、公开访问配置、深度 UI 设计、长 PRD、TaskCreate / 继续规划任务，也不默认读取 `references/app-build-contract.md`。
 
+### fast_build 页面数据契约
+
+- 默认页面源码不得使用 `this.dataSourceMap.*`，除非本轮已经明确创建并绑定对应设计器数据源。
+- 默认页面只走两类可闭环方案：入口型页面（表单入口、资源链接、轻量统计占位）或内置数据 API 页面（`this.utils.yida.searchFormDatas` / `saveFormData` 等查询本轮已创建表单）。
+- 如果页面源码确实需要 `this.dataSourceMap.*`，必须先把模式升级为可选数据源链路：加载 `yida-data-source-connectors`，创建/绑定数据源，并在发布后确认页面 Schema 中存在对应数据源；否则 `fast_build` 未完成。
+- 发布输出出现 `No custom page data sources to preserve` 时，只有源码不依赖 `this.dataSourceMap.*` 才能视为正常；若源码依赖 dataSourceMap，必须改源码或补数据源后重新发布。
+
 ## full_demo 可选后置
 
 仅当用户要求，或模式明确为 `full_demo` / `deep_design` 时执行：

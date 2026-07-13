@@ -46,8 +46,8 @@ description: 获取表单的完整 Schema 结构，用于确认字段 ID（field
 ## 命令
 
 ```bash
-openyida get-schema <appType> <formUuid>
-openyida get-schema <appType> --all [--output-dir <dir>] [--keyword <text>] [--concurrency N] [--retries N]
+openyida get-schema <appType> <formUuid> [--summary-json|--field-map-json]
+openyida get-schema <appType> --all [--summary-json] [--output-dir <dir>] [--keyword <text>] [--concurrency N] [--retries N]
 ```
 
 | 参数 | 必填 | 说明 |
@@ -59,12 +59,15 @@ openyida get-schema <appType> --all [--output-dir <dir>] [--keyword <text>] [--c
 | `--keyword <text>` | 否 | 仅批量导出名称、UUID、类型或路径匹配关键词的表单 |
 | `--concurrency N` | 否 | 批量并发数，默认 3，范围 1-10 |
 | `--retries N` | 否 | 单个 Schema 失败后的重试次数，默认 1，范围 0-5 |
+| `--summary-json` / `--field-map-json` | 否 | 只输出字段摘要 JSON，不把完整 Schema 放入 stdout；`--field-map-json` 是语义别名 |
 
 ### 单表模式
 
 ```bash
-openyida get-schema APP_XXX FORM-XXX
+openyida get-schema APP_XXX FORM-XXX --summary-json
 ```
+
+页面开发默认使用 compact 输出，读取 `fields[].label`、`fields[].fieldId`、`fields[].reportFieldCode` 和 `fields[].options` 即可。只有需要组件完整 props、布局结构、字段数据源配置或排障时，才执行不带 `--summary-json` 的完整 Schema 输出。
 
 如需复用输出，使用 agent 的结构化文件写入工具创建：
 
@@ -76,7 +79,7 @@ openyida get-schema APP_XXX FORM-XXX
 ### 批量模式
 
 ```bash
-openyida get-schema APP_XXX --all --output-dir .cache/openyida/customer/schemas
+openyida get-schema APP_XXX --all --summary-json --output-dir .cache/openyida/customer/schemas
 openyida get-schema APP_XXX --all --keyword 客户 --concurrency 5 --retries 2
 ```
 
@@ -88,9 +91,30 @@ openyida get-schema APP_XXX --all --keyword 客户 --concurrency 5 --retries 2
 
 ## 输出
 
-单表模式将完整的 Schema JSON 输出到 stdout，包含 `pages`、`componentsMap` 等字段结构。
+单表模式默认将完整的 Schema JSON 输出到 stdout，包含 `pages`、`componentsMap` 等字段结构；页面开发优先追加 `--summary-json` 或 `--field-map-json`，只输出字段映射：
 
-批量模式将汇总 JSON 输出到 stdout；指定 `--output-dir` 时，完整 Schema 写入文件，stdout 中的 `forms[].schemaFile` 指向对应文件。
+```json
+{
+  "success": true,
+  "appType": "APP_XXX",
+  "formUuid": "FORM-XXX",
+  "fieldCount": 2,
+  "fields": [
+    {
+      "label": "访客姓名",
+      "componentName": "TextField",
+      "fieldId": "textField_xxx",
+      "alias": "visitorName",
+      "reportFieldCode": "textField_xxx",
+      "options": [],
+      "optionCount": 0,
+      "optionsTruncated": false
+    }
+  ]
+}
+```
+
+批量模式将汇总 JSON 输出到 stdout；指定 `--output-dir` 时，完整 Schema 写入文件，stdout 中的 `forms[].schemaFile` 指向对应文件。加 `--summary-json` 时，stdout 和 `index.json` 都只保留字段摘要与 schemaFile 指针，不内联完整 Schema。
 
 > 编码前可用此命令确认表单中各字段的 `fieldId`。
 
@@ -99,8 +123,8 @@ openyida get-schema APP_XXX --all --keyword 客户 --concurrency 5 --retries 2
 | 异常场景 | 处理方式 |
 |---------|----------|
 | 命令返回失败 | 确认 appType 和 formUuid 正确，检查登录态 |
-| 输出被终端截断 | 重新执行后将 stdout 通过结构化文件写入工具保存到 `<projectRoot>/.cache/openyida/<项目名或任务名>/<表单名>-schema.json`；不要使用 shell 重定向 |
-| 需要多个表单字段 ID | 使用批量模式：`openyida get-schema <appType> --all --output-dir .cache/openyida/<项目名或任务名>/schemas` |
+| 输出被终端截断 | 优先改用 `--summary-json`；确需完整 Schema 时，再将 stdout 通过结构化文件写入工具保存到 `<projectRoot>/.cache/openyida/<项目名或任务名>/<表单名>-schema.json`；不要使用 shell 重定向 |
+| 需要多个表单字段 ID | 使用批量 compact 模式：`openyida get-schema <appType> --all --summary-json --output-dir .cache/openyida/<项目名或任务名>/schemas`，默认只读 `index.json` 字段摘要 |
 | 批量部分失败 | 查看 stdout 的 `failedCount` 和 `forms[].errorMsg`，必要时提高 `--retries` 或缩小 `--keyword` 范围 |
 | 找不到目标字段 | 检查字段是否已创建，字段 ID 格式如 `textField_xxxxxxxx`，不能手写猜测 |
 | Schema 输出为空 | 表单可能没有字段，先用 `yida-create-form-page` 创建字段 |

@@ -257,11 +257,13 @@ openyida copy
 
 \`fast_build\` 只做：创建应用 → 核心表单 → 主页面 → 编写主页面源码 → 发布 → 返回访问链接。发布主页面成功并输出 URL 后即完成。
 
+fast_build 页面源码默认不得使用 \`this.dataSourceMap.*\`，除非本轮已经明确创建并绑定设计器数据源；默认使用入口型页面或 \`this.utils.yida.*\` 查询已创建表单。
+
 不要默认加载 \`yida-page-uiux\`、\`yida-data-source-connectors\`、\`yida-data-management\`、\`yida-nav-group\`、\`yida-dashboard\`，也不要默认做示例数据、导航整理、截图验收、公开访问、长 PRD 或深读 references；这些只在用户明确要求或 \`full_demo\` / \`deep_design\` 时执行。
 
 ## 子技能索引
 
-根据用户意图选择最匹配的子技能。支持 \`use_skill\` / \`search_skills\` 的宿主中，必须调用 \`use_skill("<技能名>", "<本次目的>")\` 加载子技能；不要用 Read / read_file / cat 读取 SKILL.md 路径。\`skills-index.json\` 仅供 yida-agent 或同构宿主机器发现，不支持该索引的宿主忽略它。完全没有 \`use_skill\` 的本地工具，才允许按根技能路由表选定技能，并按 \`skills/<技能名>/SKILL.md\` 定位当前阶段唯一必要的 SKILL.md，禁止并发批量读取多个 SKILL.md。
+根据用户意图选择最匹配的子技能。支持 \`use_skill\` / \`search_skills\` 的宿主中，必须调用 \`use_skill("<技能名>", "<本次目的>")\` 加载子技能；不要用 Read / read_file / cat 读取 SKILL.md 路径，也不要猜测 .skills、插件缓存或 workspace/project/.skills。\`skills-index.json\` 仅供 yida-agent 或同构宿主机器发现，不支持该索引的宿主忽略它。完全没有 \`use_skill\` 的本地工具，才允许按根技能路由表选定技能，并按 \`skills/<技能名>/SKILL.md\` 定位当前阶段唯一必要的 SKILL.md，禁止并发批量读取多个 SKILL.md。
 
 | 意图 | 子技能 |
 | --- | --- |

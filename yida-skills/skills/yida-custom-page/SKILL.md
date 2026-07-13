@@ -26,7 +26,7 @@ description: 宜搭 native 自定义页面 JSX 开发规范（React 16 宜搭原
 11. **生命周期名称大小写固定**：只允许 `export function didMount()` 与 `export function didUnmount()`；`didmount`、`componentDidMount`、`componentWillUnmount` 会被 `check-page` 阻塞
 12. **按钮必须真的绑定事件**：禁止 `onclick` 小写属性、`onClick={self.save()}`、`onClick={(e) => self.save}`、`<button>静态标签</button>` 等看起来有按钮但不会正确绑定的写法；统一使用 `onClick={(e) => { self.save(e); }}`。如果只是状态标签/截图标记，用 `span`/`div`，不要用 `button`
 13. **业务状态禁止直接 `this.setState`**：业务态只写 `_customState`，通过 `setCustomState()` / `forceUpdate()` 触发重渲染；`this.setState` 只允许写 `timestamp` 等运行时契约字段
-14. **读状态只能用 `getCustomState()`，禁止读 `this.state.<业务字段>`**：`this.state` 里只有 `timestamp`（重渲染标记）和 `urlParams`，业务态在 `_customState`。读 `this.state.agg`、`this.state.loading` 等恒为 `undefined`，页面无报错却渲染成"数据全占位、图表全空"的空壳页，极难排查。`renderJsx`/`renderCharts` 等所有读状态处一律 `this.getCustomState()`（详见 [编码指南 · 状态管理](references/coding-guide.md)）
+14. **读状态只能用 `getCustomState()`，禁止读 `this.state.<业务字段>`**：`this.state` 里只有 `timestamp`（重渲染标记）和 `urlParams`，业务态在 `_customState`。读 `this.state.agg`、`this.state.loading` 等恒为 `undefined`，页面无报错却渲染成"数据全占位、图表全空"的空壳页，极难排查。`renderJsx`/`renderCharts` 等所有读状态处一律 `this.getCustomState()`；遇到状态同步问题时再读 [编码指南 · 状态管理](references/coding-guide.md)
 
 ### 重要规则（IMPORTANT）
 
@@ -48,9 +48,9 @@ description: 宜搭 native 自定义页面 JSX 开发规范（React 16 宜搭原
 13. **严禁 emoji**：页面渲染出来的任何位置（标题、按钮、标签、状态、空态文案、图表标题等）**一律禁止出现 emoji**（😀🚀✅⚠️📦📊 等一切彩色符号字符）。需要图标一律用功能性内联 SVG（见 `skills/yida-page-uiux` 图标策略）；需要状态标记用文字 + 语义色标签。emoji 是最明显的 AI 味来源之一，且跨端显示不一致。JS 注释里也不要留装饰性符号。
 14. **发布前必须跑检查链路**：先执行 `openyida check-page <file>` 和 `openyida compile <file>`；若出现 warning/error，按规则修复后再发布
 
-> 每条规则的代码示例、反模式和常见错误见 [编码指南](references/coding-guide.md)（编写代码前强制必读）。
-> 运行时易错点、`check-page` 规则和兼容层自动修复边界见 [运行时护栏](references/runtime-guardrails.md)。
-> 表单类 JSX 控件、筛选栏、表格、成员/附件等组件写法见 [组件指南](references/component-jsx-guide.md)；未验证的平台组件能力不得编造。
+> 每条规则的代码示例、反模式和常见错误见 [编码指南](references/coding-guide.md)；`fast_build` 默认先遵守本技能正文，不预读长 reference，只有 check-page 报错、复杂交互、`deep_design` 或正文覆盖不了的问题时才读取。
+> 运行时易错点、`check-page` 规则和兼容层自动修复边界见 [运行时护栏](references/runtime-guardrails.md)，按需读取。
+> 表单类 JSX 控件、筛选栏、表格、成员/附件等组件写法见 [组件指南](references/component-jsx-guide.md)，涉及这些复杂组件时读取；未验证的平台组件能力不得编造。
 
 ## 官方示例范式内化
 
@@ -59,7 +59,7 @@ description: 宜搭 native 自定义页面 JSX 开发规范（React 16 宜搭原
 | 层 | 默认内容 | 生成要求 |
 | --- | --- | --- |
 | 状态层 | `loading`、`list/tableData`、`currentPage`、`pageSize`、`totalCount`、`filters/searchFieldJson`、`selectedRowKeys`、`dialogVisible` | 放入 `_customState`，所有失败路径必须恢复 `loading: false` |
-| 数据源层 | 表单查询、保存、更新、删除、流程发起、任务列表、连接器动作 | 优先调用已有 `this.dataSourceMap.<name>.load()`；没有数据源且是宜搭内置数据时用 `this.utils.yida.*`；第三方/连接器且用户明确要求设计器数据源时才走 `yida-data-source-connectors`，`fast_build` 不默认加载 |
+| 数据源层 | 表单查询、保存、更新、删除、流程发起、任务列表、连接器动作 | 只有已存在或本轮已创建设计器数据源时，才允许调用 `this.dataSourceMap.<name>.load()`；`fast_build` 默认不得生成依赖 dataSourceMap 的代码。查询本轮新建的宜搭表单数据时默认用 `this.utils.yida.searchFormDatas(params)`；不需要真实列表时用入口卡片 + 统计占位，不编造 dataSourceMap |
 | 交互层 | 筛选栏、表格/卡片列表、分页、弹窗、Tab/Collapse、操作按钮 | `renderJsx` 只负责展示和事件分发，业务逻辑拆成 `export function` |
 
 默认页面结构按官方高频组件范式转译为 JSX：顶部筛选/操作区、主体表格或卡片列表、分页、详情/编辑弹窗、空态/错误态。不要把数据查询、复杂计算和大段 DOM 混在一个 `renderJsx` 里。
@@ -99,19 +99,57 @@ openyida publish project/pages/src/employee-query.oyd.jsx APP_XXX FORM-QUERY001
 
 **关键说明**：
 - **Step 1** 的 get-schema 输出包含所有字段的 fieldId，在代码中必须使用 `FIELDS` 常量映射这些 ID
-- **Step 3** 的页面代码必须遵循 [编码指南](references/coding-guide.md) 和 [运行时护栏](references/runtime-guardrails.md)
+- **Step 3** 的页面代码必须遵循本技能正文；[编码指南](references/coding-guide.md) 和 [运行时护栏](references/runtime-guardrails.md) 在 check-page 报错、复杂交互、`deep_design` 或正文覆盖不了时读取
 - 优先通过 `openyida generate-page ... --compile` 生成高质量骨架；需要完整交互样板时使用 `todo-mvc`
 - 页面生成 spec、接口调试 JSON、一次性验证脚本等临时工件必须用结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/` 下；不要在仓库根目录、系统临时目录或 `.cache/` 顶层生成 `page.json`、`data.json` 或脚本文件
 - `check-page` 支持行级禁用：`// openyida-lint-disable-line <rule>` 或 `// openyida-lint-disable-next-line <rule>`。只在确认该行不会触发宜搭运行时问题时使用。
 
+## fast_build 默认页面模板
+
+完整应用 `fast_build` 生成主页面时，默认选择以下轻量闭环之一：
+
+1. 入口型页面：展示表单入口、核心流程说明、少量统计占位和快捷按钮，不执行真实列表查询。
+2. 内置数据 API 页面：用 `this.utils.yida.searchFormDatas` 查询已创建表单，用 `this.utils.yida.saveFormData` 做快速新增；所有失败路径恢复 `loading: false` 并展示空态。
+
+最小查询形态：
+
+```js
+export function loadVisitorList() {
+  var self = this;
+  var state = self.getCustomState();
+  self.setCustomState({ loading: true });
+  return self.utils.yida.searchFormDatas({
+    formUuid: FORM_UUIDS.visitor,
+    currentPage: state.currentPage || 1,
+    pageSize: state.pageSize || 50,
+    searchFieldJson: JSON.stringify(state.searchFieldJson || []),
+  }).then(function(res) {
+    var data = (res && res.data) || (res && res.content && res.content.data) || [];
+    var total = (res && res.totalCount) || (res && res.content && res.content.totalCount) || 0;
+    self.setCustomState({
+      loading: false,
+      list: Array.isArray(data) ? data : [],
+      totalCount: total,
+    });
+    self.forceUpdate();
+  }).catch(function(error) {
+    self.setCustomState({ loading: false, list: [], totalCount: 0 });
+    self.utils.toast({ title: error && error.message ? error.message : '数据加载失败', type: 'error' });
+    self.forceUpdate();
+  });
+}
+```
+
+不得在 fast_build 里写 `this.dataSourceMap.<name>.load()`，除非本轮已明确创建并绑定该数据源，并且已加载 `yida-data-source-connectors` 完成数据源链路。
+
 ## 开发规范
 
-> 编写页面代码前**必须完整阅读** [编码指南](references/coding-guide.md)，包含文件结构模板、状态管理模式、生命周期钩子、全局变量及全部 19 条编码注意事项。
-> 涉及输入控件、日期、选择、成员/部门、附件、表格或筛选栏时，同时阅读 [组件指南](references/component-jsx-guide.md)。
+> `fast_build` 默认不读取长 reference，直接遵守本技能正文的核心规则和模板。只有 check-page 报错、复杂交互/复杂组件、`deep_design`、或正文覆盖不了的运行时问题，才读取下方 Available Files。
+> 涉及输入控件、日期、选择、成员/部门、附件、表格或筛选栏时，读取 [组件指南](references/component-jsx-guide.md)。
 
 ## 官方示例模板与编码注意事项
 
-原“官方示例模板”的全局变量表已归并到 [编码指南](references/coding-guide.md) 的“全局变量”；原“编码注意事项”的完整规则和示例仍在 [编码指南](references/coding-guide.md)。入口层只保留导航和执行命令，避免与 reference 重复。
+原“官方示例模板”的全局变量表已归并到 [编码指南](references/coding-guide.md) 的“全局变量”；原“编码注意事项”的完整规则和示例仍在 [编码指南](references/coding-guide.md)。fast_build 不默认读取这些长 reference，入口层只保留导航和执行命令，避免与 reference 重复。
 
 代码编写前，先按需获取模板并完整读取生成文件：
 
@@ -125,7 +163,7 @@ openyida generate-page todo-mvc --output pages/src/todo-mvc.oyd.jsx --compile  #
 openyida check-page pages/src/home.oyd.jsx --json      # 输出机器可读的规范检查结果；.oyd.jsx 会先兼容构建
 ```
 
-- 完整文件结构、状态管理、全局变量、19 条编码规则见 [编码指南](references/coding-guide.md)
+- 完整文件结构、状态管理、全局变量、19 条编码规则见 [编码指南](references/coding-guide.md)，按需读取
 - `--spec` 文件先用 create_file / Write / file edit tool 创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/page-specs/`
 - 运行时高风险规则、`check-page` 规则和自动修复边界见 [运行时护栏](references/runtime-guardrails.md)
 - 输入控件、筛选栏、下拉、表格、附件等组件骨架见 [组件指南](references/component-jsx-guide.md)
@@ -169,7 +207,16 @@ openyida check-page pages/src/home.oyd.jsx --json      # 输出机器可读的�
 | `router.push` | 路由跳转 |
 | `loadScript` | 动态加载脚本 |
 
-> **上表为常用 API 速查，完整 API 列表见 [yida-api.md](../../references/yida-api.md)。使用前必须阅读完整参数文档，禁止猜测参数。**
+> **上表为常用 API 速查，完整 API 列表见 [yida-api.md](../../references/yida-api.md)。复杂参数不确定时读取完整参数文档，禁止猜测参数。**
+
+## Available Files
+
+| key | path | when |
+|-----|------|------|
+| `coding-guide` | `references/coding-guide.md` | check-page 报错、复杂交互、状态管理问题、`deep_design` |
+| `runtime-guardrails` | `references/runtime-guardrails.md` | 页面运行时报错、check-page 规则不清、编译兼容边界不清 |
+| `component-jsx-guide` | `references/component-jsx-guide.md` | 输入控件、日期、选择、成员/部门、附件、表格或筛选栏 |
+| `design-system` | `references/design-system.md` | 用户明确要求视觉细化，或已进入 `deep_design` / `yida-page-uiux` 后落地样式 |
 
 ## 参考文档
 
@@ -177,14 +224,14 @@ openyida check-page pages/src/home.oyd.jsx --json      # 输出机器可读的�
 |------|---------|---------|
 | **本技能文档** | | |
 | `yida-page-uiux` 子技能 | 页面类型 playbook、5 维差异化引擎、去 AI 味黑名单/8 问自检、图标策略 | 用户明确要求好看/去 AI 味或 `deep_design` 时加载；`fast_build` 不默认加载 |
-| [编码指南](references/coding-guide.md) | 文件结构模板、状态管理、生命周期、19 条编码规范 | 编写任何页面代码前必读 |
-| [运行时护栏](references/runtime-guardrails.md) | pageSize、loading 恢复、ECharts DOM 时序、setState 约束、check-page 规则映射 | 编写列表、看板、图表或接口页面前必读 |
-| [设计规范](references/design-system.md) | 色彩/圆角/字体/间距系统、7 类组件样式模板、8 条反模式 | 实现 UI 样式时必读 |
+| [编码指南](references/coding-guide.md) | 文件结构模板、状态管理、生命周期、19 条编码规范 | check-page 报错、复杂交互、状态管理问题或 `deep_design` 时阅读 |
+| [运行时护栏](references/runtime-guardrails.md) | pageSize、loading 恢复、ECharts DOM 时序、setState 约束、check-page 规则映射 | 页面运行时报错、check-page 规则不清或编译兼容边界不清时阅读 |
+| [设计规范](references/design-system.md) | 色彩/圆角/字体/间距系统、7 类组件样式模板、8 条反模式 | 用户明确要求视觉细化，或已进入 `deep_design` / `yida-page-uiux` 后阅读 |
 | [素材资源](references/assets-guide.md) | 图片/音乐/Icon 素材库、CDN 安全规范 | 需要引入图片、图标、音效时阅读 |
 | [官方示例中心 Schema 范式](../../references/official-example-schema-patterns.md) | 示例中心 156 个 capacity 模板的 schema 抽取链路、类型分布、数据源/报表/连接器模式 | 用户要求参考官方示例、蒸馏模板能力、或实现列表/模板中心/数据源驱动页面时阅读 |
 | **全局共享文档** | | |
-| [宜搭 API](../../references/yida-api.md) | 表单/流程/工具 API 完整参数文档 | 调用 `this.utils.yida.*` 前必读 |
-| [大模型 API](../../references/model-api.md) | AI 文本生成接口参数 | 调用 `txtFromAI` 前必读 |
+| [宜搭 API](../../references/yida-api.md) | 表单/流程/工具 API 完整参数文档 | 复杂参数不确定、接口返回结构异常或正文速查不够时阅读 |
+| [大模型 API](../../references/model-api.md) | AI 文本生成接口参数 | 调用 `txtFromAI` 且参数不确定时阅读 |
 
 ## 注意事项
 
