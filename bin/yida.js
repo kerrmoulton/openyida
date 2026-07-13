@@ -508,7 +508,30 @@ async function main() {
     return;
   }
 
+  const { enforceSafetyMode } = require('../lib/core/safety-mode');
+  const safetyDecision = enforceSafetyMode(command, args);
+  if (safetyDecision.action === 'block') {
+    console.log(JSON.stringify(safetyDecision.output, null, 2));
+    process.exit(safetyDecision.exitCode || 2);
+  }
+  if (safetyDecision.action === 'plan') {
+    console.log(JSON.stringify(safetyDecision.output, null, 2));
+    return;
+  }
+
   switch (command) {
+    case 'safety': {
+      const { run } = require('../lib/core/safety-cmd');
+      await run(args);
+      break;
+    }
+
+    case 'apply-plan': {
+      const { run } = require('../lib/core/apply-plan');
+      await run(args);
+      break;
+    }
+
     case 'commands': {
       const manifest = buildCommandManifest({ t, version: currentVersion });
       console.log(JSON.stringify(manifest, null, 2));

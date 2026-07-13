@@ -458,6 +458,9 @@ Run `openyida --help` or `openyida <command> --help` for detailed usage.
 | Command | Description |
 |---------|-------------|
 | `openyida commands [--json]` | Output machine-readable command manifest |
+| `openyida safety status [--json]` | Show OpenYida safety mode and config sources |
+| `openyida safety <global\|project> mode <readonly\|plan\|full> [--json]` | Configure global or project safety mode |
+| `openyida apply-plan <plan-file> [--json]` | Apply a reviewed OpenYida plan from a non-agent terminal |
 | `openyida agent-capabilities [--json]` | Output one-shot agent capability snapshot |
 | `openyida a2a <serve\|agent-card> [options]` | Start local read-only A2A adapter or print Agent Card |
 | `openyida bridge start [--token <pair-token>] [--port 6736] [--origin https://demo.aliwork.com] [--open\|--no-open]` | Start OpenYida local web bridge service |
