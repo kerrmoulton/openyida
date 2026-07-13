@@ -30,6 +30,16 @@ description: >
 
 若当前 OpenYida 版本还没有 `agent-capabilities`，退回跑 `openyida env --json` 和 `openyida login --check-only --json`。旧版本地 agent 不需要认识 `skills-index.json`，也不需要支持 `agent-capabilities` 才能继续执行。
 
+**Safety mode**：`agent-capabilities` 返回 `safety.effective`。进入任何会创建、更新、发布、删除或写入宜搭远程资源的流程前，必须先按当前模式决定执行方式：
+
+| `safety.effective` | Agent 行为 |
+|--------------------|------------|
+| `readonly` | 只执行 `app-list`、`list-forms`、`get-schema`、`get-permission`、`get-page-config`、`commands`、`agent-capabilities` 等只读查询；不要尝试创建、更新、发布、删除或批量执行写命令，除非用户在普通终端明确切换模式。 |
+| `plan` | 可以运行写命令生成 `.cache/openyida/plans/*.json` 计划文件，但不得把计划视为已执行；把计划文件路径交给用户审阅，并让用户在普通终端运行 `openyida apply-plan <plan-file>`。Agent 不执行 `apply-plan`。 |
+| `full` | 可按原流程执行真实写入，但仍必须遵守登录态、corpId、一致性、发布前校验、输入文件规范和用户确认要求。 |
+
+如果用户表达对误写风险的担心，优先建议 `openyida safety global mode readonly` 或 `openyida safety global mode plan`。安全模式由 CLI 命令层强制执行；Skill 规则用于避免 Agent 反复触发拦截或误把计划文件当作已上线结果。
+
 | 检测结果 | 处理 |
 |---------|------|
 | 命令跑不了（`command not found`） | openyida 未安装 → `npm install -g openyida` |
