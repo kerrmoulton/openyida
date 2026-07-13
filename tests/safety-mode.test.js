@@ -191,7 +191,7 @@ describe('OpenYida safety mode', () => {
     expect(parseJsonOutput(result)).toMatchObject({
       success: false,
       blocked: true,
-      command_id: 'batch.inline',
+      command_id: 'batch',
     });
   });
 
