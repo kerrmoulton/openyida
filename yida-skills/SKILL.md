@@ -33,6 +33,16 @@ description: >
 
 执行 Step 2 时必须读取 [资源上下文与补齐判定](references/resource-context.md)，并按其中规则解析目标资源。已有 app 默认复用，不执行 `yida-create-app`；已有 app 但没有任何页面时，进入完整应用补齐；PRD 不需要页面时，不强制创建自定义页面。
 
+**Safety mode**：`agent-capabilities` 返回 `safety.effective`。进入任何会创建、更新、发布、删除或写入宜搭远程资源的流程前，必须先按当前模式决定执行方式：
+
+| `safety.effective` | Agent 行为 |
+|--------------------|------------|
+| `readonly` | 只执行 `app-list`、`list-forms`、`get-schema`、`get-permission`、`get-page-config`、`commands`、`agent-capabilities` 等只读查询；不要尝试创建、更新、发布、删除或批量执行写命令，除非用户在普通终端明确切换模式。 |
+| `plan` | 可以运行写命令生成 `.cache/openyida/plans/*.json` 计划文件，但不得把计划视为已执行；把计划文件路径交给用户审阅，并让用户在普通终端运行 `openyida apply-plan <plan-file>`。Agent 不执行 `apply-plan`。 |
+| `full` | 可按原流程执行真实写入，但仍必须遵守登录态、corpId、一致性、发布前校验、输入文件规范和用户确认要求。 |
+
+如果用户表达对误写风险的担心，优先建议 `openyida safety global mode readonly` 或 `openyida safety global mode plan`。安全模式由 CLI 命令层强制执行；Skill 规则用于避免 Agent 反复触发拦截或误把计划文件当作已上线结果。
+
 核心判断：
 
 | 已解析到 | 动作 |
