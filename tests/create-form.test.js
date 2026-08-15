@@ -2841,6 +2841,80 @@ describe('patch mode in source code', () => {
     expect(sourceCode).toContain("action === 'field-props'");
     expect(sourceCode).toContain('applyJsonPointerOperation(schema, operation)');
   });
+
+  test('patch mode compiles native node styles before saving by default', async () => {
+    const initial = {
+      gmtModified: 100,
+      pages: [{
+        id: 'FORM_NATIVE_STYLE',
+        componentsTree: [{
+          componentName: 'Page',
+          css: 'body{background:#fff}.native_actions{gap:2px}',
+          children: [{
+            componentName: 'Div',
+            props: {
+              className: 'native_actions',
+              __style__: ':root { display:flex; gap:12px; }',
+            },
+          }],
+        }],
+      }],
+    };
+    const { isolatedCreateForm, mockUtils, consoleSpy } = loadIsolatedLegacyForm(initial);
+
+    await isolatedCreateForm.run([
+      'patch',
+      'APP_TEST',
+      'FORM_NATIVE_STYLE',
+      JSON.stringify([{ action: 'add', path: '/probe', value: true }]),
+    ]);
+
+    const saveCall = mockUtils.httpPost.mock.calls.find(call => call[1].includes('/saveFormSchema.json'));
+    const savedSchema = JSON.parse(querystring.parse(saveCall[2]).content);
+    const pageCss = savedSchema.pages[0].componentsTree[0].css;
+    expect(pageCss).toContain('body{background:#fff}');
+    expect(pageCss).not.toContain('gap:2px');
+    expect(pageCss).toContain('.native_actions { display:flex; gap:12px; }');
+
+    const payload = consoleSpy.mock.calls
+      .map(call => call[0])
+      .filter(line => typeof line === 'string' && line.startsWith('{'))
+      .map(line => JSON.parse(line))
+      .find(item => item && item.formUuid === 'FORM_NATIVE_STYLE');
+    expect(payload.nativeStyles).toMatchObject({ changed: true, rulesCompiled: 1 });
+    consoleSpy.mockRestore();
+  });
+
+  test('patch mode can explicitly disable native style compilation', async () => {
+    const initial = {
+      gmtModified: 100,
+      pages: [{
+        id: 'FORM_NATIVE_STYLE_OFF',
+        componentsTree: [{
+          componentName: 'Page',
+          css: 'body{background:#fff}',
+          children: [{
+            componentName: 'Div',
+            props: { className: 'actions', __style__: ':root { gap:12px; }' },
+          }],
+        }],
+      }],
+    };
+    const { isolatedCreateForm, mockUtils, consoleSpy } = loadIsolatedLegacyForm(initial);
+
+    await isolatedCreateForm.run([
+      'patch',
+      'APP_TEST',
+      'FORM_NATIVE_STYLE_OFF',
+      JSON.stringify([{ action: 'add', path: '/probe', value: true }]),
+      '--no-compile-native-styles',
+    ]);
+
+    const saveCall = mockUtils.httpPost.mock.calls.find(call => call[1].includes('/saveFormSchema.json'));
+    const savedSchema = JSON.parse(querystring.parse(saveCall[2]).content);
+    expect(savedSchema.pages[0].componentsTree[0].css).toBe('body{background:#fff}');
+    consoleSpy.mockRestore();
+  });
 });
 
 describe('rule mode in source code', () => {

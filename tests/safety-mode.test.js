@@ -204,6 +204,21 @@ describe('OpenYida safety mode', () => {
     expect(result.output).toContain('openyida app-list');
   });
 
+  test('readonly allows create-form validate-fields because it is local read-only validation', () => {
+    const current = ctx();
+    const fieldsPath = path.join(current.workspace, 'fields.json');
+    fs.writeFileSync(fieldsPath, JSON.stringify([
+      { type: 'TextField', label: 'Name' },
+    ]), 'utf8');
+
+    const result = runCli(current, ['create-form', 'validate-fields', fieldsPath, '--json'], {
+      OPENYIDA_SAFETY_MODE: 'readonly',
+    });
+
+    expect(result.status).toBe(0);
+    expect(parseJsonOutput(result)).toMatchObject({ success: true, valid: true });
+  });
+
   test('plan mode writes a reviewable plan instead of executing remote write command', () => {
     const current = ctx();
     const result = runCli(current, ['publish', 'missing.oyd.jsx', 'APP_XXX', 'FORM-XXX', '--json'], {

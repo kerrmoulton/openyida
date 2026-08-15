@@ -274,7 +274,7 @@ openyida integration enable APP_XXX FORM_XXX PROC_CODE
 | `openyida create-form create <appType> "<formTitle>" <fieldsJsonFile> [--locale zh_CN\|en_US\|ja_JP] [--open\|--no-open]` | 创建表单页面 |
 | `openyida create-form validate-fields <fieldsJsonOrFile> [--json]` | 本地校验表单字段 JSON |
 | `openyida create-form update <appType> ... [--locale zh_CN\|en_US\|ja_JP] [--open\|--no-open]` | 更新表单页面 |
-| `openyida create-form patch <appType> <formUuid> <patchJsonOrFile> [--open\|--no-open]` | 更新表单页面 |
+| `openyida create-form patch <appType> <formUuid> <patchJsonOrFile> [--compile-native-styles\|--no-compile-native-styles] [--open\|--no-open]` | 更新表单页面 |
 | `openyida create-form rule <appType> <formUuid> <rulesJsonOrFile> [--open\|--no-open]` | 更新表单页面 |
 | `openyida create-form validation <appType> <formUuid> <validationsJsonOrFile> [--open\|--no-open]` | 更新表单页面 |
 | `openyida add-validation <appType> <formUuid> --field <labelOrId> --type <phone\|regex\|idCard\|email\|...> [--message <text>]` | 更新表单页面 |
@@ -371,6 +371,9 @@ openyida integration enable APP_XXX FORM_XXX PROC_CODE
 | 命令 | 说明 |
 |------|------|
 | `openyida commands [--json]` | 输出机器可读命令清单 |
+| `openyida safety status [--json]` | 查看 OpenYida 安全模式和配置来源 |
+| `openyida safety <global\|project> mode <readonly\|plan\|full> [--json]` | 配置全局或项目安全模式 |
+| `openyida apply-plan <plan-file> [--json]` | 从非 Agent 终端应用已审核的 OpenYida 计划 |
 | `openyida agent-capabilities [--json] [--summary-json\|--compact]` | 输出 Agent 一次性能力快照 |
 | `openyida a2a <serve\|agent-card> [options]` | 启动本地只读 A2A Adapter 或输出 Agent Card |
 | `openyida bridge start [--token <pair-token>] [--port 6736] [--origin https://demo.aliwork.com] [--open\|--no-open]` | 启动 OpenYida 本地网页桥接服务 |

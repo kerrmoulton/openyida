@@ -9,6 +9,15 @@ openyida create-form patch <appType> <formUuid> <patchJsonOrFile>
 # 文件路径示例：.cache/openyida/<项目名或任务名>/<表单名>-patch.json
 ```
 
+Patch 的统一保存链路会在全部操作应用后、远端保存前，确定性遍历普通原生页面节点：同时具有非空 `props.className` 和字符串型 `props.__style__` 的节点会自动编译进 Page 根 `css`。Agent 只需维护节点样式源，不要再手工生成或 Patch Page.css。
+
+- 默认开启；`--compile-native-styles` 可显式表达该意图。
+- 兼容异常页面时可临时传 `--no-compile-native-styles`，但必须说明原因并自行验证 Page.css。
+- 编译器保留现有全局/平台 CSS，用稳定标记区块维护生成规则，并替换当前 class 的旧规则；重复执行结果幂等。
+- 同一 className 出现不同 `__style__` 时命令会在保存前失败，禁止静默覆盖。
+- 对象型 `__style__`（普通表单字段常见）不参与该编译，不影响已有表单布局 props。
+- 命令 JSON 的 `nativeStyles` 返回 `changed`、`pagesChanged`、`rulesCompiled` 和 selectors，供 Agent 记录与验收。
+
 执行前必须先 `openyida get-schema <appType> <formUuid> --json` 确认现有结构，补丁文件必须用结构化文件写入工具写在 `<projectRoot>/.cache/openyida/<项目名或任务名>/` 下。
 
 | 操作 | 说明 |

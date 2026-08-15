@@ -184,7 +184,7 @@ openyida create-form rule <appType> <formUuid> <rulesJsonOrFile>
 
 | 模式 | 命令 | 何时使用 |
 |------|------|------|
-| `patch` | `openyida create-form patch <appType> <formUuid> <patchJsonOrFile>` | 受控修改底层 Schema、字段 props、动作模块、自定义校验 |
+| `patch` | `openyida create-form patch <appType> <formUuid> <patchJsonOrFile>` | 受控修改底层 Schema、字段 props、动作模块、自定义校验；原生页面节点样式默认确定性编译到 Page.css |
 | `rule` | `openyida create-form rule <appType> <formUuid> <rulesJsonOrFile>` | 字段显示隐藏、只读、自动赋值、onChange 带出 |
 | `validation` | `openyida create-form validation <appType> <formUuid> <validationsJsonOrFile>` | 字段校验规则，优先用内置校验，复杂场景再用 customValidate |
 | `bind-datasource` | `openyida create-form bind-datasource <appType> <formUuid> <fieldLabelOrId> <dataSourceJsonOrFile>` | 选项字段绑定远程搜索数据源；成功输出 `resolved` |
