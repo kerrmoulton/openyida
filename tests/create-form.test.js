@@ -2885,6 +2885,46 @@ describe('patch mode in source code', () => {
     consoleSpy.mockRestore();
   });
 
+  test('patch mode does not inject form-detail lifecycle into display pages', async () => {
+    const initial = {
+      gmtModified: 100,
+      actions: {
+        type: 'FUNCTION',
+        list: [{ id: 'didMount', name: 'didMount', type: 'lifeCycleEvent' }],
+        module: {
+          source: 'export function didMount() {}',
+          compiled: 'function didMount() {}',
+        },
+      },
+      pages: [{
+        id: 'FORM_NATIVE_LIFECYCLE',
+        componentsTree: [{
+          componentName: 'Page',
+          lifeCycles: {
+            componentDidMount: { name: 'didMount', id: 'didMount', params: {}, type: 'actionRef' },
+          },
+          children: [{ componentName: 'RootContent', children: [] }],
+        }],
+      }],
+    };
+    const { isolatedCreateForm, mockUtils, consoleSpy } = loadIsolatedLegacyForm(initial);
+
+    await isolatedCreateForm.run([
+      'patch',
+      'APP_TEST',
+      'FORM_NATIVE_LIFECYCLE',
+      JSON.stringify([{ action: 'add', path: '/probe', value: true }]),
+    ]);
+
+    const saveCall = mockUtils.httpPost.mock.calls.find(call => call[1].includes('/saveFormSchema.json'));
+    const savedSchema = JSON.parse(querystring.parse(saveCall[2]).content);
+    const root = savedSchema.pages[0].componentsTree[0];
+    expect(root.lifeCycles.componentDidMount.name).toBe('didMount');
+    expect(savedSchema.actions.module.source).toBe('export function didMount() {}');
+    expect(savedSchema.actions.module.source).not.toContain('openyidaThemeDidMount');
+    consoleSpy.mockRestore();
+  });
+
   test('patch mode can explicitly disable native style compilation', async () => {
     const initial = {
       gmtModified: 100,
