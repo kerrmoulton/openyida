@@ -2922,6 +2922,7 @@ describe('patch mode in source code', () => {
     expect(root.lifeCycles.componentDidMount.name).toBe('didMount');
     expect(savedSchema.actions.module.source).toBe('export function didMount() {}');
     expect(savedSchema.actions.module.source).not.toContain('openyidaThemeDidMount');
+    expect(mockUtils.httpPost.mock.calls.some(call => call[1].includes('updateFormConfig'))).toBe(false);
     consoleSpy.mockRestore();
   });
 
