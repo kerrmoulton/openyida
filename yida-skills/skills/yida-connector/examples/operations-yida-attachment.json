@@ -10,7 +10,8 @@
       {
         "childList": [
           {
-            "componentName": "TextField",
+            "_key": "getTemporaryUrl%appType",
+            "paramType": "String",
             "desc": "宜搭应用 appType",
             "name": "appType",
             "required": true
@@ -24,7 +25,8 @@
       {
         "childList": [
           {
-            "componentName": "TextField",
+            "_key": "getTemporaryUrl%systemToken",
+            "paramType": "String",
             "desc": "应用秘钥，在应用数据中获取",
             "name": "systemToken",
             "queryDefaultValue": {
@@ -34,7 +36,8 @@
             "required": false
           },
           {
-            "componentName": "TextField",
+            "_key": "getTemporaryUrl%userId",
+            "paramType": "String",
             "desc": "用户的 userid",
             "name": "userId",
             "queryDefaultValue": {
@@ -44,7 +47,8 @@
             "required": false
           },
           {
-            "componentName": "TextField",
+            "_key": "getTemporaryUrl%language",
+            "paramType": "String",
             "desc": "语言",
             "name": "language",
             "queryDefaultValue": {
@@ -54,7 +58,8 @@
             "required": false
           },
           {
-            "componentName": "TextField",
+            "_key": "getTemporaryUrl%fileUrl",
+            "paramType": "String",
             "desc": "宜搭附件地址",
             "name": "fileUrl",
             "queryDefaultValue": {
@@ -64,7 +69,8 @@
             "required": false
           },
           {
-            "componentName": "TextField",
+            "_key": "getTemporaryUrl%timeout",
+            "paramType": "String",
             "desc": "临时地址失效时间，单位毫秒。例如：60000表示有效期一分钟",
             "name": "timeout",
             "queryDefaultValue": {

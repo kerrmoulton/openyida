@@ -153,7 +153,8 @@ openyida connector list-actions <connector-id>
     {
       "childList": [
         {
-          "componentName": "TextField",
+          "_key": "getDtuSnData%dtuSn",
+          "paramType": "String",
           "desc": "设备 dtuSn",
           "name": "dtuSn",
           "queryDefaultValue": {
@@ -163,7 +164,8 @@ openyida connector list-actions <connector-id>
           "required": true
         },
         {
-          "componentName": "TextField",
+          "_key": "getDtuSnData%date",
+          "paramType": "String",
           "desc": "查询日期，可为空",
           "name": "date",
           "queryDefaultValue": {
