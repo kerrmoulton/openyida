@@ -325,6 +325,73 @@ describe('connector operation normalization', () => {
     });
   });
 
+  test('upgrades legacy connector parameter nodes to designer-compatible fields', () => {
+    const [operation] = normalizeOperations([
+      {
+        operationId: 'listPeriods',
+        url: '/periods',
+        method: 'GET',
+        inputs: [
+          {
+            name: 'Query',
+            paramType: 'Object',
+            childList: [
+              { componentName: 'TextField', name: 'year', required: false },
+              { componentName: 'NumberField', name: 'pageNo', defaultValue: 0 },
+            ],
+          },
+        ],
+        parameters: { header: [], query: [] },
+      },
+    ]);
+
+    expect(operation.inputs[0]).toMatchObject({
+      name: 'Query',
+      paramLocation: 'query',
+    });
+    expect(operation.inputs[0].childList).toEqual([
+      expect.objectContaining({
+        _key: 'listPeriods%year',
+        name: 'year',
+        paramType: 'String',
+        paramLocation: 'query',
+        children: [],
+        childList: [],
+        __level: 0,
+        hidden: false,
+      }),
+      expect.objectContaining({
+        _key: 'listPeriods%pageNo',
+        name: 'pageNo',
+        paramType: 'Number',
+        defaultValue: 0,
+      }),
+    ]);
+    expect(operation.inputs[0].childList[0].componentName).toBeUndefined();
+    expect(operation.parameters.query).toEqual([
+      { name: 'year', value: '' },
+      { name: 'pageNo', value: 0 },
+    ]);
+  });
+
+  test('preserves complete parameter arrays supplied by callers', () => {
+    const query = [{ name: 'year', value: '2026', description: '年度' }];
+    const [operation] = normalizeOperations([
+      {
+        operationId: 'listPeriods',
+        url: '/periods',
+        inputs: [{
+          name: 'Query',
+          childList: [{ componentName: 'TextField', name: 'year' }],
+        }],
+        parameters: { query },
+      },
+    ]);
+
+    expect(operation.parameters.query).toEqual(query);
+    expect(operation.parameters.header).toEqual([]);
+  });
+
   test('buildOperationsSummary falls back to legacy action names', () => {
     expect(buildOperationsSummary([
       { name: '测试接口', path: '/test', method: 'get' },

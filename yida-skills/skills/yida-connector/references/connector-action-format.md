@@ -57,7 +57,8 @@ GET 接口没有 Body，所有业务参数放在 `Query` 分组中：
       {
         "childList": [
           {
-            "componentName": "TextField",
+            "_key": "actionName%Content-Type",
+            "paramType": "String",
             "defaultValue": "application/json",
             "desc": "Content-Type",
             "name": "Content-Type",
@@ -77,7 +78,8 @@ GET 接口没有 Body，所有业务参数放在 `Query` 分组中：
         "required": false,
         "childList": [
           {
-            "componentName": "TextField",
+            "_key": "actionName%fieldName",
+            "paramType": "String",
             "name": "fieldName",
             "label": "字段显示名称",
             "desc": "字段含义描述",
@@ -136,7 +138,7 @@ GET 接口没有 Body，所有业务参数放在 `Query` 分组中：
 | 字段 | 说明 |
 |------|------|
 | `_key` | 格式为 `operationId%fieldName`，如 `sendServiceTxt%flag` |
-| `paramType` | 字段类型，`String` / `Number` / `Boolean`（注意：outputs 用 `paramType` 而非 `componentName`，两者不能混用） |
+| `paramType` | 字段类型，`String` / `Number` / `Boolean`；`inputs` 和 `outputs` 的参数节点均使用 `paramType`，不要使用 `componentName` |
 | `children` | 固定为空数组 `[]` |
 | `childList` | 固定为空数组 `[]`（叶子节点无子字段） |
 | `defaultValue` | 应填写接口返回的真实响应示例 JSON 字符串 |
