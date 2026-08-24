@@ -21,6 +21,7 @@ describe('yida-client', () => {
       auth_mode: 'token',
       auth_source: 'token',
       corp_id: 'corp-1',
+      corp_name: '组织 1',
       user_id: 'user-1',
     });
     utils.httpGet.mockResolvedValue({ success: true, method: 'get' });
@@ -36,6 +37,7 @@ describe('yida-client', () => {
       authMode: 'token',
       authSource: 'token',
       corpId: 'corp-1',
+      corpName: '组织 1',
       userId: 'user-1',
     });
     expect(authRef).not.toHaveProperty('cookies');
@@ -53,6 +55,32 @@ describe('yida-client', () => {
     const authRef = createAuthRef();
 
     expect(authRef.authMode).toBe('token');
+    expect(utils.triggerLogin).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not expose legacy cookie auth data as an auth ref', () => {
+    utils.loadAuthData.mockReturnValue({
+      base_url: 'https://legacy.example.test',
+      auth_mode: 'cookie',
+      auth_source: 'cookie',
+      cookies: [{ name: 'session', value: 'private' }],
+      csrf_token: 'csrf',
+    });
+    utils.triggerLogin.mockReturnValue({
+      base_url: 'https://example.yida.test',
+      auth_mode: 'token',
+      auth_source: 'token',
+    });
+
+    const authRef = createAuthRef();
+
+    expect(authRef).toMatchObject({
+      baseUrl: 'https://example.yida.test',
+      authMode: 'token',
+      authSource: 'token',
+    });
+    expect(authRef).not.toHaveProperty('cookies');
+    expect(authRef).not.toHaveProperty('cookieData');
     expect(utils.triggerLogin).toHaveBeenCalledTimes(1);
   });
 
@@ -119,7 +147,8 @@ describe('yida-client', () => {
   test('postFormOnce rejects missing write auth before transport', async () => {
     const client = createYidaClient({ authRef: {
       baseUrl: 'https://example.yida.test',
-      cookies: [],
+      authMode: 'cookie',
+      authSource: 'cookie',
     } });
 
     await expect(client.postFormOnce('/save/path.json', {})).rejects.toMatchObject({

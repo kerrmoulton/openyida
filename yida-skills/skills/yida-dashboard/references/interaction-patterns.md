@@ -1,6 +1,6 @@
 # 看板交互闭环代码范式
 
-> 业务闭环规则同时适用于 Canvas 与普通页。新建看板默认 Code Canvas：状态与副作用用 hooks，数据写入走 `yida-canvas-data-binding` 的同源 HTTP 数据桥。本文现存 `self.utils.yida.*`、`_customState`、`didMount` 代码是 **legacy/native 示例**，只可在维护普通自定义页面时直接复用，不能作为新建默认。
+> 业务闭环规则同时适用于 `YidaCodeCanvas` 与平台 JSX 组件页面。状态与副作用优先使用 hooks，数据写入走同源 HTTP 数据桥。本文现存 `self.utils.yida.*`、`_customState`、`didMount` 代码是平台 JSX 组件页面示例，只可在维护对应运行时页面时直接复用。
 >
 > 本文档覆盖 5 大交互闭环：
 > 1. 钉钉派单闭环（前端 `saveFormData` 到派单触发表 → 集成自动化 insert 事件 → 待办2.0 连接器 → 真实钉钉待办）
@@ -669,7 +669,7 @@ export function didUnmount() {
 
 ---
 
-## 5. 组织内短链 + 隐藏导航
+## 5. 组织内短链 + 页面级隐藏导航
 
 ### 5.1 发布后验证短链
 
@@ -680,7 +680,7 @@ export function didUnmount() {
 # 2. 用 CLI 验证
 openyida verify-short-url <appType> <formUuid> https://y.aliwork.com/t/abc123
 
-# 3. 保存分享配置，开启隐藏导航
+# 3. 保存分享配置，开启页面级隐藏导航
 openyida save-share-config <appType> <formUuid> --hide-nav --internal
 ```
 
@@ -689,8 +689,9 @@ openyida save-share-config <appType> <formUuid> --hide-nav --internal
 | URL 形态 | 用途 |
 |---------|------|
 | `{base}/{appType}/custom/{formUuid}` | 默认访问，带导航 |
-| `{base}/{appType}/custom/{formUuid}?isRenderNav=false` | 隐藏导航（看板专用）|
-| `{base}/{appType}/custom/{formUuid}?isRenderNav=false&corpid={corpId}` | 跨组织访问时追加 corpid |
+| `{base}/{appType}/custom/{formUuid}?isRenderNav=false` | 页面级隐藏导航（看板专用，不等同应用导航隐藏） |
+| `{base}/{appType}/custom/{formUuid}?isRenderNav=false&corpid={corpId}` | 页面级隐藏导航并跨组织访问 |
+| `{base}/{appType}/custom/{formUuid}` + 应用基础设置 `hideAppNav='y'` | 自定义页自绘应用级导航时隐藏应用导航 |
 | 组织内短链 `{base}/t/xxx` | 分享给内部用户，自动认证 |
 
 ### 5.3 交付话术模板
@@ -702,7 +703,7 @@ openyida save-share-config <appType> <formUuid> --hide-nav --internal
 
 1. PC 端（推荐，大屏投屏用）
    短链：https://y.aliwork.com/t/xxx
-   直链：https://www.aliwork.com/APP_XXX/custom/FORM-XXX?isRenderNav=false
+   直链：https://www.aliwork.com/APP_XXX/custom/FORM-XXX
 
 2. 移动端（钉钉内）
    在钉钉对话框粘贴短链 → 自动展开卡片 → 点击"立即查看"
@@ -718,7 +719,7 @@ openyida save-share-config <appType> <formUuid> --hide-nav --internal
 
 ---
 
-## Legacy/native 全部整合的 didMount 范式
+## 平台 JSX 组件/native 全部整合的 didMount 范式
 
 ```javascript
 export function didMount() {

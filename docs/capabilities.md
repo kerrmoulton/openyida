@@ -1,6 +1,6 @@
 # OpenYida 功能完整列表
 
-这份清单面向宜搭使用者和 AI Agent，按本地 OpenYida `2026.8.12-1` 的 101 条命令和技能路由整理。参数细节可以继续查看 `openyida --help`、`openyida <command> --help` 或 `openyida commands --json`。
+这份清单面向宜搭使用者和 AI Agent，按本地 OpenYida `2026.8.19` 的 101 条命令和技能路由整理。参数细节可以继续查看 `openyida --help`、`openyida <command> --help` 或 `openyida commands --json`。
 
 <Note>
 日常使用建议先运行 `openyida agent-capabilities --summary-json`，它会轻量返回版本、登录态、组织、工作目录和命令清单摘要。只有排查命令契约、权限元数据或登录异常时，再使用完整的 `openyida agent-capabilities --json`。
@@ -30,12 +30,12 @@
 |---|---|
 | 查询我的应用 | `openyida app-list [--size N]` |
 | 创建应用 | `openyida create-app "<应用名称>"` |
-| 更新应用名称、布局、主题 | `openyida update-app <appType> [--name "..."] [--layout slide\|ver] [--theme deepBlue]` |
+| 更新应用名称、布局、主题、访问态应用导航显示 | `openyida update-app <appType> [--name "..."] [--layout slide\|ver] [--theme deepBlue] [--hide-app-nav\|--show-app-nav]` |
 | 启用应用 / 上线应用 | `openyida app-online <appType> [--to-ding-app-center] [--show-app-center]` |
 | 停用应用 / 下线应用 | `openyida app-offline <appType> [--to-ding-app-center] [--show-app-center]` |
 | 导出应用迁移包 | `openyida export <appType> [output]` |
 | 导入应用迁移包 | `openyida import <file> [name]` |
-| 管理左侧导航分组 | `openyida nav-group <list\|create\|rename\|delete\|move\|order\|hide\|show> <appType> ...` |
+| 管理左侧导航分组 | `openyida nav-group <list\|create\|rename\|delete\|move\|order\|auto-order\|hide\|show> <appType> ...` |
 | 管理应用管理员 | `openyida app-permission <get\|set\|add\|remove\|search-user> ...` |
 | 管理应用多语言 | `openyida i18n <overview\|config\|languages\|list\|upsert\|delete\|translate\|translate-all\|upgrade> <appType> ...` |
 | 查询组织基础信息、容量、额度、域名 | `openyida basic-info <overview\|commodity\|grant\|capacity\|quota\|abs-path\|dataflow\|i18n\|domain>` |

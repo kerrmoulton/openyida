@@ -17,9 +17,9 @@
 
 | 页面 | resourceType | scene | 用途 | 实现链路 |
 | --- | --- | --- | --- | --- |
-| 主页 / 首页 / 工作台 | `display-page` | `workbench/dashboard/landing` | 应用第一入口、指标概览、快捷入口 | 默认 Code Canvas |
-| 管理列表页 | `display-page` | `list` | 查询、筛选、批量操作、详情入口 | 默认 Code Canvas |
-| 详情页 | `display-page` | `detail` | 单对象信息总览、时间线、关联对象 | 默认 Code Canvas |
+| 主页 / 首页 / 工作台 | `display-page` | `workbench/dashboard/landing` | 应用第一入口、指标概览、快捷入口 | 自定义页面 |
+| 管理列表页 | `display-page` | `list` | 查询、筛选、批量操作、详情入口 | 自定义页面 |
+| 详情页 | `display-page` | `detail` | 单对象信息总览、时间线、关联对象 | 自定义页面 |
 | 数据大屏 / 看板 | `display-page` 或报表 | `screen/dashboard` | 指标监控、经营分析、投屏展示 | Canvas / Recharts / 报表 |
 
 ### 列表单资源
@@ -47,13 +47,25 @@
 
 ## 排导航顺序
 
+先分清两件事：
+
+| 概念 | 控制位置 | 典型信号 | 设计输出 |
+| --- | --- | --- | --- |
+| 应用导航隐藏 | 应用基础设置 `hideAppNav='y'` | 自绘应用级顶部/侧边/导航壳，或明确隐藏应用导航 | 写 `appBlueprint.hideAppNav: 'y'`，实现阶段用 `yida-nav-shell` |
+| 页面导航隐藏 | 页面配置 `isRenderNav=false` | 页面全屏、无导航、独立分享页 | 只写页面级隐藏，不自动写 `hideAppNav` |
+
+默认规则：
+
 - 默认保留平台应用导航。
-- 默认自定义页**保留平台应用导航**。
-- 页面内 tab / 分段导航 / 自绘导航记录为当前页内容结构，同时保持平台导航可见。
-- 页面内 tab、自绘侧边栏或独立门户壳写 `appBlueprint.hasPageNavigation: true`，同时保持平台导航可见。
-- 仅说「工作台 / 门户 / 看板 / 大屏 / 首页」时，优先解释为平台导航下的当前页面体验。
-- 显式要求隐藏平台导航、无导航、全屏无框、独立分享页或 `isRenderNav=false` 时，设置隐藏导航分支。
-- 快捷入口目标是同应用内页面时，优先进入平台导航或导航分组。
+- 页面内 tab、分段、筛选、卡片切换只是当前页内容结构。
+- 只说「工作台 / 门户 / 看板 / 大屏 / 首页」不是隐藏导航信号。
+- 同应用跨页面入口优先进入平台导航或导航分组。
+
+必须避免：
+
+- 不要因为“看板 / 门户 / 首页”自动隐藏应用导航。
+- 不要用 `isRenderNav=false` 代替 `hideAppNav`。
+- 不要让平台应用导航和自绘应用级导航同时出现。
 
 ## 产出
 

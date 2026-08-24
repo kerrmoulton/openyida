@@ -110,6 +110,7 @@ openyida data query form <appType> <formUuid> [--page 1 --size 20] [--search-jso
 openyida data get form <appType> --inst-id <formInstId>
 openyida data create form <appType> <formUuid> --data-json '<json>' [--resolve-aliases]
 openyida data create form <appType> <formUuid> --data-file .cache/openyida/<项目名或任务名>/data-import/record.json [--resolve-aliases]
+> `create form` 会自动探测表单类型；当目标表单为流程表单时，会改用 `/v1/process/startInstance.json` 发起流程。若已知 `processCode`，仍推荐显式使用 `create process`。
 openyida data update form <appType> --inst-id <formInstId> --form-uuid <formUuid> --data-json '<json>' [--resolve-aliases]
 openyida data update form <appType> --inst-id <formInstId> --form-uuid <formUuid> --data-file .cache/openyida/<项目名或任务名>/data-import/patch.json [--resolve-aliases]
 openyida data query subform <appType> <formUuid> --inst-id <formInstId> --table-field-id <fieldId|alias> [--page 1 --size 100] [--resolve-aliases]

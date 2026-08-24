@@ -34,6 +34,17 @@ describe('update-app helpers', () => {
     });
   });
 
+  test('parseArgs supports app nav visibility flags', () => {
+    expect(parseArgs(['APP_1', '--hide-app-nav'])).toMatchObject({
+      appType: 'APP_1',
+      hideAppNav: 'y',
+    });
+    expect(parseArgs(['APP_1', '--show-app-nav'])).toMatchObject({
+      appType: 'APP_1',
+      hideAppNav: 'n',
+    });
+  });
+
   test('theme presets list documents the only values accepted by --theme', () => {
     expect(SUPPORTED_THEME_KEYS).toContain('deepBlue');
     expect(SUPPORTED_THEME_KEYS).toContain('podBlue');
@@ -74,6 +85,8 @@ describe('update-app helpers', () => {
     expect(hasShellUpdate(parseArgs(['APP_1', '--name', '新名称']))).toBe(false);
     expect(hasShellUpdate(parseArgs(['APP_1', '--theme', 'podBlue']))).toBe(true);
     expect(hasShellUpdate(parseArgs(['APP_1', '--icon', 'xian-yingyong']))).toBe(true);
+    expect(hasShellUpdate(parseArgs(['APP_1', '--hide-app-nav']))).toBe(true);
+    expect(hasShellUpdate(parseArgs(['APP_1', '--show-app-nav']))).toBe(true);
   });
 
   test('buildUpdateAppNamePostData keeps name-only updates on lightweight endpoint', () => {
@@ -129,8 +142,39 @@ describe('update-app helpers', () => {
       layoutDirection: 'ver',
     });
     expect(payload).not.toHaveProperty('appMode');
+    expect(payload).not.toHaveProperty('hideAppNav');
     expect(JSON.parse(payload.appName)).toMatchObject({
       zh_CN: 'OpenYida官方Samples展示0716',
+    });
+  });
+
+  test('buildUpdateAppPostData writes hideAppNav as y/n only when requested', () => {
+    const currentApp = {
+      appName: { zh_CN: '应用' },
+      description: { zh_CN: '描述' },
+      mode: 'normal',
+      type: 'single',
+      showNav: 'y',
+      showCrumb: 'y',
+      deviceType: 'web,mobile',
+    };
+
+    expect(buildUpdateAppPostData(
+      parseArgs(['APP_1', '--hide-app-nav']),
+      currentApp,
+      { csrfToken: 'csrf' }
+    )).toMatchObject({
+      appType: 'APP_1',
+      hideAppNav: 'y',
+    });
+
+    expect(buildUpdateAppPostData(
+      parseArgs(['APP_1', '--show-app-nav']),
+      currentApp,
+      { csrfToken: 'csrf' }
+    )).toMatchObject({
+      appType: 'APP_1',
+      hideAppNav: 'n',
     });
   });
 });

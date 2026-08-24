@@ -16,7 +16,12 @@ jest.mock('../lib/core/utils', () => ({
   requestWithAutoLogin: jest.fn(),
 }));
 
+jest.mock('../lib/app/services/form-mode-service', () => ({
+  getProcessCodeFromFormBinding: jest.fn(),
+}));
+
 const utils = require('../lib/core/utils');
+const formModeService = require('../lib/app/services/form-mode-service');
 
 const mockAuthData = {
   base_url: 'https://www.aliwork.com',
@@ -90,6 +95,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   // 默认已登录
   utils.loadAuthData.mockReturnValue(mockAuthData);
+  // 默认按普通表单处理（非流程表单）
+  formModeService.getProcessCodeFromFormBinding.mockResolvedValue(null);
 });
 
 // ── 参数校验 ──────────────────────────────────────────────────────────
@@ -502,6 +509,57 @@ describe('run() create form', () => {
 
     mockLog.mockRestore();
     mockError.mockRestore();
+  });
+
+  test('目标表单是流程表单时自动使用 startInstance.json 发起流程', async () => {
+    formModeService.getProcessCodeFromFormBinding.mockResolvedValue('PROC-XXX');
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    utils.httpPost.mockResolvedValue({
+      success: true,
+      content: { processInstanceId: 'PROC-INST-NEW' },
+    });
+
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const mockWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await run(['create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}']);
+
+    expect(formModeService.getProcessCodeFromFormBinding).toHaveBeenCalledWith(
+      expect.objectContaining({ corpId: 'corp-1' }),
+      'APP_XXX',
+      'FORM-XXX'
+    );
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
+    expect(utils.httpPost.mock.calls[0][1]).toBe('/dingtalk/web/APP_XXX/v1/process/startInstance.json');
+    const postBody = decodeURIComponent(utils.httpPost.mock.calls[0][2]);
+    expect(postBody).toContain('processCode=PROC-XXX');
+    expect(postBody).toContain('formDataJson={"textField_1":"hello"}');
+    expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('"success": true'));
+
+    mockLog.mockRestore();
+    mockWarn.mockRestore();
+  });
+
+  test('流程表单绑定查询失败时回退到 saveFormData.json 并告警', async () => {
+    formModeService.getProcessCodeFromFormBinding.mockRejectedValue(new Error('binding timeout'));
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    utils.httpPost.mockResolvedValue({
+      success: true,
+      content: { formInstId: 'INST-FALLBACK' },
+    });
+
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const mockWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await run(['create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}']);
+
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
+    expect(utils.httpPost.mock.calls[0][1]).toBe('/dingtalk/web/APP_XXX/v1/form/saveFormData.json');
+    expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('无法判断表单 FORM-XXX 是否为流程表单'));
+    expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('"success": true'));
+
+    mockLog.mockRestore();
+    mockWarn.mockRestore();
   });
 
   test('缺少 --data-json 时打印错误并退出', async () => {

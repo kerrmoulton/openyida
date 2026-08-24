@@ -106,8 +106,8 @@
 | 类型 | 规则 |
 | --- | --- |
 | 表单提交后 | <刷新列表 / 回到当前工作台 / 触发流程 / 更新状态> |
-| 新增/提交入口 | <PC 侧边抽屉 iframe 承载 `submission/{formUuid}?isRenderNav=false`，抽屉默认半屏 `50vw`；移动端整页或新页打开；必要时用 `update-form-config` 持久化表单设置 `isRenderNav=false`> |
-| 详情查看 | <PC 侧边抽屉 iframe 承载 `formDetail/{formUuid}?formInstId={formInstId}&navConfig.layout=1180&isRenderNav=false`，抽屉默认半屏 `50vw`；移动端整页或新页打开；formInstId 来自真实数据记录并优先取 row.formInstId，缺失时禁用详情入口> |
+| 新增/提交入口 | <PC 侧边抽屉 iframe 承载页面级隐藏导航的 `submission/{formUuid}?isRenderNav=false`，抽屉默认半屏 `50vw`；移动端整页或新页打开；必要时用 `update-form-config` 持久化表单设置 `isRenderNav=false`> |
+| 详情查看 | <PC 侧边抽屉 iframe 承载页面级隐藏导航的 `formDetail/{formUuid}?formInstId={formInstId}&navConfig.layout=1180&isRenderNav=false`，抽屉默认半屏 `50vw`；移动端整页或新页打开；formInstId 来自真实数据记录并优先取 row.formInstId，缺失时禁用详情入口> |
 | 表单主题注入 | <每个普通表单和流程表单拿到真实 formUuid 后必须完成 `style#yida-global-theme` 注入，提交页和详情页与应用、自定义页面主题色一致> |
 | 详情页样式注入 | <每个需要查看详情的表单必须完成 `style#yida-form-detail-style` 注入；缺失时不得把详情页样式视为完成> |
 | 数据变更 | <自动计算、状态流转、通知或提醒> |
@@ -159,7 +159,7 @@
 | 门户 / 首页 | <主页面 / 工作台 / 官网首页> | <平台导航 / 顶部导航 / 侧边导航 / 单页入口> | 第一入口放最前 |
 | 业务办理 | <流程表单 / 新增入口 / 待办相关页面> | <平台导航或页面内快捷入口> | 高频动作靠前 |
 | 数据管理 | <普通表单 / 列表页 / 详情页> | <平台导航分组> | 数据录入、查询和维护集中 |
-| 经营分析 | <看板 / 报表 / 大屏> | <平台导航 / 大屏全屏入口 / 隐藏导航 isRenderNav=false> | 管理者查看，放在业务操作之后或独立分组 |
+| 经营分析 | <看板 / 报表 / 大屏> | <平台导航 / 大屏全屏入口 / 页面级隐藏导航 isRenderNav=false> | 管理者查看，放在业务操作之后或独立分组 |
 | 系统配置 | <配置表 / 字典表 / 权限说明> | <平台导航靠后分组> | 低频维护靠后 |
 
 ## 11. 验收标准
@@ -180,4 +180,4 @@
 
 - `yida-app` 读取 `prd/<项目名>/prd.md` 和 `prd/<项目名>/design.md` 后创建或复用资源。
 - 真实 ID 写入 `.cache/<项目名>-schema.json`。
-- 页面实现阶段读取 `prd.md` 的业务内容，并直接读取 `design.md` 的主题、布局、材质、圆角、密度、呼吸感、组件和状态规则；只有走页面生成器或需要稳定交接时才派生 `page-spec.json`，再交给 Code Canvas 或普通自定义页实现。
+- 页面实现阶段读取 `prd.md` 的业务内容，并直接读取 `design.md` 的主题、布局、材质、圆角、密度、呼吸感、组件和状态规则；只有走页面生成器或需要稳定交接时才派生 `page-spec.json`，再交给 `yida-canvas-custom-page` 实现。

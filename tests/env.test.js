@@ -33,23 +33,29 @@ describe('detectEnvironment', () => {
 describe('detectLoginStatus', () => {
   let tmpDir;
   let originalAuthEnabled;
+  let originalAuthMode;
   let originalAccessToken;
   let originalEndpoint;
   let originalCorpId;
   let originalUserId;
+  let originalAuthDir;
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openyida-env-token-'));
     originalAuthEnabled = process.env.YIDA_AUTH_ENABLED;
+    originalAuthMode = process.env.OPENYIDA_AUTH_MODE;
     originalAccessToken = process.env.OPENYIDA_ACCESS_TOKEN;
     originalEndpoint = process.env.OPENYIDA_ENDPOINT;
     originalCorpId = process.env.OPENYIDA_TOKEN_CORP_ID;
     originalUserId = process.env.OPENYIDA_TOKEN_USER_ID;
+    originalAuthDir = process.env.OPENYIDA_AUTH_DIR;
     delete process.env.YIDA_AUTH_ENABLED;
+    delete process.env.OPENYIDA_AUTH_MODE;
     delete process.env.OPENYIDA_ACCESS_TOKEN;
     delete process.env.OPENYIDA_ENDPOINT;
     delete process.env.OPENYIDA_TOKEN_CORP_ID;
     delete process.env.OPENYIDA_TOKEN_USER_ID;
+    process.env.OPENYIDA_AUTH_DIR = path.join(tmpDir, 'user-auth');
   });
 
   afterEach(() => {
@@ -61,10 +67,12 @@ describe('detectLoginStatus', () => {
       }
     };
     restore('YIDA_AUTH_ENABLED', originalAuthEnabled);
+    restore('OPENYIDA_AUTH_MODE', originalAuthMode);
     restore('OPENYIDA_ACCESS_TOKEN', originalAccessToken);
     restore('OPENYIDA_ENDPOINT', originalEndpoint);
     restore('OPENYIDA_TOKEN_CORP_ID', originalCorpId);
     restore('OPENYIDA_TOKEN_USER_ID', originalUserId);
+    restore('OPENYIDA_AUTH_DIR', originalAuthDir);
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
@@ -92,7 +100,9 @@ describe('detectLoginStatus', () => {
       refresh_token: 'refresh-token',
       expires_at: Date.now() + 600000,
       base_url: 'https://www.aliwork.com',
+      client_id: 'openyida-cli',
       corp_id: 'corpABC',
+      corp_name: '组织 ABC',
       user_id: 'user456',
     }, { projectRoot: tmpDir });
 
@@ -101,20 +111,26 @@ describe('detectLoginStatus', () => {
       loggedIn: true,
       canAutoUse: true,
       corpId: 'corpABC',
+      corpName: '组织 ABC',
       userId: 'user456',
       baseUrl: 'https://www.aliwork.com',
-      authSource: 'local',
+      authSource: 'user_profile',
+      authStore: 'user',
+      persistenceScope: 'user',
       authMode: 'token',
     });
-    expect(result.diagnostics.tokenFileFound).toBe(true);
+    expect(result.diagnostics.tokenFileFound).toBe(false);
+    expect(result.diagnostics.authProfilePointerFileFound).toBe(true);
     expect(result.diagnostics.tokenFound).toBe(true);
+    expect(result.diagnostics.corpNameFound).toBe(true);
   });
 
-  test('YIDA_AUTH_ENABLED=true 时返回运行环境注入 token 状态', () => {
-    process.env.YIDA_AUTH_ENABLED = 'true';
+  test('OPENYIDA_AUTH_MODE=token 时返回运行环境注入 token 状态', () => {
+    process.env.OPENYIDA_AUTH_MODE = 'token';
     process.env.OPENYIDA_ACCESS_TOKEN = 'env-access-token';
     process.env.OPENYIDA_ENDPOINT = 'https://env-token.example.com';
     process.env.OPENYIDA_TOKEN_CORP_ID = 'corpEnv';
+    process.env.OPENYIDA_TOKEN_CORP_NAME = '环境组织';
     process.env.OPENYIDA_TOKEN_USER_ID = 'userEnv';
 
     const result = detectLoginStatus(tmpDir);
@@ -122,13 +138,17 @@ describe('detectLoginStatus', () => {
       loggedIn: true,
       canAutoUse: true,
       corpId: 'corpEnv',
+      corpName: '环境组织',
       userId: 'userEnv',
       authSource: 'env',
+      authStore: 'env',
+      persistenceScope: 'process',
       authMode: 'token',
     });
     expect(result.diagnostics).toMatchObject({
       authMode: 'token',
       authSource: 'env',
+      authStore: 'env',
       tokenFound: true,
     });
   });

@@ -23,6 +23,7 @@ openyida publish <source> <appType> <displayPageFormUuid> --auto-nav-order
 5. PRD 写明页面/表单清单顺序时，执行 `openyida nav-group order <appType> <页面/表单...>`。
 6. PRD 缺少明确页面清单时，用 `--auto-nav-order` / `nav-group auto-order` 兜底。
 7. 兜底顺序为：门户/首页/工作台入口、业务办理、数据管理、经营分析、系统配置。
+8. 本步骤配置宜搭平台导航，不要求页面源码实现侧边栏或顶部应用导航；除非用户显式要求页面内自绘导航，否则不要回头在自定义页面中补导航壳。
 
 ## 产出
 

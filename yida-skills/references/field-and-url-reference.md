@@ -30,6 +30,14 @@
 
 拼接模板（`{base_url}` 取自登录域名，如公有云 `https://www.aliwork.com`）：
 
+先分清导航控制口径：
+
+| 要控制什么 | 配置/参数 | 适用对象 | 不要怎么做 |
+| --- | --- | --- | --- |
+| 应用导航隐藏 | `hideAppNav='y'` | 自定义页自绘顶部/侧边/导航壳 | 不要给自定义页 URL 拼 `isRenderNav=false` 来代替 |
+| 页面导航隐藏 | `isRenderNav=false` | 页面、提交页、详情页 | 不要据此自动隐藏应用导航 |
+| 平台导航排序 | `yida-nav-group` | 常规多页面应用 | 不要在自定义页重复做同级应用导航 |
+
 | 页面类型 | URL 格式 |
 |---------|---------|
 | 应用首页 | `{base_url}/{appType}/workbench` |
@@ -37,19 +45,29 @@
 | 数据管理页（列表） | `{base_url}/{appType}/workbench/{formUuid}` |
 | 数据管理页（iframe 嵌入） | `{base_url}/{appType}/workbench/{formUuid}?iframe=true` |
 | 自定义页面 | `{base_url}/{appType}/custom/{formUuid}` |
-| 自定义页面（隐藏导航） | 上行 + `?isRenderNav=false` |
+| 自定义页面（应用导航隐藏） | URL 仍为上行；通过应用基础设置 `hideAppNav='y'` 控制 |
 | 表单详情页（抽屉/隐藏导航） | `{base_url}/{appType}/formDetail/{formUuid}?formInstId={formInstId}&navConfig.layout=1180&isRenderNav=false` |
 | 表单详情页（编辑态） | `{base_url}/{appType}/formDetail/{formUuid}?formInstId={formInstId}&mode=edit&navConfig.layout=1180&isRenderNav=false` |
 
 > 任意地址可追加 `corpid={corpId}` 自动切到对应组织；无 query 时用 `?corpid=...`，已有 query 时用 `&corpid=...`。
 
-> 自定义页里的新增/提交入口默认使用 `?isRenderNav=false`，对应表单设置里的 `isRenderNav=false`。需要持久化表单提交页导航设置时，可在创建表单后执行 `openyida update-form-config <appType> <formUuid> false "<表单标题>"`；已有 query 时按 `&isRenderNav=false` 合并。
+> 自定义页里的新增/提交入口默认使用 `?isRenderNav=false`，对应表单/页面设置里的 `isRenderNav=false`。这是表单页或页面级导航隐藏，不是应用导航隐藏。需要持久化表单提交页导航设置时，可在创建表单后执行 `openyida update-form-config <appType> <formUuid> false "<表单标题>"`；已有 query 时按 `&isRenderNav=false` 合并。
 
 ## 页面内自定义导航 URL 参数规则
 
+默认不要在自定义页面中自己绘制应用级侧边导航、顶部导航或同级模块菜单；同应用页面切换优先交给宜搭平台导航和 `yida-nav-group`。
+
+只有用户显式要求在自定义页面中实现自己的顶部导航、侧边导航、导航壳或自绘应用级导航时，才进入本节规则，并执行：
+
+```bash
+openyida update-app <appType> --hide-app-nav
+```
+
+用户只要求页面隐藏导航、无导航、全屏无框或 `isRenderNav=false` 时，走页面级隐藏逻辑，不自动隐藏应用导航。
+
 当自定义页自己绘制导航壳、并隐藏宜搭原导航时，导航项不能只保存 `formUuid`，必须保存可合并的 URL 参数：
 
-- 自定义展示页目标：使用 `{base_url}/{appType}/custom/{formUuid}?isRenderNav=false`，保持目标页也不显示宜搭原导航。
+- 自定义展示页目标：使用 `{base_url}/{appType}/custom/{formUuid}`；应用导航是否显示由应用基础设置 `hideAppNav` 决定，不通过 `isRenderNav=false` 传递。
 - 数据表单目标：若在导航壳内容区嵌入，用 `{base_url}/{appType}/workbench/{formUuid}?iframe=true`；若整页跳转到 workbench，明确接受目标页回到宜搭工作台框架。
 - 跨组织访问：在已有 query 后追加 `&corpid={corpId}`；没有 query 时用 `?corpid={corpId}`。
 - 业务深链：导航项可带 `tab`、`view`、`dateRange`、`mode` 等白名单参数；拼 URL 时与公共参数合并，不能被 `router.push(formUuid)` 吞掉。

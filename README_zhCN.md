@@ -55,10 +55,10 @@ OpenYida 要求 Node.js 18 或更高版本。安装后会提供 `openyida` 和 `
 在 AI 编程工作区中运行：
 
 ```bash
-openyida agent-capabilities --json
+openyida agent-capabilities --summary-json
 ```
 
-该命令会一次性返回 OpenYida 版本、当前工作区、AI 工具环境、登录态、组织上下文、命令清单和副作用提示。旧版本或轻量检查也可以使用：
+该命令会返回紧凑的 OpenYida 版本、登录态、工作区和命令清单摘要。需要完整诊断时再使用 `openyida agent-capabilities --json`；旧版本也可以降级使用：
 
 ```bash
 openyida env --json
@@ -79,6 +79,15 @@ AI 工具中建议登录后用下面任一命令确认 token session 可用：
 openyida login --check-only --json
 openyida auth status
 ```
+
+如果当前项目要复用已有共享登录 profile，先切换已有 profile，不要直接发起新的 OAuth 登录：
+
+```bash
+openyida auth profiles
+openyida auth profile switch <auth_profile>
+```
+
+目标 profile 不在列表中时，再执行 `openyida login` 新增登录态，随后切到新增 profile。
 
 如果用户给出明确的宜搭入口 URL，需要把 URL 传给登录命令：
 
@@ -246,9 +255,9 @@ openyida integration enable APP_XXX FORM_XXX PROC_CODE
 | 命令 | 说明 |
 |------|------|
 | `openyida login [target-url] [--env <name>\|--intl\|--overseas\|--global\|--yidaapps\|--alibaba] [--client-id <clientId>] [--endpoint <url>] [--no-browser]` | 登录（OAuth token 模式） |
-| `openyida logout` | 退出登录 / 清空 token |
-| `openyida auth <status\|login\|refresh\|logout>` | token 登录态管理 |
-| `openyida org <list\|switch> [--json] [--corp-id <corpId>]` | 组织管理（列表 / 重新登录切换） |
+| `openyida logout` | 退出登录 / 解绑当前项目登录态 |
+| `openyida auth <status\|login\|refresh\|logout\|profiles\|profile switch>` | token 登录态与 profile 管理 |
+| `openyida org <list\|switch> [--json] [--corp-id <corpId>]` | 组织管理（列表 / 优先按已有 profile 切换） |
 | `openyida env [--json\|setup\|list\|show\|switch\|add\|remove] [options]` | 检测 AI 工具环境和 token 登录态 |
 
 ### 应用管理
@@ -258,7 +267,7 @@ openyida integration enable APP_XXX FORM_XXX PROC_CODE
 | `openyida app-list [--size N]` | 查询我的应用列表 |
 | `openyida corp-efficiency [overview\|details\|detail\|groups\|notify] [options] [--open\|--no-open]` | 查询企业效能概览和明细报表 |
 | `openyida create-app "<name>"\|--name <name> [options] [--locale zh_CN\|en_US\|ja_JP] [--open\|--no-open]` | 创建宜搭应用 |
-| `openyida update-app <appType> [--name "..."] [--layout slide\|ver] [--theme deepBlue]` | 更新应用信息 |
+| `openyida update-app <appType> [--name "..."] [--layout slide\|ver] [--theme deepBlue] [--hide-app-nav\|--show-app-nav]` | 更新应用信息 |
 | `openyida app-online <appType> [--to-ding-app-center] [--show-app-center]` | 启用宜搭应用 |
 | `openyida app-offline <appType> [--to-ding-app-center] [--show-app-center]` | 停用宜搭应用 |
 | `openyida nav-group <list\|create\|rename\|delete\|move\|order\|auto-order\|hide\|show> <appType> ...` | 管理应用左侧导航分组 |
@@ -283,6 +292,7 @@ openyida integration enable APP_XXX FORM_XXX PROC_CODE
 | `openyida list-forms <appType> [--keyword <text>]` | 列出应用下的表单/页面 |
 | `openyida aggregate-table <list\|create-empty\|inspect\|preview\|save\|publish\|status> <appType> ...` | 管理聚合表（virtualView） |
 | `openyida get-schema <appType> <formUuid\|--all> [--summary-json\|--field-map-json]` | 获取单个或全部表单 Schema |
+| `openyida check-prd-completeness <prd.md> --app-type <appType> [--build-manifest <file>] [--json]` | 检查 PRD 页面/资源数量风险 |
 | `openyida er <appType> [--format mermaid\|json] [--output file] [--include-system] [--include-pages]` | 导出应用实体关系图 |
 | `openyida create-page <appType> "<name>" [--mode dashboard] [--hide-nav] [--locale zh_CN\|en_US\|ja_JP] [--open\|--no-open]` | 创建自定义展示页面 |
 | `openyida build-page <sourceFile> [--output file\|--write]` | 构建宜搭兼容页面源码 |

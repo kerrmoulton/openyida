@@ -10,6 +10,137 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 海外版宜搭暂不适用当前 OAuth token 登录与创建应用链路；如需在海外版宜搭创建应用，请使用 `2026.7.14-2` 以前的版本，例如 `npm install -g openyida@2026.7.13`。
 
+## [2026.8.20] - 2026-08-20
+
+### Added
+
+- `openyida save-permission` 支持复杂 `dataPermit` 规则透传与权限矩阵成员配置，可在保留原始权限表达能力的同时批量生成成员维度的数据权限。
+- `save-permission --all-members` 新增全员可见全部数据快捷配置，并同步表单权限技能文档中的权限矩阵与全员数据可见说明。
+
+### Fixed
+
+- 流程表单数据提交改用 `startInstance` 链路，避免通过通用数据更新路径发起流程实例时出现提交语义不一致。
+
+## [2026.8.19-2] - 2026-08-19
+
+### Fixed
+
+- 修正 `2026.8.19-1`（#497）引入的 env token 不落盘语义：`OPENYIDA_AUTH_MODE=token` 现在按 **env token bootstrap** 处理，refresh 结果写入项目级 token 缓存（文件权限 0600，原子写入）并优先复用，避免每次命令重复 refresh；也避免 refresh token 轮换场景下新凭证丢失导致后续认证失败。落盘隔离在项目作用域，不污染用户级共享登录档案。
+- refresh-only 的 env token 现在正确上报 `ok` / `can_auto_use=true`。
+
+### Changed
+
+- 保留“不回退 OAuth”保障：env token 模式下 `openyida login` 仍返回 noop 结果（凭证可用→`ok=true`；缺凭证→明确提示请运行环境注入 token），两者均不弹浏览器。
+- 移除 CLI 对 `YIDA_AUTH_ENABLED` 的依赖，判定统一为 `OPENYIDA_AUTH_MODE=token`；`agent-capabilities` 将 `host_injected_token_mode` / `host_token_env_detected` / `env_token_present` 等重叠字段收敛为单一 env token 语义，`auth_runtime` 新增 `env_token_bootstrap`，`missing_token_action` 统一为 `STOP_AND_REQUEST_ENV_TOKEN`（受影响环境：yida-agent 云端等运行环境注入 token 场景；本地 OAuth 与三端浏览器拉起路径不变）。
+
+## [2026.8.19-1] - 2026-08-19
+
+### Fixed
+
+- 修正云端宿主注入 token 的识别：`OPENYIDA_AUTH_MODE=token` 且存在 `OPENYIDA_ACCESS_TOKEN` 或 `OPENYIDA_REFRESH_TOKEN` 时，即使未设置 `YIDA_AUTH_ENABLED` 也识别为宿主注入登录态，不再回退到 OAuth 浏览器登录（修正 yida-agent 等无浏览器云端环境下 refresh-token 会误触发 OAuth 的问题）。
+- `openyida login` 在宿主注入模式下短路返回 `login_action=noop`：凭证可用时直接报 `ok=true`，缺 token 时给出“请宿主注入 token”的明确提示，两者均不弹浏览器。
+
+### Changed
+
+- host-injected 登录判定收敛为单一事实源：`agent-capabilities` 与 `core/utils` 统一复用 `token-store` 的 `isHostInjectedTokenMode`，CLI 层的 `isEnvAuthMode()` 分支下沉至 `tokenLogin`，消除多处判定漂移（受影响环境：yida-agent 云端等宿主注入 token 场景，本地 OAuth 与三端浏览器拉起路径不变）。
+
+## [2026.8.19] - 2026-08-19
+
+### Added
+- `openyida update-app` 新增 `--hide-app-nav` / `--show-app-nav` 及兼容别名，用于自定义页面自绘顶部导航或侧边导航壳时显式隐藏或恢复访问态应用导航。
+
+### Changed
+- 自定义页面、完整应用设计和导航壳技能规则统一为默认保留平台应用导航，仅在用户明确要求自定义页侧边导航、顶部导航、导航壳或全屏无导航时才开启隐藏应用导航。
+- 同步命令 manifest、README 命令表和能力清单中的 `update-app` 导航隐藏参数，并补齐 `nav-group auto-order` 能力清单说明。
+
+### Fixed
+- `hideAppNav` 默认不写入更新应用请求，避免普通应用或未明确导航诉求的自定义页面被误隐藏应用导航。
+## [2026.8.17-3] - 2026-08-17
+
+### Added
+
+- auth profile 管理 UX：新增 `openyida auth profiles` 列出共享登录档案、`openyida auth profile switch <profile|corpId>` 非破坏性切换当前项目指针；auth status / agent-capabilities 新增 `profile_required` 候选与 `next_step` 提示。
+
+### Changed
+
+- logout 语义拆分：默认 `openyida auth logout` 只解绑当前项目指针 / legacy token，保留共享用户档案；`--profile <id>` 删单个档案，`--all` 删全部。
+- 移除已废弃的 cookie authRef 兼容分支：`createAuthRef` 仅接受 token 登录态，HTTP helper 不再构造 `Cookie` / `global_csrf_token` header，legacy cookie 数组参数被忽略并继续走 Bearer token；与 `agent-capabilities` 的 `cookie_auth_supported:false` 声明对齐。（无破坏性变更：删除的是已声明不支持的 cookie 登录回退路径，OAuth token / host-injected token 路径不受影响。）
+
+## [2026.8.17-2] - 2026-08-17
+
+### Changed
+
+- 强化 `caller_open_url` 登录模式的 Agent 行为契约：web sandbox 下 `openyida login --no-browser` 后，Agent 必须优先调用宿主沙箱浏览器 / 内置 Browser 打开 CLI 输出的授权 URL，只有无浏览器工具或调用失败时才回退让用户手动打开；`agent-capabilities` 快照新增 `url_source` / `manual_user_open_fallback` / `must_not_only_print_url_when_agent_browser_available` 字段，并同步 yida-login 与环境准备技能文档（受影响平台：QwenWork web sandbox 等 agent browser 环境）。
+
+## [2026.8.17-1] - 2026-08-17
+
+### Added
+
+- 新增 `openyida check-prd-completeness`：对照 PRD 与应用实际资源的交付风险雷达（只读命令，输出结构化 JSON）。
+- 用户级 auth profile store：优先用户级登录档案，保留项目级缓存兼容；宿主注入 token 仍为最高优先且不持久化。
+- `agent-capabilities --summary-json` 暴露登录/浏览器能力提示与项目根/技能目录来源说明。
+
+### Changed
+
+- 发布健康检查改为基于 token 鉴权的 schema 回读比对（指纹校验 Canvas runtimeCode / native compiled），取代已失效的 Cookie + HTML 检查。
+- 稳定 QwenWork / Mule / Qoder 工作区识别，避免 `work` 与 `work/project` 漂移。
+- Release notes 技能包文案改为通用表述。
+
+### Fixed
+
+- 修正 #489 带入的 `package.json` 版本回退（`2026.8.16-beta.1` → `2026.8.17-1`），使仓库版本重新高于已发布的 latest。
+
+## [2026.8.17] - 2026-08-17
+
+### Added
+- 新增 2026.8.11 到 2026.8.14 的版本改造对比报告，补充技能体积、文档结构和性能影响分析。
+
+### Changed
+- 自定义页面默认开发链路收拢到 `yida-canvas-custom-page` 与 `YidaCodeCanvas`，`yida-custom-page` 聚焦历史 `.oyd.jsx` / `.oyb.jsx` / `renderJsx` / 平台 `Jsx` 页面维护。
+- 更新 `yida-app`、技能路由、评测场景和覆盖矩阵，清理普通自定义页面与 Code Canvas 双链路选择提示，减少弱模型误选。
+- 调整自定义页面编译与发布说明，将历史 JSX 编译维护口径归入 `yida-custom-page`，新建自定义页面继续使用 YidaCodeCanvas 组件实现。
+- 新建应用链路默认携带 Builder AI / OpenYida 创建标识，由 CLI 调用接口时自动传入，不再暴露给用户手动填写。
+- 更新现代版主题接口相关技能说明与示例，统一主题运行时、注入和页面设计侧的调用口径。
+
+### Fixed
+- 修正 `renderJsx`、`didMount`、`this.utils.yida`、`this.dataSourceMap` 等平台 JSX 组件能力的描述边界，避免误判为普通新建页面链路。
+- 收窄 `skills-index.json` 和跨技能引用改动范围，保留必要技能指向，同时避免其他技能过度依赖 `yida-custom-page`。
+- 恢复并明确附件上传、图片上传、成员和部门等能力不属于历史 JSX 特性，避免自定义页面能力说明被误删或错误归类。
+- 优化 `yida-publish-page` 严禁事项与发布边界，保留具体约束，避免发布阶段提示过度抽象。
+
+### Tests
+- 更新技能契约、路由测评、`get-schema` 和 CLI smoke 测试，覆盖自定义页面路由收拢、历史 JSX 维护边界和 Builder AI 创建标识。
+- 重新构建并校验技能发布包，确认源码态与悟空发布态的技能索引、子技能引用和路由说明一致。
+
+## [2026.8.16-beta.1] - 2026-08-17
+
+### Changed
+- auth profile、project pointer、business context、host-injected token 与 `agent-capabilities` 状态输出保留非密钥组织名字段 `corp_name`，便于多组织账号在新会话中识别候选组织。
+- `org list` / `org switch --json` 复用统一组织名解析；登录身份匹配仍以 `corpId` / `userId` / `baseUrl` / `clientId` 为准，`corp_name` 不参与 profile key。
+
+### Tests
+- 补充 auth profile 候选列表脱敏、组织名别名归一化、env token 组织名、自动刷新后 authRef 组织名透传等回归测试。
+
+## [2026.8.16-beta.0] - 2026-08-16
+
+### Added
+- 新增用户级 auth profile 存储，OAuth 登录优先写入稳定用户目录，project cache 仅保存非密钥指针；用户目录不可写时显式降级到 project legacy 并报告持久化范围。
+- `agent-capabilities --summary-json` 补充 runtime、project root、skills 目录、auth store 与 interactive login 策略，减少 Agent 反复扫描工作区和登录态目录。
+- 新增 `check-prd-completeness` 命令，用 build manifest 与远端资源列表做 PRD 交付数量风险检查。
+
+### Changed
+- 优化千问办公本地版/网页版、MuleRun 继承环境、Qoder/QoderWork 等运行时识别；千问办公强信号优先于 MULE/QODER 兼容变量。
+- 登录浏览器归属改为由能力摘要指导：桌面环境默认 CLI 打开系统浏览器，Web sandbox 使用 `--no-browser` 由 Agent 打开授权 URL；Playwright 仅作为可选兜底，不默认安装。
+- `publish --health-check` 改为发布后读取远端 Schema 并校验发布内容指纹，替代依赖页面 HTML/cookie 的健康检查。
+
+### Fixed
+- 修复 `--no-browser --quiet` 与 `OPENYIDA_NO_BROWSER=1 ... --quiet` 下授权 URL 不输出的问题；授权 URL 始终写入 stderr，避免污染 stdout JSON。
+- 修复用户级 auth profile 写入成功但 project pointer 不可写时被误判为登录态不可持久化的问题。
+
+### Tests
+- 新增/更新 OAuth loopback、agent capabilities、project root/skills、auth profile、publish readback、PRD completeness 与 CLI smoke 回归测试。
+- 已用 Codex 和 Qoder 本地 Agent 跑通真实搭建验证；千问办公本地版完成环境识别验证。
+
 ## [2026.8.14] - 2026-08-14
 
 ### Added

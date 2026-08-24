@@ -77,14 +77,21 @@ openyida save-share-config <appType> <formUuid> <url> <isOpen> [openAuth]
 openyida get-page-config <appType> <formUuid>
 ```
 
-### 隐藏顶部导航
+### 隐藏页面导航
 
 ```bash
 openyida update-form-config <appType> <formUuid> false "<页面标题>"
 ```
 
-> 看板/驾驶舱新建页面默认导航可见；只有用户显式要求隐藏导航 / 无导航 / 全屏无框时，才使用 `openyida create-page <appType> "<页面名>" --mode dashboard --hide-nav` 一步完成导航隐藏并输出无左侧工作台栏的沉浸式 URL。
-> 若页面内使用 `yida-nav-shell` 自绘导航壳，本命令是发布后的必做配置；同时导航壳里的自定义页目标 URL 必须追加 `?isRenderNav=false`，否则切到目标页时会重新出现宜搭原导航。
+这条命令只做页面级导航隐藏：
+
+| 场景 | 用这个命令吗 | 说明 |
+| --- | --- | --- |
+| 页面隐藏导航 / 无导航 / 全屏无框 | 是 | 对应 `isRenderNav=false` |
+| 自定义页自绘应用侧边/顶部导航 | 不是主命令 | 先执行 `openyida update-app <appType> --hide-app-nav` |
+| 自绘应用导航后还要求页面本身也隐藏导航 | 是 | 在 `update-app --hide-app-nav` 之后再执行本命令 |
+
+看板/驾驶舱新建页面默认导航可见；只有用户显式要求页面隐藏导航 / 无导航 / 全屏无框时，才使用 `openyida create-page <appType> "<页面名>" --mode dashboard --hide-nav` 一步完成页面导航隐藏。自定义页之间跳转不靠 `?isRenderNav=false` 隐藏应用导航。
 
 ## URL 格式
 

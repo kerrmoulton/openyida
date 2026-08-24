@@ -10,7 +10,7 @@ description: 创建自定义展示页面（display 类型）并返回 formUuid�
 
 本技能只负责创建缺失的 display page，不负责优化、修改或重新发布已有页面。执行前必须已经解析 resource context：
 
-- 如果本轮用户给了页面 URL、`formUuid`、bound page，或 workspace cache/config 中已有目标 display page，禁止调用 `openyida create-page`；直接进入 `yida-custom-page` / `yida-canvas-custom-page` 编写或修改源码，再用 `yida-publish-page` 发布到该页面。
+- 如果本轮用户给了页面 URL、`formUuid`、bound page，或 workspace cache/config 中已有目标 display page，禁止调用 `openyida create-page`；改由 `yida-canvas-custom-page` 编写页面源码，再由 `yida-publish-page` 发布。已确认是历史平台 JSX 组件页面维护时，不由本技能创建或派发，改走根路由的“JSX 自定义页面开发”入口。
 - 如果用户给的是普通表单 `formUuid` 且诉求是改字段结构，改用 `yida-create-form-page`；不要把表单 ID 当作自定义页面创建目标。
 - 只有目标 app 已明确、目标 display page 缺失，并且用户意图允许新增页面（例如“在 APP_xxx 里增加回访页面”）时，才加载并执行本技能。
 - 多个已有页面候选按根技能来源优先级选择；同级冲突或无法判断主页面时才问用户。
@@ -26,8 +26,7 @@ description: 创建自定义展示页面（display 类型）并返回 formUuid�
 - **创建前必须确认**：单点创建页面时，执行创建命令前必须向用户确认页面名称和目标应用。由 `yida-app` 完整应用统一编排且用户已说“默认方案 / 不要追问 / 直接创建”时，合理命名并直接创建，不再二次追问。
 - 创建成功后，将 formUuid 记录到 `.cache/<项目名>-schema.json`
 - 由 `yida-app` 完整应用统一编排的首页/工作台/智能助手/门户门面页，可以先于业务表单创建；先占位记录 `formUuid`，待表单 ID 明确后再写源码并发布。
-- 创建页面后，必须继续选择一个页面实现链路编写页面源码，再用 `yida-publish-page` 发布：Code Canvas 链路用 `yida-canvas-custom-page`；普通自定义页面 JSX/Jsx 组件链路用 `yida-custom-page`
-- 用户明确要求 JSX / Jsx 组件 / 普通自定义页，或页面强依赖 `this.$`、`this.utils.yida.*`、`this.dataSourceMap` 时，创建后进入 `yida-custom-page`；涉及成员、部门、附件上传或图片上传时必须读取 `component-jsx-guide.md`，上传还必须读取 `attachment-upload-guide.md`
+- 创建成功后，将真实 `formUuid` 交给 `yida-canvas-custom-page` 编写页面源码，再交给 `yida-publish-page` 发布；本技能不使用 `yida-custom-page` 处理新建页面。
 - **本技能不读写 memory**：formUuid 等信息输出到 stdout，通过 `.cache/<项目名>-schema.json` 持久化，不依赖跨会话的 memory 状态
 
 ## 适用场景
@@ -59,7 +58,7 @@ openyida create-page <appType> <pageName> [--mode dashboard] [--hide-nav]
 | `appType` | 是 | 应用 ID，如 `APP_XXX` |
 | `pageName` | 是 | 页面名称 |
 | `--mode dashboard` | 否 | 看板/驾驶舱页面推荐使用；只表达页面模式，不会自动隐藏导航 |
-| `--hide-nav` | 否 | 仅当用户显式要求隐藏导航 / 无导航 / 全屏无框时使用；创建后隐藏顶部导航，并输出无左侧工作台栏的 `custom/{formUuid}?isRenderNav=false` URL |
+| `--hide-nav` | 否 | 仅当用户显式要求页面隐藏导航 / 无导航 / 全屏无框时使用；创建后隐藏页面级导航，并输出带 `isRenderNav=false` 的页面 URL；这不等同于应用导航隐藏，自绘应用侧导航需另执行 `openyida update-app <appType> --hide-app-nav` |
 
 默认生成页面导航可见；仅说“看板 / 驾驶舱 / 首页 / 门户 / 工作台”不等于隐藏导航。
 
@@ -69,8 +68,6 @@ openyida create-page <appType> <pageName> [--mode dashboard] [--hide-nav]
 {"success":true,"pageId":"FORM-XXX","pageName":"驾驶舱","appType":"APP_XXX","mode":"dashboard","hideNav":false,"chromeless":false,"url":"{base_url}/APP_XXX/workbench/FORM-XXX","workbenchUrl":"{base_url}/APP_XXX/workbench/FORM-XXX"}
 ```
 
-> 创建后根据用户意图选择并列链路：Code Canvas 链路编写 `.canvas.jsx` 并发布为 `YidaCodeCanvas`；普通自定义页面 JSX/Jsx 组件链路编写 `.oyd.jsx` / `.jsx`，发布为平台 `Jsx` 组件，并执行 `openyida check-page` / `openyida compile` / `openyida publish`。
-> 如果用户说的是 JSX/Jsx 组件，按 `yida-custom-page` 处理：成员/部门选择器不得编造未验证平台组件；附件/图片上传必须验证 OSS 签名、权限、预览和失败提示。
 > 如需创建表单页面（带字段的数据收集页），请使用 `yida-create-form-page`。
 
 ## 异常处理

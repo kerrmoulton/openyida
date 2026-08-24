@@ -20,7 +20,7 @@ OpenYida 任务完成后，除了交付当前结果，还要判断是否有可�
 | 命令行为、参数校验、平台 API 链路 | `lib/**` + `tests/**` | `update-app --theme` 不能只走 `updateAppName`，需回读详情后用 `updateApp` 保存 |
 | 技能路由、工作流、验收纪律 | `yida-skills/SKILL.md` 或对应子技能 `SKILL.md` | 主题任务必须先读 `yida-design`，页面视觉先读 `yida-design` |
 | 页面视觉、Dribbble/优秀案例参考方法 | `yida-design` workflow/reference | 参考案例要转译为布局、视觉锚点、密度、色彩、组件细节 |
-| Code Canvas 页面共性规则 | `yida-canvas-custom-page` | 独立页面按场景确定主题、演示数据有标识、发布后回读 Schema |
+| 自定义页面共性规则 | `yida-canvas-custom-page` | 独立页面按场景确定主题、演示数据有标识、发布后回读 Schema |
 | 应用主题、全局 CSS 变量 | `yida-design` | `--theme` 只接受平台预置 key，自定义主题走 `style#yida-global-theme` |
 | 表单/流程/报表等领域规则 | 对应子技能 | 字段、公式、流程规则、报表配置分别沉淀到所属 skill |
 | 临时经验但暂不适合入主技能 | 子技能 references 或新增 reference | 一组可复用接口探测、截图验收清单、素材流程 |
@@ -35,7 +35,7 @@ OpenYida 任务完成后，除了交付当前结果，还要判断是否有可�
    用户要求参考 Dribbble / 优秀示例时，必须把参考转成可执行设计变量：页面类型、构图、视觉锚点、信息密度、色彩关系、组件细节、反默认点。交付时说明“参考转译成了什么”。
 
 2. **独立品牌页使用页面级主题**
-   独立品牌页、活动页和隐藏导航沉浸页应自带页面级主题 token。普通业务页、页面重构和局部美化优先读取当前应用主题色。
+   独立品牌页、活动页、页面级沉浸页和应用导航隐藏后的自绘壳应自带页面级主题 token。普通业务页、页面重构和局部美化优先读取当前应用主题色。
 
 3. **`--theme` 只能填平台预置 key**
    `deepBlue/podBlue/royalBlue/lightBlue/teal/podGreen/deepPurple/purple/podOrange/yellow/magenta/red/greyBlue/coffee/black` 才能作为 app `colour`。默认优先使用 `podBlue`、`podGreen`、`podOrange`；自定义“活力橙”“深玫红”“暗黑金”等设计主题，应在每个页面注入 `style#yida-global-theme` 或 scoped tokens，`blue`、`green`、`orange` 作为应用主题 token profile 保留原名。
@@ -119,7 +119,7 @@ OpenYida 任务完成后，除了交付当前结果，还要判断是否有可�
 1. 当前请求是否已经真实完成：本地代码、线上资源或页面效果是否已验证。
 2. 是否有用户多次强调或纠正的模式，需要补到 skill。
 3. 是否发现 CLI 行为缺口，需要补到 `lib/**` 和 `tests/**`。
-4. 是否新增/修改页面生成器或通用页面骨架，需要跑相关 Canvas 编译、Jest 和 `git diff --check`。
+4. 是否新增/修改页面生成器或通用页面骨架，需要跑相关本地编译、Jest 和 `git diff --check`。
 5. 是否发布到线上，需要用 schema 或详情接口回读关键字段。
 6. 是否修改 skill，需要跑 `npm run check:skills`，必要时跑 `npm run build:skills`。
 7. 最终回复里说明本次沉淀到哪里；如果判断“不需要沉淀”，说明原因。

@@ -31,6 +31,10 @@ function cliEnv() {
     QODER_IDE: '',
     QODER_AGENT: '',
     QODERCLI_INTEGRATION_MODE: '',
+    QODER_WORK_INTEGRATION_PRODUCT: '',
+    QODERCN_CONFIG_DIR: '',
+    QODER_CONFIG_DIR: '',
+    QODER_WORKER_CWD: '',
     CODEX_SHELL: '',
     CODEX_CI: '',
     CODEX_THREAD_ID: '',
@@ -44,8 +48,19 @@ function cliEnv() {
     AGENT_WORK_ROOT: '',
     MULERUN_CHAT_ID: '',
     MULE_DATA_DIR: '',
+    MULE_WORKSPACE_DIR: '',
+    MULE_SANDBOX_ID: '',
     OPENYIDA_AGENT_MODE: '',
     OPENYIDA_ASSUME_DESKTOP: '',
+    QWENWORK: '',
+    QWENWORK_INTEGRATION_MODE: '',
+    QWENWORKCN_INTEGRATION_MODE: '',
+    QWENWORK_CLIENT: '',
+    QWENWORK_WORKSPACE_DIR: '',
+    QWENWORK_SANDBOX_ID: '',
+    QWENWORK_PREVIEW_URL: '',
+    QWENWORK_VNC_URL: '',
+    AGENT_PLATFORM: '',
     YIDA_AUTH_ENABLED: '',
     OPENYIDA_ACCESS_TOKEN: '',
     OPENYIDA_REFRESH_TOKEN: '',
@@ -53,6 +68,8 @@ function cliEnv() {
     OPENYIDA_TOKEN_CORP_ID: '',
     OPENYIDA_TOKEN_USER_ID: '',
     OPENYIDA_ENDPOINT: '',
+    OPENYIDA_NO_BROWSER: '',
+    OPENYIDA_OAUTH_TIMEOUT_MS: '',
     __CFBundleIdentifier: '',
   };
 }
@@ -73,6 +90,25 @@ function runOkWithEnv(args, extraEnv, cwd = ROOT) {
     encoding: 'utf8',
     timeout: 10000,
   });
+}
+
+function runAnyWithEnv(args, extraEnv, cwd = ROOT, options = {}) {
+  const result = spawnSync(process.execPath, [BIN, ...args], {
+    cwd,
+    env: { ...cliEnv(), ...extraEnv },
+    encoding: 'utf8',
+    timeout: options.timeout || 10000,
+  });
+  const output = `${result.stdout || ''}${result.stderr || ''}`;
+  return {
+    status: result.status,
+    stdout: result.stdout || '',
+    stderr: result.stderr || '',
+    output,
+    jsonOutput: output
+      .replace(/^\(node:\d+\) ExperimentalWarning:.*\n?/gm, '')
+      .replace(/^\(Use `node --trace-warnings \.\.\.` to show where the warning was created\)\n?/gm, ''),
+  };
 }
 
 function createCodexWorkspace() {
@@ -273,6 +309,31 @@ describe('CLI offline smoke', () => {
     expect(result.output).not.toContain('not_logged_in');
   });
 
+  test('login --no-browser --quiet still prints the authorization URL to stderr', () => {
+    const result = runAnyWithEnv(['login', '--no-browser', '--quiet'], {
+      OPENYIDA_OAUTH_TIMEOUT_MS: '80',
+    }, ROOT, { timeout: 5000 });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Open this URL to login:');
+    expect(result.stderr).toContain('login.dingtalk.com/oauth2/auth');
+    expect(result.stderr).not.toContain('Waiting for browser authorization');
+    expect(result.stdout).not.toContain('login.dingtalk.com/oauth2/auth');
+  });
+
+  test('OPENYIDA_NO_BROWSER with quiet login still prints the authorization URL to stderr', () => {
+    const result = runAnyWithEnv(['login', '--quiet'], {
+      OPENYIDA_NO_BROWSER: '1',
+      OPENYIDA_OAUTH_TIMEOUT_MS: '80',
+    }, ROOT, { timeout: 5000 });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Open this URL to login:');
+    expect(result.stderr).toContain('login.dingtalk.com/oauth2/auth');
+    expect(result.stderr).not.toContain('Waiting for browser authorization');
+    expect(result.stdout).not.toContain('login.dingtalk.com/oauth2/auth');
+  });
+
   test('removed legacy login flags fail instead of falling through to OAuth', () => {
     const removedFlags = [
       '--qr',
@@ -454,6 +515,12 @@ describe('CLI offline smoke', () => {
       ]),
       default_data_contract: expect.stringContaining('this.dataSourceMap'),
     });
+    expect(parsed.summary.core_workflows.full_app_build.page_skill_policy)
+      .toContain('existing .oyd.jsx/.oyb.jsx/renderJsx/platform Jsx component maintenance');
+    expect(parsed.summary.core_workflows.full_app_build.page_skill_policy)
+      .not.toContain('page strongly depends on this.$');
+    expect(parsed.summary.core_workflows.full_app_build.page_skill_policy)
+      .not.toContain('deep field two-way binding');
     expect(parsed.summary.core_workflows.full_app_build.ui_guidance_policy).toContain('prd.md + design.md');
     expect(parsed.summary.core_workflows.full_app_build.default_nav_order_policy).toContain('portal/home/workbench entry > business handling > data management > business analytics > system configuration');
     expect(parsed.summary.core_workflows.full_app_build.do_not_default_skill_ids).not.toContain('yida-design');
@@ -504,6 +571,10 @@ describe('CLI offline smoke', () => {
     expect(parsed.commands.find(entry => entry.id === 'agent-capabilities')).toMatchObject({
       usage: 'openyida agent-capabilities [--json] [--summary-json|--compact]',
       output: 'json',
+      requires_login: false,
+    });
+    expect(parsed.commands.find(entry => entry.id === 'auth')).toMatchObject({
+      usage: 'openyida auth <status|login|refresh|logout|profiles|profile switch>',
       requires_login: false,
     });
     expect(parsed.commands.find(entry => entry.id === 'dingtalk-link')).toMatchObject({
@@ -1017,14 +1088,38 @@ describe('CLI offline smoke', () => {
       command_manifest_digest_algorithm: 'sha256',
       command_count: manifest.summary.command_count,
       full_capabilities_command: 'openyida agent-capabilities --json',
+      runtime: {
+        tool: null,
+        runtime: 'unknown',
+        subtype: null,
+        workspace_root: expect.any(String),
+        workspace_root_source: 'cwd_project',
+        browser_capabilities: {
+          desktop_shell: false,
+          agent_browser: false,
+          browser_auto_open: false,
+          playwright_required: false,
+          playwright_policy: 'optional_fallback_only_do_not_install_by_default',
+        },
+      },
       builder_path: {
         schema_version: 1,
+        runtime: {
+          tool: null,
+          runtime: 'unknown',
+          workspace_root_source: 'cwd_project',
+        },
         interactive_login: {
-          browser_default: 'cli_auto_open',
-          agent_action: 'wait_for_login_command',
+          mode: 'unsupported',
+          browser_default: 'unsupported',
+          browser_owner: 'none',
+          recommended_command: null,
+          agent_action: 'ask_user_for_browser_access',
+          reason: 'no_desktop_shell_or_agent_browser_detected',
           suppress_flag: '--no-browser',
           suppress_env: 'OPENYIDA_NO_BROWSER',
           completion_signal: 'process_exit_and_final_json',
+          playwright_required: false,
         },
         preflight: {
           recommended_command: 'openyida agent-capabilities --summary-json',
@@ -1105,6 +1200,128 @@ describe('CLI offline smoke', () => {
       playwright_cookie_check_required: false,
       qr_login_required: false,
     });
+  });
+
+  test('agent-capabilities summary detects QwenWork web before MuleRun fallback', () => {
+    const workspace = createCodexWorkspace();
+    try {
+      const summary = JSON.parse(runOkWithEnv(['agent-capabilities', '--summary-json'], {
+        QWENWORK: '1',
+        AGENT_PLATFORM: 'qwenwork_base',
+        QWENWORK_CLIENT: 'acp',
+        QWENWORK_WORKSPACE_DIR: workspace,
+        QWENWORK_SANDBOX_ID: 'sandbox-web',
+        QWENWORK_PREVIEW_URL: 'https://preview.example.test',
+        QWENWORK_VNC_URL: 'https://vnc.example.test',
+        MULERUN_CHAT_ID: 'mule-chat',
+        MULE_DATA_DIR: '/tmp/.mulerun',
+        MULE_WORKSPACE_DIR: '/tmp/mule-workspace',
+        CLAUDE_CODE: '1',
+      }, workspace));
+
+      expect(summary.workdir).toBe(path.join(workspace, 'project'));
+      expect(summary.runtime).toMatchObject({
+        tool: 'qwenwork',
+        display_name: 'QwenWork（千问办公）',
+        runtime: 'web_sandbox',
+        subtype: 'qwenwork_web',
+        workspace_root: path.join(workspace, 'project'),
+        workspace_root_source: 'QWENWORK_WORKSPACE_DIR',
+        browser_capabilities: {
+          desktop_shell: false,
+          agent_browser: true,
+          browser_auto_open: false,
+          playwright_required: false,
+        },
+      });
+      expect(summary.builder_path.interactive_login).toMatchObject({
+        mode: 'caller_open_url',
+        browser_default: 'caller_open_url',
+        browser_owner: 'agent_browser',
+        recommended_command: 'openyida login --no-browser',
+        agent_action: 'open_cli_printed_url_once_with_agent_browser',
+        url_source: 'login_command_stderr',
+        manual_user_open_fallback: 'only_when_agent_browser_tool_unavailable_or_failed',
+        must_not_only_print_url_when_agent_browser_available: true,
+        reason: 'web_sandbox_agent_browser_available',
+        playwright_required: false,
+      });
+    } finally {
+      fs.rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test('agent-capabilities summary detects QwenWork desktop before Qoder fallback', () => {
+    const workspace = createCodexWorkspace();
+    const projectDir = path.join(workspace, 'project');
+    try {
+      const summary = JSON.parse(runOkWithEnv(['agent-capabilities', '--summary-json'], {
+        QODER_IDE: '1',
+        QODER_AGENT: '1',
+        QODERCLI_INTEGRATION_MODE: 'qoder_work',
+        QODER_WORK_INTEGRATION_PRODUCT: 'qwenworkcn',
+        QODERCN_CONFIG_DIR: path.join(tempHome, '.qwenworkcn'),
+        QODER_CONFIG_DIR: path.join(tempHome, '.qwenworkcn'),
+        QODER_WORKER_CWD: projectDir,
+        __CFBundleIdentifier: 'cn.qwenwork.desktop.mac',
+        CLAUDE_CODE_ENTRYPOINT: 'sdk-ts',
+      }, workspace));
+
+      expect(summary.workdir).toBe(projectDir);
+      expect(summary.runtime).toMatchObject({
+        tool: 'qwenwork',
+        display_name: 'QwenWork（千问办公）',
+        runtime: 'desktop_shell',
+        subtype: 'qwenwork_desktop',
+        workspace_root: projectDir,
+        workspace_root_source: 'QODER_WORKER_CWD',
+        browser_capabilities: {
+          desktop_shell: true,
+          agent_browser: true,
+          browser_auto_open: true,
+          playwright_required: false,
+        },
+      });
+      expect(summary.builder_path.interactive_login).toMatchObject({
+        mode: 'cli_auto_open',
+        browser_default: 'cli_auto_open',
+        browser_owner: 'cli',
+        recommended_command: 'openyida login',
+        agent_action: 'wait_for_login_command',
+        reason: 'desktop_shell_available',
+        playwright_required: false,
+      });
+    } finally {
+      fs.rmSync(workspace, { recursive: true, force: true });
+    }
+  });
+
+  test('agent-capabilities summary keeps desktop shell login on CLI auto-open', () => {
+    const workspace = createCodexWorkspace();
+    try {
+      const summary = JSON.parse(runOkWithEnv(['agent-capabilities', '--summary-json'], {
+        OPENYIDA_ASSUME_DESKTOP: '1',
+      }, workspace));
+
+      expect(summary.runtime).toMatchObject({
+        tool: null,
+        runtime: 'desktop_shell',
+        browser_capabilities: {
+          desktop_shell: true,
+          agent_browser: false,
+          browser_auto_open: true,
+          playwright_required: false,
+        },
+      });
+      expect(summary.builder_path.interactive_login).toMatchObject({
+        mode: 'cli_auto_open',
+        browser_owner: 'cli',
+        recommended_command: 'openyida login',
+        reason: 'desktop_shell_available',
+      });
+    } finally {
+      fs.rmSync(workspace, { recursive: true, force: true });
+    }
   });
 
   test('agent-capabilities command manifest digest canonicalizes object keys', () => {
@@ -1234,6 +1451,12 @@ describe('CLI offline smoke', () => {
       ]),
       default_data_contract: expect.stringContaining('this.dataSourceMap'),
     });
+    expect(parsed.commands.core_workflows.full_app_build.page_skill_policy)
+      .toContain('existing .oyd.jsx/.oyb.jsx/renderJsx/platform Jsx component maintenance');
+    expect(parsed.commands.core_workflows.full_app_build.page_skill_policy)
+      .not.toContain('page strongly depends on this.$');
+    expect(parsed.commands.core_workflows.full_app_build.page_skill_policy)
+      .not.toContain('deep field two-way binding');
     expect(parsed.commands.core_workflows.full_app_build.ui_guidance_policy).toContain('prd.md + design.md');
     expect(parsed.commands.core_workflows.full_app_build.default_nav_order_policy).toContain('portal/home/workbench entry > business handling > data management > business analytics > system configuration');
     expect(parsed.commands.core_workflows.full_app_build.do_not_default_skill_ids).not.toContain('yida-design');
@@ -1387,8 +1610,8 @@ describe('CLI offline smoke', () => {
       kind: 'mixed',
       mutates_yida: false,
       mutates_local: true,
-      read_actions: ['status'],
-      mutating_actions: ['login', 'refresh', 'logout'],
+      read_actions: ['status', 'profiles'],
+      mutating_actions: ['login', 'refresh', 'logout', 'profile switch'],
     });
     expect(commandById.org.side_effect).toMatchObject({
       kind: 'mixed',
@@ -1579,12 +1802,12 @@ describe('CLI offline smoke', () => {
     }
   });
 
-  test('YIDA_AUTH_ENABLED=true reports host-injected token status and does not start OAuth login', () => {
+  test('OPENYIDA_AUTH_MODE=token reports env token status and does not start OAuth login', () => {
     const workspace = createCodexWorkspace();
     const env = {
       CODEX_SHELL: '1',
       OPENYIDA_ENV: 'public',
-      YIDA_AUTH_ENABLED: 'true',
+      OPENYIDA_AUTH_MODE: 'token',
       OPENYIDA_ACCESS_TOKEN: 'env-access-token',
       OPENYIDA_TOKEN_CORP_ID: 'corpEnv',
       OPENYIDA_TOKEN_USER_ID: 'userEnv',
@@ -1610,9 +1833,13 @@ describe('CLI offline smoke', () => {
       expect(login).toMatchObject({
         auth_mode: 'token',
         auth_source: 'env',
+        auth_store: 'env',
         status: 'ok',
         can_auto_use: true,
       });
+      expect(login).not.toHaveProperty('already_logged_in');
+      expect(login).not.toHaveProperty('login_action');
+      expect(login).not.toHaveProperty('previous_status');
 
       const authStatus = JSON.parse(runOkWithEnv(['auth', 'status', '--json'], env, workspace));
       expect(authStatus).toMatchObject({
@@ -1636,12 +1863,12 @@ describe('CLI offline smoke', () => {
     }
   });
 
-  test('YIDA_AUTH_ENABLED=true is visible in env and agent-capabilities preflight output', () => {
+  test('OPENYIDA_AUTH_MODE=token is visible in env and agent-capabilities preflight output', () => {
     const workspace = createCodexWorkspace();
     const env = {
       CODEX_SHELL: '1',
       OPENYIDA_ENV: 'public',
-      YIDA_AUTH_ENABLED: 'true',
+      OPENYIDA_AUTH_MODE: 'token',
       OPENYIDA_ACCESS_TOKEN: 'env-access-token',
       OPENYIDA_TOKEN_CORP_ID: 'corpEnv',
       OPENYIDA_TOKEN_USER_ID: 'userEnv',
@@ -1670,24 +1897,27 @@ describe('CLI offline smoke', () => {
       expect(summary.login).toMatchObject({
         auth_mode: 'token',
         auth_source: 'env',
+        auth_store: 'env',
         status: 'ok',
         can_auto_use: true,
       });
-      expect(summary.precheck).toMatchObject({
-        skipped: true,
-        reason: 'runtime_auth_provisioned',
-      });
+      expect(summary).not.toHaveProperty('precheck');
       expect(summary.builder_path.auth).toMatchObject({
         mode: 'token',
         source: 'env',
+        store: 'env',
         can_auto_use: true,
-        host_injected_token_mode: true,
-        host_token_env_detected: true,
-        env_token_present: true,
-        runtime_auth_provisioned: true,
         interactive_login_allowed: false,
         browser_session_auth_allowed: false,
-        missing_token_action: 'STOP_AND_REQUEST_HOST_TOKEN',
+        missing_token_action: 'STOP_AND_REQUEST_ENV_TOKEN',
+      });
+      expect(summary.builder_path.interactive_login).toMatchObject({
+        mode: 'not_required',
+        browser_default: 'not_required',
+        browser_owner: 'none',
+        recommended_command: null,
+        agent_action: 'do_not_run_oauth_login',
+        reason: 'env_token_bootstrap',
       });
       expect(summary.builder_path.preflight).toMatchObject({
         recommended_command: 'openyida agent-capabilities --summary-json',
@@ -1701,8 +1931,10 @@ describe('CLI offline smoke', () => {
         skip_login_check_only_default: true,
         skip_browser_login_default: true,
         skip_cookie_or_playwright_checks_default: true,
-        stop_when_host_token_missing: false,
+        stop_when_env_token_missing: false,
       });
+      expect(JSON.stringify(summary)).not.toContain('host_injected');
+      expect(JSON.stringify(summary)).not.toContain('host_token');
       expect(summary.builder_path.environment_check_simplification).not.toHaveProperty('skip_default_command_patterns');
       expect(summary.builder_path.bound_context.existing_app_type_policy).toBe('do_not_call_app_list_by_default');
       expect(JSON.stringify(summary)).not.toContain('login.dingtalk.com/oauth2/auth');
@@ -1714,14 +1946,14 @@ describe('CLI offline smoke', () => {
     }
   });
 
-  test('YIDA_AUTH_ENABLED=true ignores legacy cookies.json when host token is missing', () => {
+  test('OPENYIDA_AUTH_MODE=token ignores legacy cookies.json when env token is missing', () => {
     const workspace = createCodexWorkspace();
     writeIgnoredLegacyCookieCache(workspace);
     try {
       const parsed = JSON.parse(runOkWithEnv(['login', '--check-only', '--json'], {
         CODEX_SHELL: '1',
         OPENYIDA_ENV: 'public',
-        YIDA_AUTH_ENABLED: 'true',
+        OPENYIDA_AUTH_MODE: 'token',
       }, workspace));
       expect(parsed).toMatchObject({
         auth_mode: 'token',
@@ -1736,7 +1968,7 @@ describe('CLI offline smoke', () => {
       const refresh = JSON.parse(runOkWithEnv(['auth', 'refresh', '--json'], {
         CODEX_SHELL: '1',
         OPENYIDA_ENV: 'public',
-        YIDA_AUTH_ENABLED: 'true',
+        OPENYIDA_AUTH_MODE: 'token',
       }, workspace));
       expect(refresh).toMatchObject({
         auth_mode: 'token',
@@ -1749,7 +1981,7 @@ describe('CLI offline smoke', () => {
       const summary = JSON.parse(runOkWithEnv(['agent-capabilities', '--summary-json'], {
         CODEX_SHELL: '1',
         OPENYIDA_ENV: 'public',
-        YIDA_AUTH_ENABLED: 'true',
+        OPENYIDA_AUTH_MODE: 'token',
       }, workspace));
       expect(summary.login).toMatchObject({
         auth_mode: 'token',
@@ -1759,20 +1991,24 @@ describe('CLI offline smoke', () => {
       });
       expect(summary).not.toHaveProperty('precheck');
       expect(summary.builder_path.auth).toMatchObject({
-        host_injected_token_mode: true,
-        host_token_env_detected: true,
-        env_token_present: false,
         interactive_login_allowed: false,
-        missing_token_action: 'STOP_AND_REQUEST_HOST_TOKEN',
+        missing_token_action: 'STOP_AND_REQUEST_ENV_TOKEN',
       });
-      expect(summary.builder_path.auth).not.toHaveProperty('runtime_auth_provisioned');
+      expect(summary.builder_path.interactive_login).toMatchObject({
+        mode: 'not_required',
+        browser_owner: 'none',
+        recommended_command: null,
+        reason: 'env_token_bootstrap',
+      });
       expect(summary.builder_path.environment_check_simplification).toMatchObject({
-        can_skip_default_exploration_when_summary_ok: true,
-        skip_login_check_only_default: true,
+        can_skip_default_exploration_when_summary_ok: false,
+        skip_login_check_only_default: false,
         skip_browser_login_default: true,
         skip_cookie_or_playwright_checks_default: true,
-        stop_when_host_token_missing: true,
+        stop_when_env_token_missing: true,
       });
+      expect(JSON.stringify(summary)).not.toContain('host_injected');
+      expect(JSON.stringify(summary)).not.toContain('host_token');
     } finally {
       fs.rmSync(workspace, { recursive: true, force: true });
     }

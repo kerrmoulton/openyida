@@ -13,6 +13,8 @@ description: 宜搭登录态管理。以 OpenYida auth snapshot 为准；默认 
 - snapshot 返回 `login.auth_source=env` 或 `failure_reason=env_token_missing` 时，进入运行环境注入 token 模式。凭证只来自运行环境注入的 `OPENYIDA_ACCESS_TOKEN`、`OPENYIDA_REFRESH_TOKEN` 等环境变量。
 - 其他 `auth_mode=token` 场景使用默认 OAuth token session。
 - 不要从 `.cache/cookies*.json` 推断登录态。
+- 浏览器归属以 `builder_path.interactive_login.mode` 为准：`not_required` 不触发 OAuth；`cli_auto_open` 执行 `openyida login` 并等待；`caller_open_url` 执行 `openyida login --no-browser`，由 Agent 优先调用沙箱浏览器 / 内置 Browser 打开 CLI 输出的授权 URL 一次；`unsupported` 停止并说明没有可用浏览器能力，不要默认安装 Playwright。
+- `caller_open_url` 模式下，Agent 不要只把 URL 贴给用户然后等待。只有当前宿主没有浏览器工具，或浏览器工具调用失败时，才退回让用户手动打开 URL。
 
 ## 前置检查
 
@@ -34,8 +36,11 @@ openyida login --check-only --json
 | 状态 | 动作 |
 |---|---|
 | `auth_mode=token` 且 `status=ok` 或 `can_auto_use=true` | 继续执行业务命令 |
+| `status=profile_required` 且返回 `candidates` / `next_step` | 不猜组织；先执行 `openyida auth profiles`，再用 `openyida auth profile switch <auth_profile>` 切到用户确认或目标匹配的已有 profile |
 | `auth_source=env` / `failure_reason=env_token_missing` | 进入运行环境注入 token 模式；缺 token 时停止，让 Codex、yida-agent 等宿主注入 `OPENYIDA_ACCESS_TOKEN` 或 `OPENYIDA_REFRESH_TOKEN`；不要执行 OAuth |
-| `auth_mode=token`，未登录，且 snapshot 未返回 env 注入 | 只执行一次 `openyida login`，等待该命令结束，并使用其最终 JSON 判断结果 |
+| `auth_mode=token`，未登录，且 `interactive_login.mode=cli_auto_open` | 只执行一次 `openyida login`，等待该命令结束，并使用其最终 JSON 判断结果 |
+| `auth_mode=token`，未登录，且 `interactive_login.mode=caller_open_url` | 只执行一次 `openyida login --no-browser`，由 Agent 优先调用沙箱浏览器 / 内置 Browser 打开输出 URL 一次，并等待原命令结束；无浏览器工具或调用失败时才让用户手动打开 |
+| `auth_mode=token`，未登录，且 `interactive_login.mode=unsupported` | 停止并向用户说明当前运行环境没有桌面浏览器或 Agent 浏览器能力 |
 
 ## Token 模式命令
 
@@ -45,13 +50,23 @@ openyida login --check-only --json
 openyida login
 openyida login --check-only --json
 openyida auth status
+openyida auth profiles
+openyida auth profile switch <auth_profile>
 openyida auth refresh
 openyida auth logout
 ```
 
+## Profile 选择原则
+
+- 当前已有多个 profile 且 snapshot 返回 `profile_required` 时，不要根据目录、组织名片段或最近操作猜测组织。
+- 先执行 `openyida auth profiles` 查看 `corp_name`、`corp_id`、`user_id`、`auth_profile`、`last_used_at` 和 `auth_store`。
+- 目标 profile 已存在时，执行 `openyida auth profile switch <auth_profile>`；这是非破坏性切换，只更新当前项目 pointer。
+- 目标 profile 不存在时，再执行 `openyida login` 新增登录态；登录完成后重新执行 `openyida auth profiles` 并切到新增 profile。
+- 运行环境注入 token 模式下，不要切换或删除本地 profile，让宿主注入目标组织的 token。
+
 ## Agent OAuth 登录编排
 
-默认流程：
+`interactive_login.mode=cli_auto_open` 的默认流程：
 
 1. 只执行一次 `openyida login`，并持续等待同一个命令。
 2. CLI 默认自动打开系统浏览器；Agent 禁止提取授权 URL 后再次打开。
@@ -59,7 +74,7 @@ openyida auth logout
 4. 只有原命令成功退出，且最终 JSON 返回 `ok=true` 与 `can_auto_use=true`，才能判定登录成功。
 5. 用户未授权就关闭浏览器时，CLI 无法可靠感知窗口关闭。继续等待原命令，直到用户停止或命令超时；不要自动发起第二次登录。
 
-如果调用方必须接管浏览器，显式关闭 CLI 自动打开：
+`interactive_login.mode=caller_open_url` 或调用方必须接管浏览器时，显式关闭 CLI 自动打开：
 
 ```bash
 openyida login --no-browser
@@ -67,7 +82,7 @@ openyida login --no-browser
 OPENYIDA_NO_BROWSER=1 openyida login
 ```
 
-只有这种模式下，Agent 才能打开输出的授权 URL，并且只能打开一次。`--quiet` 只控制文本输出，不决定浏览器归属。
+只有这种模式下，Agent 才能打开输出的授权 URL，并且只能打开一次。若当前宿主提供沙箱浏览器 / 内置 Browser，必须优先调用该工具打开 URL，不要把 URL 只作为聊天文本交给用户；无浏览器工具或工具失败时才提示用户手动打开。`--quiet` 只控制文本输出，不决定浏览器归属。
 
 `openyida login --check-only --json` 仅用于恢复或防御性验证。不要把固定 `sleep` 或重复执行 `check-only` 当作默认完成机制。
 

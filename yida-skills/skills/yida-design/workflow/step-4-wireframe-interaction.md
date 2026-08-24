@@ -29,11 +29,11 @@
 ## 写操作路径
 
 - 列表下钻默认保留上下文，PC 用详情抽屉或主从分栏。
-- 新增/提交页 URL 默认使用隐藏导航的 `submission/{formUuid}?isRenderNav=false`；PC 抽屉 iframe 承载，抽屉默认半屏 `50vw`，移动端整页或新页打开。
-- 详情页 URL 默认使用隐藏导航的 `formDetail/{formUuid}?formInstId={formInstId}&navConfig.layout=1180&isRenderNav=false`；PC 抽屉默认半屏 `50vw`，与提交页使用同一宽度规则；`formInstId` 必须来自真实数据记录并优先取 `row.formInstId`，不能只拼 formUuid，缺失时禁用详情入口。
+- 新增/提交页 URL 默认使用页面级隐藏导航的 `submission/{formUuid}?isRenderNav=false`；PC 抽屉 iframe 承载，抽屉默认半屏 `50vw`，移动端整页或新页打开。
+- 详情页 URL 默认使用页面级隐藏导航的 `formDetail/{formUuid}?formInstId={formInstId}&navConfig.layout=1180&isRenderNav=false`；PC 抽屉默认半屏 `50vw`，与提交页使用同一宽度规则；`formInstId` 必须来自真实数据记录并优先取 `row.formInstId`，不能只拼 formUuid，缺失时禁用详情入口。
 - 数据列表嵌入用 `workbench/{formUuid}?iframe=true`。
 - 页面美感提升/改 UI 时，按钮动作、筛选逻辑、下钻目标、数据源、字段映射、提交 URL、权限和业务状态保持当前功能契约；布局调整只改变呈现位置和视觉层级。
-- 需要页面内导航壳时，先确认是否真的隐藏平台导航；隐藏后再交给 `yida-nav-shell`。
+- 需要页面内导航壳时，先确认是否真的隐藏应用导航；隐藏后再交给 `yida-nav-shell`。
 
 ## 产出
 

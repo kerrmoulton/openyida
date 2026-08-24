@@ -30,13 +30,22 @@ function isAgentEnvironment(env) {
     env.CLAUDE_CODE_ENTRYPOINT ||
     env.MULERUN_CHAT_ID ||
     env.MULE_DATA_DIR ||
+    env.MULE_WORKSPACE_DIR ||
     env.OPENCODE ||
     env.OPENCODE_CLIENT ||
     env.QODER_IDE ||
     env.QODER_AGENT ||
     env.QODERCLI_INTEGRATION_MODE ||
+    env.QODER_WORK_INTEGRATION_PRODUCT ||
     env.QWENWORK_INTEGRATION_MODE ||
     env.QWENWORKCN_INTEGRATION_MODE ||
+    env.QWENWORK ||
+    env.QWENWORK_CLIENT ||
+    env.QWENWORK_WORKSPACE_DIR ||
+    env.QWENWORK_SANDBOX_ID ||
+    env.QWENWORK_PREVIEW_URL ||
+    env.QWENWORK_VNC_URL ||
+    (env.AGENT_PLATFORM || '').toLowerCase().includes('qwenwork') ||
     env.CURSOR_TRACE_ID ||
     env.AGENT_WORK_ROOT ||
     env.OPENYIDA_AGENT_MODE ||
@@ -266,6 +275,12 @@ function printLoginResult(result) {
     status: result.status || (tokenUsable ? 'ok' : 'token_not_issued'),
     auth_mode: 'token',
     auth_source: result.auth_source || result.authSource,
+    auth_store: result.auth_store || result.authStore,
+    auth_profile: result.auth_profile || result.authProfile,
+    persistence_scope: result.persistence_scope || result.persistenceScope,
+    user_auth_store_writable: result.user_auth_store_writable !== undefined
+      ? result.user_auth_store_writable
+      : result.userAuthStoreWritable,
     can_auto_use: result.can_auto_use !== undefined ? !!result.can_auto_use : tokenUsable,
     token_type: result.token_type || 'Bearer',
     access_token: maskSensitiveAuthOutput({ access_token: result.access_token }).access_token,
@@ -276,6 +291,7 @@ function printLoginResult(result) {
     user_name: result.user_name,
     failure_reason: result.failure_reason,
     message: result.message,
+    warning: result.warning,
     raw: tokenUsable ? undefined : result.raw,
   };
   console.log(JSON.stringify(summary));
@@ -318,6 +334,29 @@ function getArgValue(cliArgs, name) {
     return null;
   }
   return cliArgs[index + 1];
+}
+
+function getFirstPositionalArg(cliArgs, startIndex = 0) {
+  const valueFlags = new Set([
+    '--client-id',
+    '--corp-id',
+    '--endpoint',
+    '--base-url',
+    '--login-url',
+    '--profile',
+    '--user-id',
+  ]);
+  for (let index = startIndex; index < cliArgs.length; index++) {
+    const arg = cliArgs[index];
+    if (valueFlags.has(arg)) {
+      index++;
+      continue;
+    }
+    if (!arg.startsWith('--')) {
+      return arg;
+    }
+  }
+  return null;
 }
 
 const UNSUPPORTED_LEGACY_LOGIN_FLAGS = new Set([
@@ -412,6 +451,7 @@ function applyLoginEnvironmentFlags(cliArgs, options = {}) {
   const valuePassthroughFlags = new Set([
     '--corp-id',
     '--client-id',
+    '--profile',
     '--user-id',
   ]);
   const targetUrlFlags = new Set([
@@ -523,8 +563,18 @@ function printLoginHelp() {
 function buildTokenLoginOptions(loginArgs) {
   return {
     clientId: getArgValue(loginArgs, '--client-id'),
+    corpId: getArgValue(loginArgs, '--corp-id'),
+    userId: getArgValue(loginArgs, '--user-id'),
+    authProfile: getArgValue(loginArgs, '--profile'),
     quiet: process.env.YIDA_QUIET === '1' || loginArgs.includes('--quiet'),
     noBrowser: loginArgs.includes('--no-browser'),
+  };
+}
+
+function buildLogoutOptions(logoutArgs) {
+  return {
+    authProfile: getArgValue(logoutArgs, '--profile'),
+    allProfiles: logoutArgs.includes('--all'),
   };
 }
 
@@ -643,15 +693,13 @@ async function main() {
 
     case 'login': {
       const loginArgs = applyLoginEnvironmentFlags(args, { inferTargetUrl: true });
-      const { getAuthStatus, isEnvAuthMode } = require('../lib/core/utils');
+      const { getAuthStatus } = require('../lib/core/utils');
       if (hasHelpFlag(loginArgs)) {
         printLoginHelp();
       } else {
         assertNoUnsupportedLegacyLoginFlags(rawArgs, loginArgs);
         if (loginArgs.includes('--check-only')) {
-          console.log(JSON.stringify(getAuthStatus(), null, 2));
-        } else if (isEnvAuthMode()) {
-          printLoginResult(getAuthStatus());
+          console.log(JSON.stringify(getAuthStatus(buildTokenLoginOptions(loginArgs)), null, 2));
         } else {
           const { tokenLogin } = require('../lib/auth/token-auth');
           const result = await tokenLogin(buildTokenLoginOptions(loginArgs));
@@ -663,33 +711,43 @@ async function main() {
 
     case 'logout': {
       const { tokenLogout } = require('../lib/auth/token-auth');
-      console.log(JSON.stringify(await tokenLogout(), null, 2));
+      console.log(JSON.stringify(await tokenLogout(buildLogoutOptions(args)), null, 2));
       break;
     }
 
     case 'auth': {
       const subCommand = args[0];
       const authArgs = applyLoginEnvironmentFlags(args.slice(1), { inferTargetUrl: true });
-      const { getAuthStatus, isEnvAuthMode } = require('../lib/core/utils');
+      const { getAuthStatus } = require('../lib/core/utils');
       const { tokenLogin, tokenLogout, tokenRefresh } = require('../lib/auth/token-auth');
       if (!subCommand || subCommand === '--help' || subCommand === '-h') {
         printAuthHelp();
       } else if (subCommand === 'status') {
-        console.log(JSON.stringify(getAuthStatus(), null, 2));
+        console.log(JSON.stringify(getAuthStatus(buildTokenLoginOptions(authArgs)), null, 2));
+      } else if (subCommand === 'profiles') {
+        const { listAuthProfiles } = require('../lib/auth/profile');
+        console.log(JSON.stringify(listAuthProfiles(buildTokenLoginOptions(authArgs)), null, 2));
+      } else if (subCommand === 'profile') {
+        const profileSubCommand = authArgs[0];
+        if (profileSubCommand === 'switch') {
+          const target = getFirstPositionalArg(authArgs, 1);
+          const { switchAuthProfile } = require('../lib/auth/profile');
+          console.log(JSON.stringify(switchAuthProfile(target, buildTokenLoginOptions(authArgs)), null, 2));
+        } else {
+          throwCliUsage(t('cli.auth_usage'), t('cli.auth_example'));
+        }
       } else if (subCommand === 'login') {
         if (hasHelpFlag(authArgs)) {
           printLoginHelp();
         } else {
           assertNoUnsupportedLegacyLoginFlags(rawArgs.slice(1), authArgs);
-          const result = isEnvAuthMode()
-            ? getAuthStatus()
-            : await tokenLogin(buildTokenLoginOptions(authArgs));
+          const result = await tokenLogin(buildTokenLoginOptions(authArgs));
           printLoginResult(result);
         }
       } else if (subCommand === 'refresh') {
         console.log(JSON.stringify(maskSensitiveAuthOutput(await tokenRefresh()), null, 2));
       } else if (subCommand === 'logout') {
-        console.log(JSON.stringify(await tokenLogout(), null, 2));
+        console.log(JSON.stringify(await tokenLogout(buildLogoutOptions(authArgs)), null, 2));
       } else {
         throwCliUsage(t('cli.auth_usage'), t('cli.auth_example'));
       }
@@ -753,6 +811,12 @@ async function main() {
 
     case 'get-schema': {
       const { run } = require('../lib/app/get-schema');
+      await run(args);
+      break;
+    }
+
+    case 'check-prd-completeness': {
+      const { run } = require('../lib/app/check-prd-completeness');
       await run(args);
       break;
     }

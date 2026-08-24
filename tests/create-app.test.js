@@ -2,7 +2,47 @@
 
 const { parseCreateAppArgs, inferAppDefaults, buildCreateAppPayload } = require('../lib/app/create-app');
 
+const AGENT_ENV_KEYS = [
+  'CLAUDE_CODE',
+  'CLAUDE_CODE_ENTRYPOINT',
+  'OPENCODE',
+  'OPENCODE_CLIENT',
+  'QODER_IDE',
+  'QODER_AGENT',
+  'QODERCLI_INTEGRATION_MODE',
+  'QWENWORK_INTEGRATION_MODE',
+  'QWENWORKCN_INTEGRATION_MODE',
+  'CODEX_SHELL',
+  'CODEX_CI',
+  'CODEX_THREAD_ID',
+  'CODEX_HOME',
+  '__CFBundleIdentifier',
+  'CURSOR_TRACE_ID',
+  'AGENT_WORK_ROOT',
+  'MULERUN_CHAT_ID',
+  'MULE_DATA_DIR',
+  'TERM_PROGRAM',
+  'VSCODE_GIT_ASKPASS_NODE',
+];
+
+const originalEnv = { ...process.env };
+
 describe('create-app argument parsing', () => {
+  beforeEach(() => {
+    AGENT_ENV_KEYS.forEach((key) => {
+      delete process.env[key];
+    });
+  });
+
+  afterEach(() => {
+    Object.keys(process.env).forEach((key) => {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    });
+    Object.assign(process.env, originalEnv);
+  });
+
   test('keeps backward-compatible positional arguments', () => {
     const parsed = parseCreateAppArgs([
       'CRM',
@@ -132,6 +172,23 @@ describe('create-app argument parsing', () => {
     expect(payload).not.toHaveProperty('navTheme');
     expect(payload).not.toHaveProperty('layoutDirection');
     expect(JSON.parse(payload.appName)).toMatchObject({ zh_CN: '普通宜搭应用' });
+  });
+
+  test('builds registerApp payload with active local agent source', () => {
+    process.env.CODEX_SHELL = '1';
+    const params = parseCreateAppArgs(['--name', '普通宜搭应用']);
+    const payload = buildCreateAppPayload(
+      params,
+      { csrfToken: 'csrf-token' },
+      'zh_CN',
+      'n',
+      'n'
+    );
+
+    expect(payload).toMatchObject({
+      fromBuilderAi: 'y',
+      builderAiSource: 'codex',
+    });
   });
 
   test('includes nav theme and layout direction only when explicitly provided', () => {

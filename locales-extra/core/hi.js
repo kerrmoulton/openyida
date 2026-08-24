@@ -35,6 +35,7 @@ module.exports = {
     cmd_list_forms: 'List forms/pages in an app',
     cmd_aggregate_table: 'Manage aggregate tables (virtualView)',
     cmd_get_schema: 'फॉर्म Schema प्राप्त करें',
+    cmd_check_prd_completeness: 'Check PRD page/resource count risk',
     cmd_er: 'Export app entity relationship diagram',
     cmd_create_page: 'कस्टम डिस्प्ले पेज बनाएं',
     cmd_generate_page: 'Generate page from curated template',
@@ -256,15 +257,17 @@ module.exports = {
     integration_disable_usage: 'उपयोग: openyida integration disable <appType> <formUuid> <processCode>',
     integration_disable_example: 'उदाहरण: openyida integration disable APP_XXX FORM-XXX LPROC-XXX',
     compile_usage: 'उपयोग: openyida compile <sourceFile>',
-    compile_example: 'उदाहरण: openyida compile pages/src/home.canvas.jsx',
+    compile_example: 'उदाहरण: openyida compile pages/src/home.oyd.jsx',
     check_page_usage: 'Usage: openyida check-page <sourceFile> [--compat] [--json]',
-    check_page_example: 'Example: openyida check-page pages/src/home.canvas.jsx --json',
+    check_page_example: 'Example: openyida check-page pages/src/home.oyd.jsx --json',
     generate_page_usage: 'Usage: openyida generate-page <template> --output pages/src/home.canvas.jsx [--spec .cache/openyida/page-specs/home.json] [--theme-scope page|app] [--compile]',
     generate_page_example: 'Example: openyida generate-page product-homepage --brand-name OpenKuma --brand-initials OK --theme-scope page --output pages/src/home.canvas.jsx --compile',
     build_page_usage: 'Usage: openyida build-page <sourceFile> [--output pages/build/page.yida.jsx|--write] [--json]',
     build_page_example: 'Example: openyida build-page pages/src/dashboard.oyd.jsx --output pages/build/dashboard.yida.jsx',
     publish_usage: 'Usage: openyida publish <sourceFile> <appType> <formUuid> [--health-check] [--canvas] [--auto-nav-order]',
     publish_example: 'Example: openyida publish pages/src/home.canvas.jsx APP_XXX FORM-XXX --health-check --auto-nav-order',
+    check_prd_completeness_usage: 'Usage: openyida check-prd-completeness <prd.md> --app-type <appType> [--build-manifest <file>] [--json]',
+    check_prd_completeness_example: 'Example: openyida check-prd-completeness prd/order-management/prd.md --app-type APP_XXX --build-manifest prd/order-management/build-manifest.json --json',
     formula_usage: 'Usage: openyida formula evaluate <formula|file> [--schema schema.json] [--json] [--strict]',
     formula_example: `Example: openyida formula evaluate 'IF(GT(#{numberField_total}, 100), "high", "low")' --schema .cache/schema.json`,
     verify_usage: 'Usage: openyida verify-short-url <appType> <formUuid> <url>',
@@ -299,8 +302,8 @@ module.exports = {
     save_permission_usage: 'Usage: openyida save-permission <appType> <formUuid> [--data-permission <json>] [--action-permission <json>]',
     save_permission_example: `Example: openyida save-permission APP_XXX FORM-XXX --data-permission '{"role":"DEFAULT","dataRange":"SELF"}'`,
     exec_failed: '\n❌ Execution failed: {0}',
-    login_usage: 'Usage: openyida login [entryUrl|--public|--alibaba|--intl] [--check-only] [--json] [--client-id <clientId>]',
-    login_example: 'Examples:\n  openyida login                         # Open browser via OAuth loopback login\n  openyida login --check-only --json     # Check token auth status only\n  openyida login --intl                  # Login against the international environment\n  OPENYIDA_NO_BROWSER=1 openyida login   # Only suppress auto-opening the browser; this is not a CLI login mode\n  openyida auth login                    # Login alias',
+    login_usage: 'Usage: openyida login [entryUrl|--public|--alibaba|--intl] [--no-browser] [--check-only] [--json] [--client-id <clientId>]',
+    login_example: 'Examples:\n  openyida login                         # Automatically open the browser via OAuth loopback login\n  openyida login --no-browser            # Let the caller handle the authorization URL\n  openyida login --check-only --json     # Check token auth status only\n  openyida login --intl                  # Login against the international environment\n  OPENYIDA_NO_BROWSER=1 openyida login   # Let the caller handle the authorization URL via env variable\n  openyida auth login                    # Login alias',
     login_unsupported_option: 'Removed legacy login option is no longer supported: {0}. Use token/OAuth login; host-injected mode only checks the injected token.',
     first_run_title: '  🤖 OpenYida - AI Conversation Mode Activated!               ',
     first_run_welcome: "  {0}Welcome to OpenYida!{1} Here's a quick start guide:",
@@ -320,12 +323,8 @@ module.exports = {
     first_run_footer1: '  Supported AI tools: Codex / Claude Code / Aone Copilot / Cursor / OpenCode',
     first_run_footer2: '  📚 Docs: https://github.com/openyida/openyida',
     first_run_footer3: '  (This guide only shows on first run. Use openyida --help to see all commands)',
-    auth_usage: 'Usage: openyida auth <status|login|refresh|logout>',
-    auth_example: 'Examples:\n' +
-      '  openyida auth status         # View login status\n' +
-      '  openyida auth login          # Perform login\n' +
-      '  openyida auth refresh        # Refresh login session\n' +
-      '  openyida auth logout         # Logout',
+    auth_usage: 'Usage: openyida auth <status|login|refresh|logout|profiles|profile switch>',
+    auth_example: 'Examples:\n  openyida auth status                         # View login status\n  openyida auth profiles                       # List existing login profiles\n  openyida auth profile switch <auth_profile>  # Switch current project to an existing profile\n  openyida auth login                          # Add a profile when the target does not exist\n  openyida auth refresh                        # Refresh login session\n  openyida auth logout                         # Unbind current project auth\n  openyida auth logout --profile <auth_profile> # Delete a shared profile explicitly',
     org_usage: 'Usage: openyida org <list|switch> [--json] [--corp-id <corpId>]',
     org_example: 'Examples:\n' +
       '  openyida org list --json                    # List accessible organizations\n' +
@@ -838,12 +837,8 @@ module.exports = {
   },
   import_example2: '      openyida import ./yida-export.json "Quality Traceability System (Production)"',
   exec_failed: '\n❌ Execution failed: {0}',
-  auth_usage: 'Usage: openyida auth <status|login|refresh|logout>',
-  auth_example: 'Examples:\n' +
-    '  openyida auth status         # View login status\n' +
-    '  openyida auth login          # Perform login\n' +
-    '  openyida auth refresh        # Refresh login session\n' +
-    '  openyida auth logout         # Logout',
+  auth_usage: 'Usage: openyida auth <status|login|refresh|logout|profiles|profile switch>',
+  auth_example: 'Examples:\n  openyida auth status                         # View login status\n  openyida auth profiles                       # List existing login profiles\n  openyida auth profile switch <auth_profile>  # Switch current project to an existing profile\n  openyida auth login                          # Add a profile when the target does not exist\n  openyida auth refresh                        # Refresh login session\n  openyida auth logout                         # Unbind current project auth\n  openyida auth logout --profile <auth_profile> # Delete a shared profile explicitly',
   org_usage: 'Usage: openyida org <list|switch> [--json] [--corp-id <corpId>]',
   org_example: 'Examples:\n' +
     '  openyida org list --json                    # List accessible organizations\n' +
@@ -1207,10 +1202,10 @@ module.exports = {
     building_schema: '[4/4] स्कीमा बनाया जा रहा है...',
     formula_prefix_fixed: '  🔧 {0} सबटेबल फ़ॉर्मूला उपसर्ग संदर्भ स्वतः ठीक किए गए',
     schema_built: '  ✅ स्कीमा सफलतापूर्वक बना!',
-    step_canvas_compile: '\n📦 Step 1: Code Canvas स्रोत संकलित करें\n',
-    canvas_compiling: '  🎨 Code Canvas स्रोत को स्थानीय रूप से संकलित किया जा रहा है...',
-    canvas_compile_done: '  ✅ Code Canvas संकलित!',
-    canvas_compile_failed: '  ❌ Code Canvas संकलन विफल: {0}',
+    step_canvas_compile: '\n📦 Step 1: कस्टम पेज स्रोत संकलित करें\n',
+    canvas_compiling: '  🎨 कस्टम पेज स्रोत को स्थानीय रूप से संकलित किया जा रहा है...',
+    canvas_compile_done: '  ✅ कस्टम पेज संकलित!',
+    canvas_compile_failed: '  ❌ कस्टम पेज संकलन विफल: {0}',
     step_login: '\n🔑 Step 2: लॉगिन जानकारी पढ़ें',
     step_publish: '\n📤 Step 3: स्कीमा प्रकाशित करें\n',
     resend_save_csrf: '  🔄 Resending saveFormSchema request (csrf_token refreshed)...',
@@ -1234,9 +1229,9 @@ module.exports = {
     config_failed: '  ⚠️  कॉन्फ़िगरेशन अपडेट विफल: {0}',
     schema_ok_config_failed: 'Schema published, but config update failed',
     schema_published_config_failed: '  Schema published, but config update failed',
-    step_health_check: '\n🩺 Step 5: Health check published page\n',
-    health_check_ok: '  ✅ Health check passed: HTTP {0}',
-    health_check_failed: '  ⚠️  Health check failed: HTTP {0} {1}',
+    step_health_check: '\n🩺 Step 5: Publish readback check\n',
+    health_check_ok: '  ✅ Publish readback check passed: {0}',
+    health_check_failed: '  ⚠️  Publish readback check failed: {0} {1}',
     step_nav_order: '\n🧭 Auto-order app navigation\n',
     nav_order_ok: '  ✅ Navigation order updated: {0}',
     nav_order_failed: '  ⚠️  Navigation order failed; page is already published: {0}',
@@ -1287,6 +1282,15 @@ module.exports = {
     no_corp_available: 'कोई सुलभ संगठन नहीं मिला',
     no_csrf_in_cookie: 'लॉगिन सफल लेकिन csrf_token नहीं मिला, कृपया पुनः प्रयास करें',
     stdin_closed: 'इनपुट स्ट्रीम बंद है, संगठन चुनना संभव नहीं'
+  },
+  check_prd_completeness: {
+    usage: 'Usage: openyida check-prd-completeness <prd.md> --app-type <appType> [--build-manifest <file>] [--json]',
+    example: 'Example: openyida check-prd-completeness prd/order-management/prd.md --app-type APP_XXX --build-manifest prd/order-management/build-manifest.json --json',
+    prd_not_found: 'PRD file not found: {0}',
+    manifest_not_found: 'Build manifest file not found: {0}',
+    manifest_invalid: 'Invalid build manifest JSON: {0}',
+    no_login: 'Unable to obtain valid token credentials. Please run openyida login first',
+    checking: 'Checking PRD page/resource count risk: {0}'
   },
   postinstall: {
     welcome_title: '  🎉 OpenYida में आपका स्वागत है!                              ',

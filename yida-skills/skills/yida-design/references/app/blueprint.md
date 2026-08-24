@@ -18,7 +18,16 @@
 
 - 页面 PRD 章节只引用与当前页有关的应用结构信息，不展开整个应用 PRD。
 - 多页面应用的首页不一定是工作台：外部传播可用 landing，管理决策可用 dashboard，投屏可用 screen。
-- 导航默认可见并优先与宜搭运行态融合；页面内导航不自动隐藏平台导航，只有用户明确要求隐藏平台导航、无导航或 `isRenderNav=false` 时，页面才进入隐藏导航策略。
+
+导航字段按下表写，不能混用：
+
+| 需求 | 字段 | 后续技能/命令 |
+| --- | --- | --- |
+| 常规应用导航、导航分组、页面排序 | `navigationGroups` | `yida-nav-group` |
+| 自定义页自绘应用级顶部/侧边/导航壳 | `hideAppNav='y'` | `yida-nav-shell` + `openyida update-app <appType> --hide-app-nav` |
+| 页面隐藏导航、无导航、`isRenderNav=false` | 页面级隐藏配置 | `yida-page-config` / `update-form-config` |
+
+默认导航可见并优先与宜搭运行态融合；普通页面内 tab、分段筛选和快捷入口不隐藏平台导航。用户只要求页面隐藏导航、无导航或 `isRenderNav=false` 时，记录页面级隐藏配置，不自动写 `hideAppNav`。
 
 ## resourceBlueprint
 

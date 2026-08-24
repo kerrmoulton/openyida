@@ -12,15 +12,14 @@
 
 ## 操作
 
-1. 默认执行 `use_skill("yida-canvas-custom-page", "生成 Code Canvas 主页面")`。
-2. 用户明确要求普通自定义页面 JSX/Jsx 组件链路，或页面强依赖 `this.$`、`this.utils.yida.*`、`this.dataSourceMap` 时，执行 `use_skill("yida-custom-page", "实现普通自定义页面 JSX/Jsx 组件链路")`。
-3. 需要系统化数据桥时，执行 `use_skill("yida-canvas-data-binding", "为 Code Canvas 页面接入真实表单数据")`。
-4. 页面结构已明确且适合生成器时，从 PRD + `design.md` 派生当前业务自己的 `page-spec.json`。
-5. `page-spec.json` 写 `sourceOfTruth`、`prdFile`、`designFile`、`designRefs` 和 `conflictPolicy: "prd-design-win"`。
-6. 列表、看板、详情页优先读取真实表单数据，写 `dataBinding.mode=form`、真实 `appType/formUuid/fieldId` 和字段映射。
+1. 自定义页面开发执行 `use_skill("yida-canvas-custom-page", "生成主页面源码")`。
+2. 需要系统化数据桥时，执行 `use_skill("yida-canvas-data-binding", "为页面接入真实表单数据")`。
+3. 页面结构已明确且适合生成器时，从 PRD + `design.md` 派生当前业务自己的 `page-spec.json`。
+4. `page-spec.json` 写 `sourceOfTruth`、`prdFile`、`designFile`、`designRefs` 和 `conflictPolicy: "prd-design-win"`。
+5. 列表、看板、详情页优先读取真实表单数据，写 `dataBinding.mode=form`、真实 `appType/formUuid/fieldId` 和字段映射。
+6. 页面源码默认不自绘应用级侧边导航、顶部应用导航或同级模块菜单；PRD 的导航顺序交给 Step 8 的平台导航排序处理。只有用户显式要求在自定义页面内实现自己的应用级导航、隐藏应用导航或独立全屏应用壳时，才执行 `use_skill("yida-nav-shell")`。
 7. 没有真实数据时，页面展示空态、表单入口、刷新或登记按钮。
-8. Code Canvas 用 `.canvas.jsx` / `.canvas.tsx`、`YidaComp`、页面生成器或 Canvas 本地快检。
-9. 普通自定义页面用 `.oyd.jsx` / `.jsx`、`renderJsx()`、`openyida check-page` 和 `openyida compile`。
+8. 页面源码用 `.canvas.jsx` / `.canvas.tsx`、`YidaComp`、页面生成器或本地快检。
 
 ## 事实源修正
 
@@ -41,6 +40,7 @@
 ## Checklist
 
 - [ ] 页面实现已读取 PRD 和 `design.md`；
+- [ ] 页面没有默认自绘应用级侧边导航 / 顶部导航；如有页面内自绘导航，已有用户显式要求和 `yida-nav-shell` 依据；
 - [ ] 页面数据优先接真实表单；
 - [ ] 页面源码没有 emoji 和裸中文 JSX 表达式；
 - [ ] 本地校验通过，或已有明确错误和修复动作。

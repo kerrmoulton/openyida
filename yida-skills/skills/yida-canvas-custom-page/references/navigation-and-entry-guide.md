@@ -1,6 +1,6 @@
-# Code Canvas 应用内导航与快捷入口
+# YidaCodeCanvas 应用内导航与快捷入口
 
-自定义页面里的快捷入口先判定目标类型，再选择跳转方式。目标是应用内页面时，用户应感觉是在宜搭应用导航内切换，而不是弹出一个脱离左侧导航的新页面。
+自定义页面里的快捷入口先判定目标类型，再选择跳转方式。目标是应用内页面时，用户应感觉是在宜搭应用导航内切换，而不是弹出一个脱离左侧导航的新页面，也不是在当前自定义页面中额外生成一套侧边导航或顶部应用导航。
 
 ## 运行态事实
 
@@ -8,11 +8,27 @@
 - `openPage` / `window.open` 更适合外部链接、新标签、钉钉链接、文件预览等场景；同应用页面默认在当前应用壳内切换。
 - 页面隐藏应用导航后，页面内自绘导航壳接管跨视图切换；导航可见时使用平台导航承载同级页面切换。
 
+## 导航决策
+
+| 用户说法 | 怎么理解 | 怎么做 |
+| --- | --- | --- |
+| “加侧边导航 / 顶部导航 / 导航壳 / 自绘应用导航” | 自定义页要承担应用级导航 | 进入 `yida-nav-shell`，并执行 `openyida update-app <appType> --hide-app-nav` |
+| “隐藏应用导航” | 应用基础设置隐藏导航 | 执行 `update-app --hide-app-nav`；需要自绘导航时再进 `yida-nav-shell` |
+| “隐藏页面导航 / 全屏 / 无导航 / isRenderNav=false” | 页面级导航隐藏 | 走 `yida-page-config`，不自动隐藏应用导航 |
+| “页面内 tab / 分段 / 内容区局部导航” | 当前页面内部切换 | 保留平台应用导航，不进入 `yida-nav-shell` |
+| “工作台 / 门户 / 看板 / 首页” | 页面类型或入口，不是隐藏导航信号 | 默认保留平台应用导航 |
+
 ## 设计优先级
 
 同应用内页面优先在平台应用导航内切换。用户要求“加快捷入口/常用入口”时，先把目标页面归入应用导航或导航分组；自定义页内容区聚焦当前页操作和跨资源入口。
 
-自定义页内容区的快捷入口优先承载当前页动作、表单新建/查看、外部链接和跨应用资源。只有用户显式要求隐藏平台导航、页面内门户壳或自绘导航时，同应用页面切换才进入页面内导航壳。
+自定义页内容区的快捷入口优先承载当前页动作、表单新建/查看、外部链接和跨应用资源。只有用户显式要求隐藏应用导航、页面内门户壳或自绘应用级导航时，同应用页面切换才进入页面内导航壳。
+
+不要做三件事：
+
+- 不要因为“快捷入口多”就在自定义页里做一套应用级侧边导航。
+- 不要用 `isRenderNav=false` 隐藏自定义页的应用导航。
+- 不要让平台应用导航和自绘应用级导航同时出现。
 
 ## 目标分类
 
@@ -26,6 +42,8 @@
 | 外部 URL、钉钉 OA、第三方系统 | `targetType: "url"` | 使用 `openPage` / 新窗口 / 钉钉打开能力 |
 
 保留 `linkType: "page" | "app" | "url"` 这类语义配置；只有 `url` 类型写普通链接。
+
+`submission` 和 `detail` 的 `isRenderNav=false` 只用于原生表单页/详情页隐藏页面导航，不表示自定义页隐藏应用导航。
 
 ## Page Spec 建议字段
 
@@ -63,7 +81,7 @@
 
 自定义页面内凡是点击按钮去新增、提交或查看表单详情，统一封装成同一个 `FormOpenContainer`。按钮事件只调用 `openForm(request)`；外部 URL 才使用新标签。PC 端容器表现为右侧抽屉 + iframe，移动端直接进入原生表单页，关闭抽屉后触发当前页刷新。
 
-Code Canvas 推荐使用 antd `Drawer`。复制本示例前，先把 [theme-runtime-helpers.md](theme-runtime-helpers.md) 中的 `installYidaGlobalThemeIntoFrame` 一并放到页面源码；父页面 CSS 变量不会自动继承到提交页/详情页 iframe。
+YidaCodeCanvas 推荐使用 antd `Drawer`。复制本示例前，先把 [theme-runtime-helpers.md](theme-runtime-helpers.md) 中的 `installYidaGlobalThemeIntoFrame` 一并放到页面源码；父页面 CSS 变量不会自动继承到提交页/详情页 iframe。
 
 ```jsx
 import React, { useCallback, useMemo, useRef, useState } from 'react';

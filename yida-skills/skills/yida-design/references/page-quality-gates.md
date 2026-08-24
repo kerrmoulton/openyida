@@ -58,7 +58,7 @@
 
 - 平台导航可见时，页面主按钮、链接、选中态、重点标签和图表主序列跟随应用主题。
 - 模型生成的业务色相只作为辅助色、浅背景、图表第二序列或装饰气质；最终以当前项目 `design.md` 和应用主题关系为准。
-- 页面级独立色盘只用于隐藏平台导航、独立品牌页、活动页、公开落地页或用户明确要求。
+- 页面级独立色盘只用于页面级沉浸页、应用导航隐藏后的自绘壳、独立品牌页、活动页、公开落地页或用户明确要求。
 - 默认业务页使用 light 模式；暗色只用于用户明确说暗色、夜间、高对比、黑金或暗色科技风。
 - 主色不能无思考地固定为 `podBlue` / #1677ff；缺少主题证据时先根据行业、品牌、业务情绪和视觉目标做创意色彩判断，再选择平台预置主题或自定义 token；不得套用“科技=蓝、宠物=橙、法律=蓝”这类行业刻板配色。
 - `shouldPassCreateAppTheme=true` 仅限 `themePresetKey` 命中平台预置 key；自定义色盘必须 `shouldPassCreateAppTheme=false`，创建应用时不传 `theme/colour`，并写清 `style#yida-global-theme` / `customThemeStyle.tokens` 注入方案。
@@ -120,6 +120,6 @@
 
 `design.md` 必须包含 `rootShell`、`prioritySurface`、`statusPrimitive`、`actionPrimitive`、`contentPrimitive`、`contextPrimitive`、`statePrimitive`、`responsiveRule`、`backgroundLayer`、`surfaceMaterial`、`surfaceContrast`、`colorRoles` 和 `depthRule`。
 
-`design.md` 还必须写清 `densityRule`、`breathingRule` 与 `roundedRule`。缺少圆角、间距、呼吸节奏、状态摘要高度、列表行高或空态高度的具体数值时，不能交付给 Code Canvas 实现。
+`design.md` 还必须写清 `densityRule`、`breathingRule` 与 `roundedRule`。缺少圆角、间距、呼吸节奏、状态摘要高度、列表行高或空态高度的具体数值时，不能交付给自定义页面实现。
 
 缺少 `pageSpecHandoff`、缺少 `design.md`、或 `pageSpecHandoff` 没有引用 `designFile/designRefs` 时，Step 6 不算完成。
