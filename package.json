@@ -1,6 +1,6 @@
 {
   "name": "openyida",
-  "version": "2026.8.20",
+  "version": "2026.8.25",
   "description": "OpenYida CLI - 宜搭低代码 AI 开发工具（安装即用，零配置）",
   "bin": {
     "openyida": "bin/yida.js",
@@ -26,8 +26,12 @@
     "test:unit": "jest",
     "test:e2e:real": "node scripts/e2e-real/runner.js",
     "test:e2e:real:full": "node scripts/e2e-real/full-runner.js",
+    "test:e2e:real:process": "node scripts/e2e-real/process/runner.js",
+    "test:e2e:real:process-runtime": "node scripts/e2e-real/process/runtime-runner.js",
+    "test:e2e:real:process-agent": "node scripts/e2e-real/process/agent-runner.js",
     "test:e2e:real:skills": "node scripts/e2e-real/skill-coverage.js",
     "test:e2e:real:cleanup": "node scripts/e2e-real/cleanup.js",
+    "test:e2e:real:permission": "node scripts/e2e-real/permission/runner.js",
     "eval:e2e": "node scripts/eval/runner.js --mode e2e",
     "eval:routing": "node scripts/eval/runner.js --mode routing",
     "eval:generate": "node scripts/eval/runner.js --mode generate",

@@ -10,6 +10,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 海外版宜搭暂不适用当前 OAuth token 登录与创建应用链路；如需在海外版宜搭创建应用，请使用 `2026.7.14-2` 以前的版本，例如 `npm install -g openyida@2026.7.13`。
 
+## [2026.8.25] - 2026-08-25
+
+### Changed
+
+- `openyida save-permission` 目标权限包匹配改为 fail-closed：未命中抛 `SAVE_PERMISSION_NO_MATCHING_PACKAGE`、多义抛 `SAVE_PERMISSION_AMBIGUOUS_PACKAGE`、查询结果触达分页上限抛 `SAVE_PERMISSION_QUERY_LIMIT_REACHED`，避免误写到非预期角色；`--members` 仅增删 `PERSONS`，保留原有 `DEPARTMENT`/`ROLE`/`PARAM`/`MANAGER` 配置，压扁复合成员结构必须显式 `--confirm-member-replace`。
+- `openyida get-permission` 返回结果新增 `roleData`（含 `include` 明细）与 `query` 元信息（`pageSize`/`returned`/`mayHaveMore`），便于确认是否存在未返回的权限包。
+- `openyida save-share-config`、`openyida app-permission`、`openyida corp-manager` 全部改为「写前读 + 写后回读逐字段比对」，校验不通过时抛出对应 `*_VERIFY_FAILED` 错误，不再仅依赖接口返回码判定成功。
+- `openyida integration-create` 调整执行顺序为「本地校验与构建全部通过后才发起首次远端写」，并对节点类型、赋值、审批动作、连接器模式、`${alias}` 引用做白名单强校验；发布失败时返回 `success:false / savedAsDraft:true` 并抛 `INTEGRATION_PUBLISH_FAILED`，不再静默当作成功。
+- `openyida configure-process` 先用占位 processCode 完成本地编译，编译失败即抛 `CONFIGURE_PROCESS_BUILD_FAILED` 且零远端写入；流程编译器对路由目标缺失、节点重名、审批人缺失改为 fail-closed 报错（`PROCESS_COMPILE_ROUTE_TARGET_INVALID` / `PROCESS_COMPILE_NODE_NAME_DUPLICATE` / `PROCESS_COMPILE_APPROVER_REQUIRED`）。
+
+### Added
+
+- 新增流程、集成自动化与表单权限的契约测评与真实环境 E2E 校验资产（`scripts/eval/integration-contract/`、`scripts/eval/process-contract/`、`scripts/e2e-real/process/`、`scripts/e2e-real/permission/`），用于在改动上述模块后回归编译产物与平台回读一致性。
+
 ## [2026.8.20] - 2026-08-20
 
 ### Added
