@@ -151,7 +151,7 @@
 | 添加连接器动作 | `openyida connector add-action --operations <file> --connector-id <id>` |
 | 查询连接器动作 | `openyida connector list-actions <id>` |
 | 删除连接器动作 | `openyida connector delete-action <id> <operation-id>` |
-| 测试连接器动作 | `openyida connector test --connector-id <id> --action <actionId>` |
+| 测试连接器动作 | `openyida connector test --connector-id <id> --action <actionId> [--params <json>] [--account-id <id>]`；`params` 支持 `query/path/header/body` 分类 |
 | 查询连接器鉴权账号 | `openyida connector list-connections <id>` |
 | 创建连接器鉴权账号 | `openyida connector create-connection <id> <name>` |
 | 从 cURL 智能创建连接器 | `openyida connector smart-create --curl "..."` |

@@ -355,7 +355,7 @@ openyida integration enable APP_XXX FORM_XXX PROC_CODE
 | `openyida connector add-action --operations <file> --connector-id <id>` | 添加执行动作 |
 | `openyida connector list-actions <id>` | 列出执行动作 |
 | `openyida connector delete-action <id> <operation-id>` | 删除执行动作 |
-| `openyida connector test --connector-id <id> --action <actionId>` | 测试执行动作 |
+| `openyida connector test --connector-id <id> --action <actionId> [--params <json>] [--account-id <id>]` | 测试执行动作 |
 | `openyida connector list-connections <id>` | 列出鉴权账号 |
 | `openyida connector create-connection <id> <name>` | 创建鉴权账号 |
 | `openyida connector smart-create --curl "..."` | 智能创建连接器（从 cURL） |

@@ -465,7 +465,7 @@ Run `openyida --help` or `openyida <command> --help` for detailed usage.
 | `openyida connector add-action --operations <file> --connector-id <id>` | Add an action |
 | `openyida connector list-actions <id>` | List actions |
 | `openyida connector delete-action <id> <operation-id>` | Delete an action |
-| `openyida connector test --connector-id <id> --action <actionId>` | Test an action |
+| `openyida connector test --connector-id <id> --action <actionId> [--params <json>] [--account-id <id>]` | Test an action |
 | `openyida connector list-connections <id>` | List auth connections |
 | `openyida connector create-connection <id> <name>` | Create an auth connection |
 | `openyida connector smart-create --curl "..."` | Smart create connector (from cURL) |

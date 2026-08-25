@@ -105,11 +105,41 @@ openyida connector add-action --operations <action-file> --host <域名>
 # 删除执行动作
 openyida connector delete-action <connector-id> <action-id>
 
-# 测试连接器
-openyida connector test --connector-id <id> --action <action-file>
+# 测试连接器动作
+openyida connector test --connector-id <id> --action <action-id> [--params '<json>'] [--account-id <id>]
 ```
 
-> `<action-file>` 先用 create_file / Write / file edit tool 创建，例如 `.cache/openyida/<项目名或任务名>/connector/actions.json`；从 workspace 根执行命令时路径加 `project/` 前缀。
+`add-action --operations` 的 `<action-file>` 先用 create_file / Write / file edit tool 创建，例如 `.cache/openyida/<项目名或任务名>/connector/actions.json`；从 workspace 根执行命令时路径加 `project/` 前缀。`connector test --action` 接收的是 `list-actions` 返回的 `<action-id>`，不是文件路径。
+
+### 动作测试参数
+
+`--params` 推荐按请求位置显式分类，支持 `query`、`path`、`header`、`body`，可以单独使用或组合：
+
+```bash
+# Query 参数
+openyida connector test --connector-id 910296 --action listUsers \
+  --params '{"query":{"keyword":"OpenYida","pageNo":1,"pageSize":10}}'
+
+# Path 与 Header 参数；path.id 替换 URL 中的 {id}
+openyida connector test --connector-id 910296 --action getUser \
+  --params '{"path":{"id":"123"},"header":{"X-Tenant-Id":"demo"}}'
+
+# JSON Body 参数
+openyida connector test --connector-id 910296 --action createUser \
+  --params '{"body":{"name":"Ada","enabled":true}}'
+
+# 组合参数
+openyida connector test --connector-id 910296 --action updateUser \
+  --params '{"path":{"id":"123"},"query":{"notify":true},"body":{"name":"Ada"}}'
+```
+
+规则：
+
+- Body 必须是合法 JSON；PowerShell 推荐外层单引号、JSON 内层双引号，或先用 `ConvertTo-Json -Compress` 生成变量。
+- 扁平对象 `--params '{"keyword":"OpenYida"}'` 仅为兼容旧调用，会同时合并到 Query 和 Body；新命令必须使用分类格式。
+- 命令会显示实际的 Headers、Query、Path、Body，以及目标服务的 HTTP 状态、响应头和响应体。
+- Cookie、Authorization、API Key 等敏感响应头会自动脱敏。
+- 文件上传和 Multipart 暂不由普通 `--params` 支持，不要把本地文件路径当成 JSON Body 直接传入。
 
 ### 鉴权账号管理
 
