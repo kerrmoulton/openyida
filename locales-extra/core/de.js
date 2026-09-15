@@ -73,6 +73,8 @@ module.exports = {
     cmd_connector_list: 'HTTP-Konnektoren auflisten',
     cmd_connector_create: 'Konnektor erstellen',
     cmd_connector_detail: 'Konnektor-Details anzeigen',
+    cmd_connector_export: 'Rohes Konnektor-JSON exportieren',
+    cmd_connector_export_action: 'Rohes Aktions-JSON exportieren',
     cmd_connector_delete: 'Konnektor löschen',
     cmd_connector_add_action: 'Aktion hinzufügen',
     cmd_connector_list_actions: 'Aktionen auflisten',

@@ -73,6 +73,8 @@ module.exports = {
     cmd_connector_list: 'HTTP कनेक्टर सूचीबद्ध करें',
     cmd_connector_create: 'कनेक्टर बनाएं',
     cmd_connector_detail: 'कनेक्टर विवरण देखें',
+    cmd_connector_export: 'Export raw connector JSON',
+    cmd_connector_export_action: 'Export raw action JSON',
     cmd_connector_delete: 'कनेक्टर हटाएं',
     cmd_connector_add_action: 'Add an action',
     cmd_connector_list_actions: 'List actions',

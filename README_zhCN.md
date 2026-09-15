@@ -351,6 +351,8 @@ openyida integration enable APP_XXX FORM_XXX PROC_CODE
 | `openyida connector list` | 列出 HTTP 连接器 |
 | `openyida connector create "name" "domain" ...` | 创建连接器 |
 | `openyida connector detail <id>` | 查看连接器详情 |
+| `openyida connector export <id> [output]` | 导出连接器原始 JSON |
+| `openyida connector export-action <id> <operation-id> [output]` | 导出单个动作原始 JSON |
 | `openyida connector delete <id>` | 删除连接器 |
 | `openyida connector add-action --operations <file> --connector-id <id>` | 添加执行动作 |
 | `openyida connector list-actions <id>` | 列出执行动作 |

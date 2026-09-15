@@ -73,6 +73,8 @@ module.exports = {
     cmd_connector_list: 'HTTP 커넥터 목록',
     cmd_connector_create: '커넥터 생성',
     cmd_connector_detail: '커넥터 상세 보기',
+    cmd_connector_export: '원시 커넥터 JSON 내보내기',
+    cmd_connector_export_action: '원시 작업 JSON 내보내기',
     cmd_connector_delete: '커넥터 삭제',
     cmd_connector_add_action: 'Add an action',
     cmd_connector_list_actions: 'List actions',

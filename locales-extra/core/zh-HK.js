@@ -73,6 +73,8 @@ module.exports = {
     cmd_connector_list: '列出 HTTP 連接器',
     cmd_connector_create: '建立連接器',
     cmd_connector_detail: '查看連接器詳情',
+    cmd_connector_export: '匯出連接器原始 JSON',
+    cmd_connector_export_action: '匯出單一動作原始 JSON',
     cmd_connector_delete: '刪除連接器',
     cmd_connector_add_action: '新增執行動作',
     cmd_connector_list_actions: '列出執行動作',

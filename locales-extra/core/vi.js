@@ -73,6 +73,8 @@ module.exports = {
     cmd_connector_list: 'Liệt kê trình kết nối HTTP',
     cmd_connector_create: 'Tạo trình kết nối',
     cmd_connector_detail: 'Xem chi tiết trình kết nối',
+    cmd_connector_export: 'Export raw connector JSON',
+    cmd_connector_export_action: 'Export raw action JSON',
     cmd_connector_delete: 'Xóa trình kết nối',
     cmd_connector_add_action: 'Add an action',
     cmd_connector_list_actions: 'List actions',

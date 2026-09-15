@@ -73,6 +73,8 @@ module.exports = {
     cmd_connector_list: 'Listar conectores HTTP',
     cmd_connector_create: 'Crear conector',
     cmd_connector_detail: 'Ver detalles del conector',
+    cmd_connector_export: 'Exportar JSON sin procesar del conector',
+    cmd_connector_export_action: 'Exportar JSON sin procesar de la acción',
     cmd_connector_delete: 'Eliminar conector',
     cmd_connector_add_action: 'Agregar acción',
     cmd_connector_list_actions: 'Listar acciones',

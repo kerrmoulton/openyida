@@ -1114,6 +1114,8 @@ async function main() {
         'list':              '../lib/connector/connector-list',
         'create':            '../lib/connector/connector-create',
         'detail':            '../lib/connector/connector-detail',
+        'export':            '../lib/connector/connector-export',
+        'export-action':     '../lib/connector/connector-export-action',
         'delete':            '../lib/connector/connector-delete',
         'add-action':        '../lib/connector/connector-add-action',
         'list-actions':      '../lib/connector/connector-list-actions',
@@ -1134,6 +1136,8 @@ async function main() {
   list                                         列出 HTTP 连接器
   create "名称" "域名" --operations <file>      创建连接器
   detail <connector-id>                        查看连接器详情
+  export <connector-id> [output]               导出连接器配置到 JSON 文件
+  export-action <connector-id> <operation-id> [output]  导出单个动作到 JSON 文件
   delete <connector-id> [--force]              删除连接器
   add-action --operations <file> --connector-id <id>  添加执行动作
   list-actions <connector-id>                  列出执行动作

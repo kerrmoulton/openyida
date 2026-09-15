@@ -73,6 +73,8 @@ module.exports = {
     cmd_connector_list: 'HTTP コネクタ一覧',
     cmd_connector_create: 'コネクタを作成',
     cmd_connector_detail: 'コネクタ詳細を表示',
+    cmd_connector_export: 'コネクタの生 JSON をエクスポート',
+    cmd_connector_export_action: 'アクションの生 JSON をエクスポート',
     cmd_connector_delete: 'コネクタを削除',
     cmd_connector_add_action: 'アクションを追加',
     cmd_connector_list_actions: 'アクション一覧を表示',
