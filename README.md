@@ -480,6 +480,7 @@ Run `openyida --help` or `openyida <command> --help` for detailed usage.
 |---------|-------------|
 | `openyida integration create <appType> ... [--spec file.json]` | Create integration automation flow |
 | `openyida integration list <appType> [--form-uuid <uuid>] [--status y\|n] [--json]` | List integration automation flows |
+| `openyida integration export <appType> <formUuid> <processCode> [output]` | Export raw integration automation JSON |
 | `openyida integration enable <appType> <formUuid> <processCode>` | Enable integration automation flow |
 | `openyida integration disable <appType> <formUuid> <processCode>` | Disable integration automation flow |
 | `openyida integration check <appType...>` | Check abnormal integration automation run logs |

@@ -75,8 +75,11 @@ description: 创建/管理宜搭集成自动化。
 
 ```bash
 openyida integration create <appType> <formUuid> <flowName> [选项]
+openyida integration export <appType> <formUuid> <processCode> [output]
 openyida integration check <appType...> [--json] [--output result.xlsx] [--no-progress]
 ```
+
+`integration export` 将设计器 `getProcess` 接口的完整返回值原样写入 UTF-8 JSON 文件；未指定 `output` 时写入当前目录的 `integration-<processCode>.json`。该命令用于保存前后配置对比，不转换 `content` 中的 `viewJson`。
 
 ### 参数说明
 

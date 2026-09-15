@@ -1203,6 +1203,9 @@ async function main() {
       } else if (subCommand === 'list') {
         const { runList } = require('../lib/integration/integration-list');
         await runList(subArgs);
+      } else if (subCommand === 'export') {
+        const { run: runIntegrationExport } = require('../lib/integration/integration-export');
+        await runIntegrationExport(subArgs);
       } else if (subCommand === 'enable') {
         const { runEnable } = require('../lib/integration/integration-list');
         await runEnable(subArgs);

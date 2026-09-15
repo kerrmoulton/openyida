@@ -370,6 +370,7 @@ openyida integration enable APP_XXX FORM_XXX PROC_CODE
 |------|------|
 | `openyida integration create <appType> ... [--spec file.json]` | 创建集成自动化逻辑流 |
 | `openyida integration list <appType> [--form-uuid <uuid>] [--status y\|n] [--json]` | 列出集成自动化逻辑流 |
+| `openyida integration export <appType> <formUuid> <processCode> [output]` | 导出集成自动化原始 JSON |
 | `openyida integration enable <appType> <formUuid> <processCode>` | 启用集成自动化逻辑流 |
 | `openyida integration disable <appType> <formUuid> <processCode>` | 停用集成自动化逻辑流 |
 | `openyida integration check <appType...>` | 检查集成自动化异常运行日志 |
