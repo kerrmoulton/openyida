@@ -314,24 +314,34 @@ describe('connector operation normalization', () => {
       description: '测试用接口',
       url: 'test',
       method: 'get',
-      parameters: { header: [] },
+      parameters: {},
       responses: { type: 'object', properties: {} },
       origin: true,
     });
-    expect(operation.outputs[0]).toMatchObject({
+    expect(operation.outputs[0]).toEqual({
+      defaultValue: '{}',
+      desc: '响应体结构',
       name: 'Response',
       paramType: 'Object',
+      required: false,
       childList: [],
     });
   });
 
-  test('upgrades legacy connector parameter nodes to designer-compatible fields', () => {
+  test('matches the parameter shape produced by the Yida connector editor', () => {
     const [operation] = normalizeOperations([
       {
         operationId: 'listPeriods',
         url: '/periods',
         method: 'GET',
         inputs: [
+          {
+            name: 'Headers',
+            paramType: 'Object',
+            childList: [
+              { name: 'Content-Type', required: false },
+            ],
+          },
           {
             name: 'Query',
             paramType: 'Object',
@@ -341,37 +351,47 @@ describe('connector operation normalization', () => {
             ],
           },
         ],
-        parameters: { header: [], query: [] },
+        parameters: {
+          header: [{ name: 'Content-Type', value: 'application/json' }],
+          query: [],
+        },
       },
     ]);
 
-    expect(operation.inputs[0]).toMatchObject({
+    expect(operation.inputs.map(input => input.name)).toEqual(['Query', 'Headers']);
+    expect(operation.inputs[0]).toEqual({
+      childList: [
+        {
+          componentName: 'TextField',
+          desc: 'year',
+          name: 'year',
+          queryDefaultValue: {},
+          required: false,
+        },
+        {
+          componentName: 'TextField',
+          desc: 'pageNo',
+          name: 'pageNo',
+          queryDefaultValue: {},
+          required: false,
+        },
+      ],
       name: 'Query',
-      paramLocation: 'query',
+      paramType: 'Object',
+      required: false,
     });
-    expect(operation.inputs[0].childList).toEqual([
-      expect.objectContaining({
-        _key: 'listPeriods%year',
-        name: 'year',
-        paramType: 'String',
-        paramLocation: 'query',
-        children: [],
-        childList: [],
-        __level: 0,
-        hidden: false,
-      }),
-      expect.objectContaining({
-        _key: 'listPeriods%pageNo',
-        name: 'pageNo',
-        paramType: 'Number',
-        defaultValue: 0,
-      }),
-    ]);
-    expect(operation.inputs[0].childList[0].componentName).toBeUndefined();
+    expect(operation.inputs[1].childList[0]).toEqual({
+      componentName: 'TextField',
+      defaultValue: 'application/json',
+      desc: 'Content-Type',
+      name: 'Content-Type',
+      required: false,
+    });
     expect(operation.parameters.query).toEqual([
       { name: 'year', value: '' },
-      { name: 'pageNo', value: 0 },
+      { name: 'pageNo', value: '' },
     ]);
+    expect(Object.keys(operation.parameters)).toEqual(['query', 'header']);
   });
 
   test('preserves complete parameter arrays supplied by callers', () => {
@@ -389,7 +409,64 @@ describe('connector operation normalization', () => {
     ]);
 
     expect(operation.parameters.query).toEqual(query);
-    expect(operation.parameters.header).toEqual([]);
+    expect(operation.parameters.header).toBeUndefined();
+  });
+
+  test('normalization is idempotent for path, header, and body actions', () => {
+    const source = {
+      operationId: 'reconcileAttempt',
+      url: '/attempts/{attemptId}/reconcile',
+      method: 'POST',
+      inputs: [
+        {
+          desc: '路径变量',
+          name: 'Path',
+          paramType: 'Object',
+          required: true,
+          childList: [{ name: 'attemptId', paramType: 'String', required: true }],
+        },
+        {
+          desc: '请求头',
+          name: 'Headers',
+          paramType: 'Object',
+          required: false,
+          childList: [{ name: 'Content-Type', required: false }],
+        },
+        {
+          defaultValue: '{"operator":"AUTOMATION"}',
+          desc: '请求体',
+          name: 'Body',
+          paramType: 'Object',
+          required: false,
+          childList: [{ _key: 'reconcileAttempt%operator', name: 'operator', paramType: 'String' }],
+        },
+      ],
+      parameters: {
+        header: [{ name: 'Content-Type', value: 'application/json' }],
+        path: [{ name: 'attemptId', type: 'string', required: true }],
+        body: { default: '{"operator":"AUTOMATION"}' },
+      },
+      outputs: [{ name: 'Response', paramType: 'Object', desc: '接口响应', required: false, childList: [] }],
+    };
+
+    const [operation] = normalizeOperations([source]);
+
+    expect(Object.keys(operation.parameters)).toEqual(['path', 'header', 'body']);
+    expect(operation.inputs[0].childList[0]).toEqual({
+      componentName: 'TextField',
+      desc: 'attemptId',
+      name: 'attemptId',
+      required: true,
+    });
+    expect(operation.inputs[2]).toEqual(source.inputs[2]);
+    expect(operation.outputs[0]).toEqual({
+      defaultValue: '',
+      desc: '响应体结构',
+      name: 'Response',
+      paramType: 'Object',
+      required: false,
+    });
+    expect(normalizeOperations([operation])).toEqual([operation]);
   });
 
   test('buildOperationsSummary falls back to legacy action names', () => {
