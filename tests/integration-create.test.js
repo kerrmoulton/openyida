@@ -39,7 +39,13 @@ jest.mock('../lib/integration/integration-node-ids', () => {
 jest.mock('../lib/integration/integration-api', () => ({
   getFormSchema: jest.fn(),
   createLogicflow: jest.fn(),
+  getLogicflowProcess: jest.fn(),
   saveProcess: jest.fn(),
+}));
+
+jest.mock('../lib/integration/integration-connector-resolver', () => ({
+  hydrateHttpConnectorNode: jest.fn(async node => node),
+  hydrateSpecConnectors: jest.fn(async spec => spec),
 }));
 
 const { fetchFormPageList } = require('../lib/app/form-navigation');
@@ -67,7 +73,12 @@ describe('integration create command', () => {
     exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => { throw new Error('__exit__'); });
     integrationApi.createLogicflow.mockReset();
     integrationApi.getFormSchema.mockReset();
+    integrationApi.getLogicflowProcess.mockReset();
     integrationApi.saveProcess.mockReset();
+    integrationApi.getLogicflowProcess.mockImplementation(async () => ({
+      success: true,
+      content: JSON.stringify(integrationApi.saveProcess.mock.calls.at(-1)[1].viewJson),
+    }));
     fetchFormPageList.mockReset();
     tempDirs = [];
   });

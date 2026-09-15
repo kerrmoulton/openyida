@@ -13,6 +13,7 @@ const {
   getLogicflowProcess,
   listFormLogicflows,
   listLogicflowLogs,
+  saveProcess,
 } = require('../lib/integration/integration-api');
 
 jest.mock('../lib/core/yida-client', () => ({
@@ -115,6 +116,35 @@ describe('integration api', () => {
       processCode: 'LPROC_TEST',
     });
     expect(options).toEqual({ silentStatus: true });
+  });
+
+  test('saveProcess sends the same form fields for draft and publish requests', async () => {
+    const postForm = jest.fn().mockResolvedValue({ success: true });
+    createYidaClient.mockReturnValue({ postForm });
+    const processJson = { props: { processCode: 'LPROC_TEST' }, nodes: [] };
+    const viewJson = { schema: { componentName: 'CanvasEngine', children: [] } };
+
+    await saveProcess({ baseUrl: 'https://example.com' }, {
+      appType: 'APP_TEST',
+      formUuid: 'FORM_TEST',
+      processCode: 'LPROC_TEST',
+      processJson,
+      viewJson,
+      isOnline: true,
+    });
+
+    expect(postForm).toHaveBeenCalledWith(
+      '/alibaba/web/APP_TEST/query/simpleProcess/saveProcess.json',
+      {
+        formUuid: 'FORM_TEST',
+        isLogic: 'true',
+        isOnline: 'true',
+        json: JSON.stringify(processJson),
+        needReportLine: 'y',
+        processCode: 'LPROC_TEST',
+        viewJson: JSON.stringify(viewJson),
+      }
+    );
   });
 
   test('getFormSchema extracts nested field components from V5 containers only', async () => {

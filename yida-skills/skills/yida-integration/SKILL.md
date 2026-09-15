@@ -318,9 +318,10 @@ openyida integration diagnose --file project/tickets/automation-error.txt --json
 1. 读取 token session 获取登录态（不存在则提示执行 `openyida login`）
 2. 若未传入 `--process-code`，调用 `createLogicflow.json` 接口新建绑定关系，获取真实 `processCode`
 3. 生成各节点 ID（`node_xxx` 格式，随机生成）
-4. 根据用户传入的节点配置，构建 `json` 参数（节点定义）和 `viewJson` 参数（画布 Schema）
-5. 调用 `saveProcess` 接口（`isOnline=false`）保存为草稿
-6. 若指定 `--publish`，再次调用 `saveProcess` 接口（`isOnline=true`）发布生效
+4. HTTP 连接器节点先读取当前连接器动作，补全 URL、Method、Body、Inputs、Outputs 和子字段映射
+5. 根据已校验的节点配置，构建 `json` 参数（节点定义）和 `viewJson` 参数（画布 Schema）
+6. 调用 `saveProcess` 接口（`isOnline=false`）保存为草稿，并立即回读连接器节点关键字段
+7. 若指定 `--publish`，再次调用 `saveProcess` 接口（`isOnline=true`）发布生效，并再次回读校验
 
 > ⚠️ **必须先调用 `createLogicflow.json` 新建绑定关系**，再调用 `saveProcess` 写入内容。直接调用 `saveProcess` 无法创建新逻辑流，只能覆盖更新已有逻辑流。
 
