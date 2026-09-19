@@ -4,6 +4,7 @@ const {
   buildOperationUrl,
   buildTestParams,
   normalizeTestResponse,
+  normalizeInvokeResponse,
   redactResponseHeaders,
 } = require('../lib/connector/connector-test');
 
@@ -60,6 +61,24 @@ describe('connector test command', () => {
       errorMsg: 'No handler found',
       content: {},
     })).toEqual({ ok: false, error: 'No handler found', details: {} });
+  });
+
+  test('does not report an upstream 401 as success', () => {
+    expect(normalizeTestResponse({
+      success: true,
+      content: { statusLine: 'HTTP/1.1 401 Unauthorized', content: '{}' },
+    })).toMatchObject({ ok: false, error: 'HTTP 401' });
+  });
+
+  test('normalizes a saved-connection runtime response', () => {
+    expect(normalizeInvokeResponse({
+      success: true,
+      content: { serviceReturnValue: { code: '200', data: { count: 1 } } },
+    })).toEqual({ ok: true, body: { code: '200', data: { count: 1 } } });
+    expect(normalizeInvokeResponse({
+      success: false,
+      errorMsg: 'Unauthorized',
+    })).toMatchObject({ ok: false, error: 'Unauthorized' });
   });
 
   test('redacts credential-bearing tuple response headers', () => {
