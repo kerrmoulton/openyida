@@ -10,7 +10,10 @@ function viewNode(overrides = {}) {
     props: {
       connectorRules: {
         connectorId: 'Http_test',
+        connectionId: 'connection-1',
         actionId: 'action',
+        allStepCounts: 3,
+        currentStep: 2,
         url: 'https://example.test/api/{id}',
         method: 'post',
         body: '{"ok":true}',
@@ -43,5 +46,14 @@ describe('integration save verifier', () => {
       success: true,
       content: JSON.stringify(actual),
     })).toThrow(/url.*method.*body.*outputs.*入参映射/);
+  });
+
+  test('detects account and editor step regressions after save', () => {
+    const expected = viewJson();
+    const actual = viewJson(viewNode({ connectionId: '', allStepCounts: 2, currentStep: 1 }));
+    expect(() => validateSavedConnectorView(expected, {
+      success: true,
+      content: JSON.stringify(actual),
+    })).toThrow(/connectionId.*allStepCounts.*currentStep/);
   });
 });

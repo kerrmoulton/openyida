@@ -117,6 +117,8 @@ describe('integration process/view builder consistency', () => {
       connectorId: 'Http_123',
       actionId: 'publish',
       connectionId: 'connection-1',
+      allStepCounts: 3,
+      currentStep: 2,
       connector: { connectorMode: 5, mode: 5 },
     });
     expect(process.props.inputs.assignments[0].value).toBe('0012');
@@ -147,6 +149,8 @@ describe('integration process/view builder consistency', () => {
     });
     expect(flatViewConnector.props.connectorRules).toMatchObject({
       connectionId: '',
+      allStepCounts: 2,
+      currentStep: 1,
       connector: { connectorMode: 5, mode: 5 },
     });
 
@@ -174,7 +178,56 @@ describe('integration process/view builder consistency', () => {
     });
     expect(specViewConnector.props.connectorRules).toMatchObject({
       connectionId: '',
+      allStepCounts: 2,
+      currentStep: 1,
       connector: { connectorMode: 5, mode: 5 },
+    });
+  });
+
+  test('account-required connector keeps the account step until a connection is selected', () => {
+    const built = buildSpecProcessAndViewJson({
+      spec: {
+        events: ['insert'],
+        nodes: [{
+          id: 'http',
+          type: 'connector',
+          connectorId: 'Http_123',
+          actionId: 'publish',
+          connectorConfig: { connectionLess: false },
+        }],
+      },
+      processCode: 'LPROC-ACCOUNT-REQUIRED',
+      formUuid: 'FORM-A',
+      appType: 'APP-A',
+      flowName: 'Account required',
+    });
+    const view = built.viewJson.schema.children.find(node => node.id === built.nodeIdMap.http);
+    expect(view.props.connectorRules).toMatchObject({
+      allStepCounts: 3,
+      currentStep: 1,
+      connectionId: '',
+    });
+  });
+
+  test('flat connector with a selected account shows the action configuration step', () => {
+    const viewJson = buildViewJson({
+      processCode: 'LPROC-FLAT-ACCOUNT',
+      formUuid: 'FORM-A',
+      appType: 'APP-A',
+      formEventTypes: ['insert'],
+      connectorId: 'Http_123',
+      actionId: 'publish',
+      connectorMode: 5,
+      connectionId: 'connection-1',
+      hasMessageNode: false,
+      toUsers: [],
+      nodeIds: ['canvas', 'trigger', 'connector', 'end'],
+    });
+    const view = viewJson.schema.children.find(node => node.componentName === 'ConnectorNode');
+    expect(view.props.connectorRules).toMatchObject({
+      allStepCounts: 3,
+      currentStep: 2,
+      connectionId: 'connection-1',
     });
   });
 
