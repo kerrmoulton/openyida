@@ -563,7 +563,7 @@ For Wukong manual import, upload the generated `openyida-skills.zip`. The packag
 
 For QwenWork, use the same user-level global skills layout as QoderWork: `~/.qwenworkcn/skills/yida-skills/`. Skip QwenWork setup when `~/.qwenworkcn` is not present.
 
-For Codex, `npm install -g openyida` additionally creates a local plugin marketplace under `~/.openyida/codex-plugin` and enables `openyida@openyida` in `~/.codex/config.toml` when Codex is detected. This makes OpenYida show up in Codex's `@` plugin menu as **宜搭** after Codex reloads.
+For Codex, `npm install -g openyida` creates a local plugin marketplace under `~/.openyida/codex-plugin` and enables `openyida@openyida` in `~/.codex/config.toml` when Codex is detected. This makes OpenYida show up in Codex's `@` plugin menu as **宜搭** after Codex reloads.
 
 ## Examples
 
