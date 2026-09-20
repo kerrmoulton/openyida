@@ -3,6 +3,7 @@
 const {
   ROOT_NAV_UUID,
   autoOrderRootNodes,
+  buildIconUpdatePayload,
   buildNavigationTree,
   flattenTreeIds,
   getNavigationPriority,
@@ -51,6 +52,39 @@ describe('nav-group helpers', () => {
     expect(resolveNode(fixture, 'FORM-A').navUuid).toBe('FORM-A');
     expect(resolveNode(fixture, '分组一', { groupOnly: true }).navUuid).toBe('NAV-GROUP-1');
     expect(resolveNode(fixture, 'root').navUuid).toBe(ROOT_NAV_UUID);
+  });
+
+  test('resolveNode prefers an exact page ID over a group related form ID', () => {
+    const related = fixture.map((node) => node.navUuid === 'NAV-GROUP-1'
+      ? { ...node, relateFormUuid: 'FORM-B' }
+      : node);
+    expect(resolveNode(related, 'FORM-B').navUuid).toBe('FORM-B');
+  });
+
+  test('buildIconUpdatePayload preserves navigation fields and sets a named icon', () => {
+    const payload = buildIconUpdatePayload({ ...fixture[1], hidden: 'y', icon: null }, 'custom-column');
+    expect(payload).toMatchObject({
+      navUuid: 'FORM-A',
+      formUuid: 'FORM-A',
+      hidden: 'y',
+      icon: 'custom-column',
+      title: JSON.stringify({ zh_CN: '表单 A' }),
+    });
+  });
+
+  test('buildIconUpdatePayload supports group icons and restoring the default', () => {
+    const group = fixture[2];
+    expect(buildIconUpdatePayload(group, 'dashboard')).toMatchObject({
+      navUuid: 'NAV-GROUP-1',
+      navType: 'NAV',
+      icon: 'dashboard',
+    });
+    expect(buildIconUpdatePayload({ ...group, icon: 'dashboard' }, '').icon).toBe('');
+  });
+
+  test('buildIconUpdatePayload rejects unsafe icon names and system nodes', () => {
+    expect(() => buildIconUpdatePayload(fixture[1], 'bad icon')).toThrow('Icon name');
+    expect(() => buildIconUpdatePayload(fixture[0], 'custom-column')).toThrow('Only application');
   });
 
   test('moveNodeInTree moves a page into a target group and returns flattened ids', () => {

@@ -1,6 +1,6 @@
 ---
 name: yida-nav-group
-description: 宜搭应用左侧导航分组管理。查询导航树、新建/重命名/删除分组、移动或排序表单/页面/外链、隐藏或显示导航项。
+description: 宜搭应用左侧导航分组管理。查询导航树、新建/重命名/删除分组、移动或排序表单/页面/外链、隐藏或显示导航项、设置图标。
 ---
 
 # 应用导航分组
@@ -101,6 +101,15 @@ openyida nav-group show <appType> <navUuid|formUuid|name>
 ```
 
 隐藏会同时设置 PC 与移动端导航隐藏。
+
+### 设置菜单图标
+
+```bash
+openyida nav-group set-icon <appType> <formUuid|navUuid|name> <iconName>
+openyida nav-group set-icon <appType> <formUuid|navUuid|name> default
+```
+
+`iconName` 必须是宜搭菜单图标库中的标识，不是 CSS 类名，也不是其他前端图标库的名称。命令写入后会回读并核验 `icon` 字段；`default` 清空自定义图标，恢复平台默认图标。先用 `openyida nav-group list <appType> --flat --raw` 核对目标节点和现有图标值。
 
 ## 接口事实
 
