@@ -110,6 +110,32 @@ describe('integration connector resolver', () => {
     ]);
   });
 
+  test('adds Content-Type for a POST action without a request body', async () => {
+    const detail = connectorDetail();
+    const operations = JSON.parse(detail.operations);
+    delete operations[0].parameters.body;
+    operations[0].inputs = operations[0].inputs.filter(item => item.name !== 'Body');
+    detail.operations = JSON.stringify(operations);
+    getConnectorDetail.mockResolvedValue(detail);
+
+    const hydrated = await hydrateHttpConnectorNode({
+      type: 'connector',
+      connectorId: 'Http_test',
+      actionId: 'reconcile',
+      assignments: [{ column: 'Path%attemptId', valueType: 'processVar', value: 'textField_attempt' }],
+    }, {});
+
+    expect(hydrated.body).toBe('');
+    expect(hydrated.assignments).toEqual([
+      expect.objectContaining({
+        column: 'Headers%Content-Type',
+        valueType: 'literal',
+        value: 'application/json',
+      }),
+      { column: 'Path%attemptId', valueType: 'processVar', value: 'textField_attempt' },
+    ]);
+  });
+
   test('produces populated process and designer connector nodes', async () => {
     const spec = await hydrateSpecConnectors({
       events: ['insert'],
