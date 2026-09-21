@@ -1,6 +1,6 @@
 ---
 name: yida-nav-group
-description: 宜搭应用左侧导航分组管理。查询导航树、新建/重命名/删除分组、移动或排序表单/页面/外链、隐藏或显示导航项、设置图标。
+description: 宜搭应用左侧导航管理。查询导航树，新建、重命名或删除分组，重命名页面，移动或排序表单、页面和外链，隐藏或显示导航项，以及设置图标。
 ---
 
 # 应用导航分组
@@ -39,13 +39,14 @@ openyida nav-group create <appType> "子分组名" --parent <groupNavUuid>
 
 分组只能创建在根目录或一级分组下。
 
-### 重命名分组
+### 重命名分组或页面
 
 ```bash
-openyida nav-group rename <appType> <groupNavUuid|groupName> "新分组名"
+openyida nav-group rename <appType> <navUuid|formUuid|name> "新名称"
+openyida nav-group rename <appType> <formUuid> "新页面名称" --en "English name"
 ```
 
-同名分组可能歧义，优先使用 `navUuid`。
+同名节点可能歧义，分组优先使用 `navUuid`，页面优先使用 `formUuid`。页面改名会更新页面本身的标题，因此左侧导航和页面管理中的名称会同步变化；页面内容中自行编写的标题不会随之修改。未提供 `--en` 时保留页面已有英文名称；没有英文名称时使用新名称。
 
 ### 移动页面或分组
 
@@ -115,7 +116,9 @@ openyida nav-group set-icon <appType> <formUuid|navUuid|name> default
 
 - 查询：`/dingtalk/web/{appType}/query/formnav/getFormNavigationListByOrder.json`
 - 创建：`/dingtalk/web/{appType}/query/formnav/saveFormNavigation.json`
-- 重命名：`/dingtalk/web/{appType}/query/formnav/updateNavigationTitle.json`
+- 重命名分组：`/dingtalk/web/{appType}/query/formnav/updateNavigationTitle.json`
+- 保存页面标题多语言词条：`/{appType}/query/appI18n/createOrUpdateI18nItem.json`
+- 重命名页面：`/dingtalk/web/{appType}/query/formdesign/updateFormTitle.json`
 - 移动排序：`/dingtalk/web/{appType}/query/formnav/updateFormNavigationOrderNew.json`
 - 删除：`/dingtalk/web/{appType}/query/formnav/deleteFormNavigation.json`
 
