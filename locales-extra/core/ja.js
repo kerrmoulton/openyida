@@ -354,6 +354,12 @@ module.exports = {
     excel_exported: 'Excel exported: {0}'
   },
   integration: {
+    data_metadata_missing: 'Missing data source metadata: {0}',
+    data_metadata_invalid: 'Invalid data source form metadata: {0}',
+    data_fields_missing: 'Missing data source fields: {0}',
+    data_update_source_invalid: 'Invalid update source: {0}',
+    data_update_field_unknown: 'Unknown update field: {0}',
+    data_readback_mismatch: 'Data node readback mismatch: {0}',
     create_usage: 'Usage: openyida integration create <appType> <formUuid> <flowName> [options]',
     create_args_title: 'Arguments:',
     create_arg_app_type: '  appType              App ID, such as APP_XXX',

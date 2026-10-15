@@ -147,6 +147,27 @@ describe('integration api', () => {
     );
   });
 
+  test.each(['outputs', 'targetType', 'summary'])('raw saveProcess blocks incomplete %s before POST', async defect => {
+    const postForm = jest.fn();
+    createYidaClient.mockReturnValue({ postForm });
+    const { buildSpecProcessAndViewJson } = require('../lib/integration/integration-spec-builder');
+    const built = buildSpecProcessAndViewJson({
+      appType: 'APP_TEST', formUuid: 'FORM_TEST',
+      formMetadataByUuid: new Map([['FORM_TEST', { formType: 'process', formName: '申请单',
+        fields: [{ componentName: 'SelectField', props: { fieldId: 'selectField_result', label: '意见' } }] }]]),
+      spec: { events: ['activityTask'], approvalActions: ['agree'], approvalNodeIds: ['approval-1'], nodes: [
+        { id: 'self', type: 'getSelf' },
+        { type: 'dataUpdate', source: 'self', assignments: [{ column: 'selectField_result', valueType: 'literal', value: '同意' }] },
+      ] },
+    });
+    if (defect === 'outputs') { built.viewJson.schema.children[1].props.getData.outputs = []; }
+    if (defect === 'targetType') { built.viewJson.schema.children[1].props.getData.targetItem.formItem.formType = 'receipt'; }
+    if (defect === 'summary') { delete built.viewJson.schema.children[2].props.updateDataRules.description; }
+    await expect(saveProcess({}, { appType: 'APP_TEST', formUuid: 'FORM_TEST', processCode: 'LPROC_TEST',
+      ...built, isOnline: true })).rejects.toThrow();
+    expect(postForm).not.toHaveBeenCalled();
+  });
+
   test('getFormSchema extracts nested field components from V5 containers only', async () => {
     const mockGet = jest.fn().mockResolvedValue({
       success: true,

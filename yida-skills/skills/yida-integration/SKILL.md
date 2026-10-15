@@ -103,9 +103,9 @@ openyida integration check <appType...> [--json] [--output result.xlsx] [--no-pr
 | `--trigger-condition <fieldId:fieldName:opCode:value[:componentType[:valueType]]>` | 空 | 触发器过滤条件，可多次传入；示例：`radioField_xxx:采购类型:Equal:材料采购:RadioField:literal` |
 | `--trigger-recursively` | 关闭 | 允许自动触发，对应设计器里的“允许自动触发” |
 | `--spec <file.json>` | 不启用 | 使用结构化编排文件创建复杂自动化，支持 `getSelf`、`dataRetrieve`、`dataCreate`、`dataUpdate`、`route`、`sendMessage`、`connector` |
-| `--get-self` | 关闭 | 自动插入“获取自身”节点：来源表单为当前触发表，过滤条件为 `pid 等于 字段 __masterdata_form_inst_id` |
-| `--get-self-field <field>` | `__masterdata_form_inst_id` | 覆盖右侧触发事件系统字段；仅在确认环境变量名不同后使用 |
-| `--get-self-query-field <field>` | `pid` | 覆盖左侧查询系统字段；仅在确认平台查询字段名不同后使用 |
+| `--get-self` | 关闭 | 自动读取来源表单类型与字段；普通表单使用 `pid = __masterdata_form_inst_id`，流程表单使用 `proc_inst_id = procInstId` |
+| `--get-self-field <field>` | 按来源类型选择 | 显式覆盖右侧触发事件系统字段；仅在已核实的环境中使用 |
+| `--get-self-query-field <field>` | 按来源类型选择 | 显式覆盖左侧查询系统字段；仅在已核实的环境中使用 |
 | `--data-form-uuid <formUuid>` | 不启用 | 获取单条数据节点的目标表单 UUID（B 表单），传入后在触发节点和通知节点之间插入 GetSingleDataNode |
 | `--data-condition <bFieldId:bFieldName:aFieldId[:componentType[:opCode[:valueType]]]>` | 无 | 获取单条数据的过滤条件，可多次传入；格式：`B表单字段ID:B表单字段名:A表单字段ID[:组件类型[:操作符[:值类型]]]`，组件类型默认 `TextField`，操作符默认 `Contain` |
 | `--add-data-form-uuid <formUuid>` | 不启用 | 新增数据节点的目标表单 UUID，传入后在通知节点之后插入 AddDataNode；目标必须是普通表单（如 `formType=receipt`），不能是流程表单（`formType=process`） |
@@ -306,7 +306,9 @@ openyida integration diagnose --file project/tickets/automation-error.txt --json
 
 ## 集成自动化闭坑规则
 
-- 获取自身：优先使用 `--get-self`，标准条件为查询侧系统字段 `pid` 等于触发事件字段 `__masterdata_form_inst_id`。不要用 `formInstId = formInstId`、不要用“包含”或非唯一字段做自身匹配。
+- 获取自身：优先使用 `--get-self` 或 spec `getSelf`。根据远端表单类型选择唯一实例条件：普通表单 `pid = processVar __masterdata_form_inst_id`；流程表单 `proc_inst_id = processVar procInstId`。不能把普通表单默认条件直接套到流程表单，也不要用“包含”做自身匹配。
+- 设计器完整性：流程来源同时需要执行定义的 `originalType=process_form`、设计器 `targetItem.formItem.formType=process` 和实际 Schema 生成的 `outputs`（含字段标签、组件类型、选项）。隐藏字段也需保留，不能只验证 assignments 中有字段 ID。按节点更新还需 `updateDataRules.description`，否则卡片可能仍显示“请设置更新数据”，即使右侧规则已有值。
+- 保存/发布验收：CLI 对获取/更新节点在草稿保存后、发布后均回读校验，草稿校验失败不继续发布。手写 API 调用不会自动解析元数据，需使用共享生成器并调用 `validateSavedDataView`；修改现有自动化先 export 最新配置，保留非目标配置。必要时刷新浏览器抽查，不要靠点击节点“保存”掩盖发布缺项。配置验收不等于实际审批触发测试。
 - 流水号：新增/编辑触发时，触发 payload 中的流水号可能为空或不是最新值；需要先获取自身，再引用获取节点里的流水号。
 - 定时自动化：定时触发值可能是历史数据；需要最新值时先获取自身或获取目标数据。
 - 直接更新：匹配字段只能消费当前触发表字段，不能随意匹配前置节点字段；文本字段不要匹配单选/多选字段。直接更新不会触发被更新表单上的集成自动化。
@@ -316,11 +318,11 @@ openyida integration diagnose --file project/tickets/automation-error.txt --json
 ## 调用流程
 
 1. 读取 token session 获取登录态（不存在则提示执行 `openyida login`）
-2. 若未传入 `--process-code`，调用 `createLogicflow.json` 接口新建绑定关系，获取真实 `processCode`
-3. 生成各节点 ID（`node_xxx` 格式，随机生成）
-4. HTTP 连接器节点先读取当前连接器动作，补全 URL、Method、Body、Inputs、Outputs 和子字段映射
-5. 根据已校验的节点配置，构建 `json` 参数（节点定义）和 `viewJson` 参数（画布 Schema）
-6. 调用 `saveProcess` 接口（`isOnline=false`）保存为草稿，并立即回读连接器节点关键字段
+2. 先读取全部查询来源（含分支内节点）的远端表单类型及 Schema；缺失或更新目标字段不存在时停止，不创建绑定关系
+3. 生成节点 ID；HTTP 连接器读取当前动作，补全 URL、Method、Body、Inputs、Outputs 和子字段映射
+4. 根据已校验元数据构建执行 `json` 与设计器 `viewJson`，补齐来源字段和更新卡片摘要
+5. 若未传入 `--process-code`，此时才创建绑定关系获取真实 `processCode`
+6. 调用 `saveProcess` 接口（`isOnline=false`）保存为草稿，并立即回读连接器与获取/更新节点关键字段
 7. 若指定 `--publish`，再次调用 `saveProcess` 接口（`isOnline=true`）发布生效，并再次回读校验
 
 > ⚠️ **必须先调用 `createLogicflow.json` 新建绑定关系**，再调用 `saveProcess` 写入内容。直接调用 `saveProcess` 无法创建新逻辑流，只能覆盖更新已有逻辑流。

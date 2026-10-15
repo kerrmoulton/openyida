@@ -90,6 +90,63 @@ describe('integration create command', () => {
     tempDirs.forEach((dir) => fs.rmSync(dir, { recursive: true, force: true }));
   });
 
+  test.each([false, true])('hydrates process-form retrieve metadata on CLI path (spec=%s)', async useSpec => {
+    fetchFormPageList.mockResolvedValue([{ formUuid: 'FORM-A', formName: '申请单', formType: 'process' }]);
+    integrationApi.getFormSchema.mockResolvedValue([
+      { componentName: 'SelectField', props: { fieldId: 'selectField_result', label: { zh_CN: '意见' },
+        dataSource: [{ text: '同意', value: '同意' }] } },
+    ]);
+    integrationApi.createLogicflow.mockResolvedValue('LPROC-HYDRATED');
+    integrationApi.saveProcess.mockResolvedValue({ success: true });
+    const args = ['APP_TEST', 'FORM-A', '意见同步', '--publish'];
+    if (useSpec) {
+      args.push('--spec', writeTempSpec({ events: ['activityTask'], approvalActions: ['agree'], approvalNodeIds: ['approval-1'],
+        nodes: [
+          { id: 'self', name: '获取本单', type: 'getSelf' },
+          { type: 'dataUpdate', source: 'self', assignments: [{ column: 'selectField_result', valueType: 'literal', value: '同意' }] },
+        ] }));
+    } else {
+      args.push('--get-self', '--receivers', 'user-1');
+    }
+    await run(args);
+    expect(integrationApi.getFormSchema).toHaveBeenCalledTimes(1);
+    expect(integrationApi.getLogicflowProcess).toHaveBeenCalledTimes(2);
+    const submitted = integrationApi.saveProcess.mock.calls[1][1];
+    expect(submitted.processJson.nodes[1].props.condition.rules[0]).toMatchObject({ id: 'proc_inst_id', value: 'procInstId' });
+    expect(submitted.viewJson.schema.children[1].props.getData).toMatchObject({
+      originalType: 'process_form', targetItem: { formItem: { formType: 'process' } },
+      outputs: [expect.objectContaining({ value: 'selectField_result' })],
+    });
+    if (useSpec) {
+      expect(submitted.viewJson.schema.children[2].props.updateDataRules.description).toBe('在 [获取本单] 中更新数据');
+    }
+  });
+
+  test('does not publish when source metadata is lost after draft save', async () => {
+    fetchFormPageList.mockResolvedValue([{ formUuid: 'FORM-A', formName: '申请单', formType: 'process' }]);
+    integrationApi.getFormSchema.mockResolvedValue([{ componentName: 'TextField', props: { fieldId: 'textField_a' } }]);
+    integrationApi.createLogicflow.mockResolvedValue('LPROC-VERIFY');
+    integrationApi.saveProcess.mockResolvedValue({ success: true });
+    integrationApi.getLogicflowProcess.mockImplementation(async () => {
+      const view = JSON.parse(JSON.stringify(integrationApi.saveProcess.mock.calls.at(-1)[1].viewJson));
+      view.schema.children[1].props.getData.outputs = [];
+      return { success: true, content: JSON.stringify(view) };
+    });
+    await expect(run(['APP_TEST', 'FORM-A', 'source lost', '--get-self', '--receivers', 'user-1', '--publish']))
+      .rejects.toThrow(/readback mismatch|回读不一致/);
+    expect(integrationApi.saveProcess).toHaveBeenCalledTimes(1);
+    expect(integrationApi.saveProcess.mock.calls[0][1].isOnline).toBe(false);
+  });
+
+  test('missing retrieve schema stops before any remote write', async () => {
+    fetchFormPageList.mockResolvedValue([{ formUuid: 'FORM-A', formName: '申请单', formType: 'process' }]);
+    integrationApi.getFormSchema.mockResolvedValue([]);
+    await expect(run(['APP_TEST', 'FORM-A', 'no schema', '--get-self', '--receivers', 'user-1']))
+      .rejects.toThrow(/Missing data source fields|缺少数据来源字段/);
+    expect(integrationApi.createLogicflow).not.toHaveBeenCalled();
+    expect(integrationApi.saveProcess).not.toHaveBeenCalled();
+  });
+
   test('preflights the complete spec before creating a remote logic-flow binding', async () => {
     const specPath = writeTempSpec({
       events: ['insert'],

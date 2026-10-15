@@ -186,6 +186,10 @@ trigger
 - 过滤条件中 `extValue: "processVar"` 表示右侧值来自触发表单的流程变量
 - 该节点的 `nodeId`（如 `node_ocmmzsdai63`）在后续节点中通过 `${nodeId}.fieldId` 引用其查询结果
 
+流程表单来源使用 `originalType: "process_form"`（不是普通表单的 `form`）。获取当前审批实例时，唯一条件为 `proc_inst_id Equal processVar procInstId`；普通表单才使用 `pid Equal processVar __masterdata_form_inst_id`。显式覆盖只适用于已核实的环境。
+
+设计器的 `GetSingleDataNode.props.getData` 还需 `targetItem.formItem`（流程类型 `process`、真实 formUuid/title）及从真实 Schema 生成的 `outputs`，每项至少携带 `value`（fieldId）、`text`、`componentName`、`props`（保留下拉选项与隐藏字段）。CLI 在远端写入前解析这些元数据；程序调用 `buildSpecProcessAndViewJson` 时可传 `formMetadataByUuid: Map<formUuid, {formType, formName, fields}>`，fields 为 `getFormSchema` 返回的组件数组。离线无元数据编译不代表可直接发布。
+
 ---
 
 ### 更新数据节点（dataUpdate）
@@ -219,6 +223,10 @@ trigger
 - `type: "node"` 表示更新来源是上游节点查询到的那条记录（无需额外过滤条件）
 - `sourceId` 填写上游 `dataRetrieve` 节点的 `nodeId`
 - `__display` 和 `__source` 仅用于前端展示，不影响执行逻辑
+
+- 按节点更新时，执行 `props.description` 与设计器 `props.updateDataRules.description` 应包含 `在 [来源节点名称] 中更新数据`。仅设置外层 `props.description` 不足以生成正常卡片摘要。
+- `saveProcess` 是原始传输 API，不自动回填字段或重写现有设计器配置。共享生成器使用 `hydrateDataNodeMetadata` 补齐元数据；调用方应在保存前以 strict 模式校验，保存/发布后调用 `validateSavedDataView` 校验来源类型、实例过滤、输出字段、更新赋值和摘要。不得以 `success: true` 单独认定配置验收通过。
+- 原始 API 对普通/流程表单 GetSingleData 来源和按这些节点更新的配置也有发送前护栏：类型冲突、缺失 outputs/字段元数据、更新目标字段不存在或摘要缺失时抛错，不发送 POST。该护栏不重构调用方的配置，也不替代保存后的回读。
 
 ---
 

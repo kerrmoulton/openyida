@@ -243,6 +243,8 @@ openyida integration enable APP_XXX FORM_XXX PROC_CODE
 
 连接器鉴权信息通过宜搭连接器配置管理，不写入页面源码。`--operations`、`--action`、`--spec` 等 JSON 文件放到 `.cache/openyida/<项目名或任务名>/` 下。
 
+“获取自身”按远端来源类型区分：普通表单 `pid = __masterdata_form_inst_id`，流程表单 `proc_inst_id = procInstId`。CLI 会补齐设计器来源字段、下拉选项与更新节点摘要；来源字段缺失或更新目标字段不存在时，在首个写入前停止。保存与发布后均回读获取/更新节点，草稿回读不一致不会继续发布；不以接口成功代替设计器验收。底层 `saveProcess` 仍为原始传输 API，程序调用需显式生成并校验元数据。此配置校验不替代实际审批测试。
+
 ## CLI 命令参考
 
 运行 `openyida --help` 或 `openyida <command> --help` 查看详细用法。

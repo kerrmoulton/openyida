@@ -346,6 +346,12 @@ module.exports = {
     excel_exported: 'Excel 已匯出：{0}'
   },
   integration: {
+    data_metadata_missing: 'Missing data source metadata: {0}',
+    data_metadata_invalid: 'Invalid data source form metadata: {0}',
+    data_fields_missing: 'Missing data source fields: {0}',
+    data_update_source_invalid: 'Invalid update source: {0}',
+    data_update_field_unknown: 'Unknown update field: {0}',
+    data_readback_mismatch: 'Data node readback mismatch: {0}',
     create_usage: '用法: openyida integration create <appType> <formUuid> <flowName> [选项]',
     create_args_title: '参数:',
     create_arg_app_type: '  appType              应用 ID，如 APP_XXX',
