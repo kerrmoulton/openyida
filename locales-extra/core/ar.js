@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  formula_profile: {
+    not_allowed: 'الدالة "{0}" ليست ضمن قائمة السماح المتحققة للصيغة الافتراضية في {1}.',
+    canonical_case: 'استخدم الاسم الرسمي "{1}" بدلاً من "{0}".',
+    save_failed: 'فشل التحقق من صيغة العضو الافتراضية؛ لم يتم حفظ النموذج.',
+  },
   help: {
     subtitle: 'أداة تطوير الذكاء الاصطناعي منخفضة الكود لـ Yida',
     usage: 'الاستخدام:',

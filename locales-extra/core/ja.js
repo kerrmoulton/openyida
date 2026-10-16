@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  formula_profile: {
+    not_allowed: '関数「{0}」は {1} の既定値数式の検証済み許可リストにありません。',
+    canonical_case: '「{0}」の代わりに公式表記「{1}」を使用してください。',
+    save_failed: 'メンバーの既定値数式の検証に失敗しました。フォームは保存されていません。',
+  },
   help: {
     subtitle: '宜搭ローコード AI 開発ツール',
     usage: '使用方法:',

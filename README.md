@@ -505,7 +505,7 @@ Run `openyida --help` or `openyida <command> --help` for detailed usage.
 | `openyida doctor [--fix]` | Environment diagnostics & auto-fix |
 | `openyida eval --mode <mode> [--skill <name>] [--runs N]` | Multi-dimensional skill evaluation (doc quality, routing accuracy, safety, etc.) |
 | `openyida db-seq-fix [--fix]` | Detect and repair PostgreSQL sequence drift |
-| `openyida formula evaluate <formula\|file> [--schema file]` | Static-check Yida formula syntax and field refs |
+| `openyida formula evaluate <formula\|file> [--schema file] [--component EmployeeField]` | Static-check Yida formula syntax and field refs |
 | `openyida update` | Check and update to latest version |
 | `openyida export-conversation [options]` | Export AI conversation records |
 | `openyida feedback <setup\|url\|dismiss\|status> [options]` | Configure experience feedback form and local reminder state |

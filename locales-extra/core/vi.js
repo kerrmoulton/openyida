@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  formula_profile: {
+    not_allowed: 'Hàm "{0}" không nằm trong danh sách cho phép đã xác minh của công thức mặc định {1}.',
+    canonical_case: 'Dùng tên hàm chính thức "{1}" thay cho "{0}".',
+    save_failed: 'Xác thực công thức thành viên mặc định thất bại; biểu mẫu chưa được lưu.',
+  },
   help: {
     subtitle: 'Công cụ phát triển AI low-code cho Yida',
     usage: 'Cách dùng:',

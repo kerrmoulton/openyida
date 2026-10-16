@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  formula_profile: {
+    not_allowed: 'La fonction « {0} » ne figure pas dans la liste vérifiée des formules par défaut de {1}.',
+    canonical_case: 'Utilisez la graphie officielle « {1} » au lieu de « {0} ».',
+    save_failed: 'Échec de validation de la formule membre par défaut ; le formulaire n’a pas été enregistré.',
+  },
   help: {
     subtitle: 'Outil de développement IA low-code pour Yida',
     usage: 'Utilisation :',

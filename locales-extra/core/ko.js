@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  formula_profile: {
+    not_allowed: '함수 "{0}"은(는) {1} 기본값 수식의 검증된 허용 목록에 없습니다.',
+    canonical_case: '"{0}" 대신 공식 표기 "{1}"을(를) 사용하세요.',
+    save_failed: '구성원 기본값 수식 검증에 실패했습니다. 양식은 저장되지 않았습니다.',
+  },
   help: {
     subtitle: 'Yida 로우코드 AI 개발 도구',
     usage: '사용법:',

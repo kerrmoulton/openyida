@@ -17,6 +17,7 @@ describe('formula evaluate parseArgs', () => {
     ])).toEqual({
       formulaInput: 'IF(GT(#{numberField_total}, 100), "high", "low")',
       schemaPath: '.cache/schema.json',
+      componentName: '',
       json: true,
       strict: true,
       help: false,

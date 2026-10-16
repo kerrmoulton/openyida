@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  formula_profile: {
+    not_allowed: 'फ़ंक्शन "{0}" {1} के डिफ़ॉल्ट सूत्र की सत्यापित अनुमति सूची में नहीं है।',
+    canonical_case: '"{0}" के बजाय आधिकारिक नाम "{1}" का उपयोग करें।',
+    save_failed: 'सदस्य डिफ़ॉल्ट सूत्र का सत्यापन विफल हुआ; फ़ॉर्म सहेजा नहीं गया है।',
+  },
   help: {
     subtitle: 'Yida के लिए AI-संचालित लो-कोड विकास उपकरण',
     usage: 'उपयोग:',

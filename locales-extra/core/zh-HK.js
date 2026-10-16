@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  formula_profile: {
+    not_allowed: '函數「{0}」不在 {1} 預設值公式的已核驗允許清單中。',
+    canonical_case: '函數「{0}」應使用官方大小寫「{1}」。',
+    save_failed: '人員元件預設值公式驗證失敗，尚未儲存表單。',
+  },
   help: {
     subtitle: '宜搭低程式碼 AI 開發工具',
     usage: '用法:',

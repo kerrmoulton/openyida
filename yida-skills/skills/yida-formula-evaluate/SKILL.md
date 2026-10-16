@@ -24,13 +24,14 @@ description: 静态检查宜搭公式语法、字段引用和常见风险。适�
 ## 命令
 
 ```bash
-openyida formula evaluate <公式或文件> [--schema schema.json] [--json] [--strict]
+openyida formula evaluate <公式或文件> [--schema schema.json] [--component EmployeeField] [--json] [--strict]
 ```
 
 | 参数 | 说明 |
 |------|------|
 | `<公式或文件>` | 公式字符串，或保存公式的本地文件路径 |
 | `--schema <schema.json>` | 可选；用 `openyida get-schema` 输出校验 `#{fieldId}` 是否存在 |
+| `--component EmployeeField` | 人员默认值公式按已核验的 11 个函数检查，保留官方大小写；返回 `componentProfile.allowedFunctions`。其他组件及未指定时仍为通用检查 |
 | `--json` | 输出机器可读 JSON |
 | `--strict` | 存在阻塞错误时返回非 0 退出码，适合 CI |
 
@@ -63,5 +64,6 @@ openyida formula evaluate 'IF(GT(#{numberField_total}, 100), "高", "低")' --sc
 ## 输出判断
 
 - `ok: true` 只表示没有本地发现的阻塞错误。
+- 人员字段默认值检查必须传 `--component EmployeeField`；`--schema` 只检查引用字段是否存在，不能据此推断公式的目标控件。专用列表不适用于自定义校验或集成自动化。详情见 `../yida-formula/references/employee-formulas.md`。
 - `warning` 表示高风险写法或本地无法确认的点，不应忽略。
 - `error` 表示本地可确定的问题，例如字段引用不在提供的 Schema 中，或括号/字段引用明显不闭合。
