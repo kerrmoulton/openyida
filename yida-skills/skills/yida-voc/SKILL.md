@@ -5,6 +5,8 @@ description: 宜搭 VOC（用户反馈）信息整理。将故障、需求、性
 
 # VOC 信息整理
 
+OpenYida CLI/技能本地故障、不会提 Issue/PR 或无账号/源码的反馈贡献，使用 `yida-feedback`；本技能保留普通宜搭产品 VOC 整理。
+
 ## 严格禁止 (NEVER DO)
 
 - 不要编造日志、截图、组织 ID、应用 ID、表单 ID、时间线或复现结果。

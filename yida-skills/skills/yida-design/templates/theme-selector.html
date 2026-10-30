@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>风格效果参考</title>
+  <style>
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: #f5f6f8; color: #202938; font: 16px/1.6 system-ui, sans-serif; }
+    main { max-width: 1800px; margin: auto; padding: clamp(16px, 3vw, 32px); }
+    .themes { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; }
+    .card { position: relative; display: flex; flex-direction: column; min-width: 0; padding: 16px; background: #fff; border: 1px solid #c7cdd5; border-radius: 16px; overflow-wrap: anywhere; }
+    h2 { margin: 0; min-height: 2.8em; font: 650 16px/1.4 system-ui, sans-serif; }
+    .preview { width: 100%; aspect-ratio: 16 / 10; object-fit: contain; margin: 16px 0 0; border-radius: 8px; }
+    @media (max-width: 1400px) { .themes { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+    @media (max-width: 1100px) { .themes { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    @media (max-width: 900px) { .themes { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 660px) { .themes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 420px) { .themes { grid-template-columns: minmax(0, 1fr); } }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="themes" class="themes" role="list" aria-label="风格效果参考"></div>
+    <p id="status" role="status" aria-live="polite" hidden></p>
+  </main>
+  <script id="preview-data" type="application/json">{}</script>
+  <script>
+    (function () {
+      'use strict';
+      const container = document.getElementById('themes');
+      const status = document.getElementById('status');
+      let embedded = {};
+      try { embedded = JSON.parse(document.getElementById('preview-data').textContent); } catch (_) {}
+      const data = window.__WIDGET_DATA__ || embedded;
+      const seen = new Set();
+      const themes = (Array.isArray(data?.themes) ? data.themes : []).filter(function (theme) {
+        if (!theme || typeof theme.id !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(theme.id) ||
+            typeof theme.name !== 'string' || !theme.name.trim() || seen.has(theme.id)) return false;
+        if (theme.id === 'app-pop' && !['explicit-request', 'showcase'].includes(data.popArtContext)) return false;
+        seen.add(theme.id);
+        return true;
+      });
+      function textElement(tag, className, value) {
+        const element = document.createElement(tag);
+        element.className = className;
+        element.textContent = value;
+        return element;
+      }
+      themes.forEach(function (theme, index) {
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.setAttribute('role', 'listitem');
+        card.setAttribute('data-theme-id', theme.id);
+        const title = textElement('h2', '', theme.name);
+        title.id = 'theme-title-' + index;
+        card.setAttribute('aria-labelledby', title.id);
+        card.appendChild(title);
+        if (typeof theme.img === 'string' && /^https:\/\//i.test(theme.img)) {
+          const image = document.createElement('img');
+          image.className = 'preview';
+          image.alt = theme.name + ' · 效果参考图';
+          image.hidden = true;
+          image.addEventListener('load', function () {
+            image.hidden = false;
+          });
+          image.addEventListener('error', function () {
+            image.remove();
+          });
+          image.src = theme.img;
+          card.appendChild(image);
+        }
+        container.appendChild(card);
+      });
+      if (!themes.length) {
+        status.textContent = '当前没有可展示的风格。';
+        status.hidden = false;
+      }
+    }());
+  </script>
+</body>
+</html>

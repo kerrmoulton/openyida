@@ -1,0 +1,108 @@
+[
+  {
+    "id": "task-center-explicit",
+    "prompt": "用自定义页面开发当前应用的待办中心，包括待我处理、我创建的、我已处理、抄送我的",
+    "expectedSkill": "yida-task-center"
+  },
+  {
+    "id": "task-center-section",
+    "prompt": "明确在自定义页面中实现真实审批待办区块，沿用当前应用主题",
+    "expectedSkill": "yida-task-center"
+  },
+  {
+    "id": "task-center-read",
+    "prompt": "查询当前用户待我处理的任务，不创建页面",
+    "expectedSkill": "yida-data-management",
+    "forbiddenDefaultSkills": [
+      "yida-task-center"
+    ]
+  },
+  {
+    "id": "task-center-native",
+    "prompt": "给已有应用增加待办中心入口，使用平台原生页面",
+    "expectedSkill": "yida-nav-group",
+    "forbiddenDefaultSkills": [
+      "yida-task-center"
+    ]
+  },
+  {
+    "id": "task-center-unspecified",
+    "prompt": "已有应用增加待办中心，没有指定自定义页面，先复用原生入口",
+    "expectedSkill": "yida-nav-group",
+    "forbiddenDefaultSkills": [
+      "yida-task-center"
+    ]
+  },
+  {
+    "id": "task-center-full",
+    "prompt": "从零搭采购管理系统，含待办中心，使用 Fast 模式",
+    "expectedSkill": "yida-app",
+    "forbiddenDefaultSkills": [
+      "yida-task-center"
+    ]
+  },
+  {
+    "id": "task-center-delegated",
+    "prompt": "创建含审批工作台的应用，你来决定怎么实现",
+    "expectedSkill": "yida-app",
+    "forbiddenDefaultSkills": [
+      "yida-task-center"
+    ]
+  },
+  {
+    "id": "task-center-business",
+    "prompt": "在自定义页面展示待发货订单列表，接真实订单表数据",
+    "expectedSkill": "yida-canvas-data-binding",
+    "forbiddenDefaultSkills": [
+      "yida-task-center"
+    ]
+  },
+  {
+    "id": "task-center-negative-choice",
+    "prompt": "不要用自定义页面做待办中心，保留现有原生待办入口",
+    "expectedSkill": "yida-nav-group",
+    "forbiddenDefaultSkills": [
+      "yida-task-center"
+    ]
+  },
+  {
+    "id": "task-center-canvas-existing",
+    "prompt": "已有 Canvas 工作台，现在整理原生待办中心入口，没有选择自定义待办实现",
+    "expectedSkill": "yida-nav-group",
+    "forbiddenDefaultSkills": [
+      "yida-task-center"
+    ]
+  },
+  {
+    "id": "workflow-progress-embedded",
+    "prompt": "在现有自定义采购单详情中接入该记录关联流程的审批进度和时间线，不增加待办中心",
+    "expectedSkill": "yida-canvas-data-binding",
+    "forbiddenDefaultSkills": [
+      "yida-task-center"
+    ]
+  },
+  {
+    "id": "workflow-home-preview",
+    "prompt": "现有自定义首页只展示五条本人待办和匹配数量，保留应用风格，不增加其他栏目",
+    "expectedSkill": "yida-canvas-data-binding",
+    "forbiddenDefaultSkills": [
+      "yida-task-center"
+    ]
+  },
+  {
+    "id": "workflow-inspect-readonly",
+    "prompt": "只查询指定流程实例的当前环节和审批历史，不创建页面",
+    "expectedSkill": "yida-data-management",
+    "forbiddenDefaultSkills": [
+      "yida-task-center"
+    ]
+  },
+  {
+    "id": "workflow-count-readonly",
+    "prompt": "查询当前应用中本人待办的服务端总数，不新增界面",
+    "expectedSkill": "yida-data-management",
+    "forbiddenDefaultSkills": [
+      "yida-task-center"
+    ]
+  }
+]

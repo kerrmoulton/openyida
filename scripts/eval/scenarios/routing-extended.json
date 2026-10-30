@@ -72,9 +72,9 @@
   {
     "id": "aggregate-table-list",
     "prompt": "帮我列一下当前应用有哪些聚合表",
-    "expectedSkill": "openyida aggregate-table",
+    "expectedSkill": "yida-aggregate-table",
     "group": "页面与表单",
-    "note": "聚合表操作 → aggregate-table CLI"
+    "note": "聚合表操作 → yida-aggregate-table"
   },
   {
     "id": "data-source-connector-page",
@@ -103,6 +103,34 @@
     "expectedSkill": "yida-formula-evaluate",
     "group": "数据与公式",
     "note": "公式语法静态检查 → formula-evaluate"
+  },
+  {
+    "id": "formula-case-sensitive-name",
+    "prompt": "公式 round(1,2) 报错，帮我查平台支持的函数名和正确大小写，不要自己改造函数",
+    "expectedSkill": "yida-formula-evaluate",
+    "group": "数据与公式",
+    "note": "查真实函数清单并检查精确名称，不把公式函数当作 JavaScript 方法"
+  },
+  {
+    "id": "formula-component-types",
+    "prompt": "这个日期字段的公式有值但页面为空，帮我查组件接收的类型，再拿实际字段和样例核对结果",
+    "expectedSkill": "yida-formula-evaluate",
+    "group": "数据与公式",
+    "note": "Schema、组件类型查询与字段试算，区分接口结果和页面显示"
+  },
+  {
+    "id": "formula-saved-field-cases",
+    "prompt": "读取这个字段已经保存的公式，用零值、负数和正常值各跑一组样例，对照期望值，不保存配置",
+    "expectedSkill": "yida-formula-evaluate",
+    "group": "数据与公式",
+    "note": "读取真实字段并按字段执行 cases，保留失败样例"
+  },
+  {
+    "id": "formula-nested-conditions",
+    "prompt": "给已有文本字段配置公式：A成立并且B或C成立时返回一种结果，否则再按D分两档，给我完整可保存的配置",
+    "expectedSkill": "yida-formula",
+    "group": "数据与公式",
+    "note": "按条件结构选择统一公式技能；示例字段名不限制触发范围"
   },
   {
     "id": "business-rule-cross-table",
@@ -166,13 +194,6 @@
     "expectedSkill": "yida-nav-group",
     "group": "应用配置与平台",
     "note": "平台左侧菜单分组 → nav-group"
-  },
-  {
-    "id": "form-detail-style",
-    "prompt": "美化一下表单详情页的样式，用卡片化布局",
-    "expectedSkill": "yida-form-detail",
-    "group": "应用配置与平台",
-    "note": "CSS 美化详情页 → form-detail"
   },
   {
     "id": "density-switch",

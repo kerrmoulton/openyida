@@ -1,0 +1,313 @@
+'use strict';
+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { inventory, preflight, probe, probeCommand } = require('../lib/agent/provider-preflight');
+
+describe('cross-platform provider preflight', () => {
+  let root;
+  beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-preflight-')); });
+  afterEach(() => { fs.rmSync(root, { recursive: true, force: true }); });
+  function file(relative) {
+    const target = path.join(root, relative);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, 'fixture', { mode: 0o700 });
+    return fs.realpathSync(target);
+  }
+  const passed = jest.fn(async () => ({ status: 'passed', output: 'Logged in' }));
+
+  test.each(['win32', 'darwin', 'linux'])('%s finds a CLI outside PATH in user installation directories', platform => {
+    const cli = file('.local/bin/qodercli' + (platform === 'win32' ? '.exe' : ''));
+    expect(inventory({ PATH: '', HOME: root }, platform)[0].candidates).toContain(cli);
+  });
+  test('Windows desktop GUI is detected but never used as the CLI', async () => {
+    file('Programs/Qoder/Qoder.exe');
+    const result = await preflight({}, { env: { LOCALAPPDATA: root, PATH: path.join(root, 'Programs/Qoder') }, platform: 'win32', homedir: root, probe: passed });
+    expect(result.providers[0]).toMatchObject({ desktopDetected: true, status: 'cli_not_found', usable: false,
+      remediation: { action: 'INFORMATION_ONLY', requiresExplicitUserRequest: true, automaticActionAllowed: false } });
+  });
+  test('Windows discovers versioned Codex desktop CLI and npm command shim', () => {
+    const bundled = file('OpenAI/Codex/bin/version-one/codex.exe');
+    expect(inventory({ LOCALAPPDATA: root }, 'win32', root)[1]).toMatchObject({ desktopDetected: true, candidates: [bundled] });
+    const shim = file('npm/qodercli.cmd');
+    expect(inventory({ APPDATA: root }, 'win32', root)[0].candidates).toContain(shim);
+  });
+  test('macOS detects desktop-only Qoder and Codex bundled CLI independently', () => {
+    file('Applications/Qoder.app/Contents/MacOS/Qoder');
+    const qoderCli = file('Applications/QoderWork.app/Contents/Resources/bin/qodercli');
+    const cli = file('Applications/Codex.app/Contents/Resources/codex');
+    const result = inventory({ HOME: root, PATH: '' }, 'darwin');
+    expect(result[0].desktopDetected).toBe(true);
+    expect(result[0].candidates).toContain(qoderCli);
+    expect(result[1].candidates).toContain(cli);
+  });
+  test('macOS discovers and probes the ChatGPT-bundled Codex CLI outside PATH', async () => {
+    const cli = file('Applications/ChatGPT.app/Contents/Resources/codex');
+    const gui = file('Applications/ChatGPT.app/Contents/MacOS/ChatGPT');
+    const result = inventory({ HOME: root, PATH: '' }, 'darwin')[1];
+    expect(result.desktopDetected).toBe(true);
+    expect(result.candidates).toContain(cli);
+    expect(result.candidates).not.toContain(gui);
+    const checked = await preflight({ provider: 'codex' }, { env: { HOME: root, PATH: '' }, platform: 'darwin',
+      probe: async exe => ({ status: exe === cli ? 'passed' : 'launch_failed' }) });
+    expect(checked.providers[0]).toMatchObject({ executable: cli, status: 'ready', usable: true });
+  });
+  test.each(['Codex.app', 'ChatGPT.app'])('macOS probes %s nested native CLI without PATH or an explicit override', async app => {
+    const cli = file(`Applications/${app}/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex`);
+    const wrapper = file(`Applications/${app}/Contents/Resources/codex-cli/bin/codex`);
+    const gui = file(`Applications/${app}/Contents/MacOS/${app === 'ChatGPT.app' ? 'ChatGPT' : 'Codex'}`);
+    const entry = inventory({ HOME: root, PATH: '' }, 'darwin')[1];
+    expect(entry.candidates).toContain(cli);
+    expect(entry.candidates).not.toContain(gui);
+    expect(entry.candidates.indexOf(cli)).toBeLessThan(entry.candidates.indexOf(wrapper));
+    const execute = jest.fn(async exe => ({ status: exe === cli ? 'passed' : 'launch_failed' }));
+    const result = await preflight({ provider: 'codex' }, {
+      env: { HOME: root, PATH: '' }, platform: 'darwin', probe: execute,
+    });
+    expect(result.providers[0]).toMatchObject({ executable: cli, status: 'ready', registrable: true });
+    expect(execute.mock.calls.filter(call => call[0] === cli).map(call => call[1])).toEqual([
+      ['--version'], ['app-server', '--listen', 'stdio://'], ['login', 'status'],
+    ]);
+  });
+  test.each(['Codex.app', 'ChatGPT.app'])('macOS can fall back to %s bundled launcher', async app => {
+    const cli = file(`Applications/${app}/Contents/Resources/codex-cli/bin/codex`);
+    const result = await preflight({ provider: 'codex' }, {
+      env: { HOME: root, PATH: '' }, platform: 'darwin',
+      probe: async exe => ({ status: exe === cli ? 'passed' : 'launch_failed' }),
+    });
+    expect(result.providers[0]).toMatchObject({ executable: cli, status: 'ready', registrable: true });
+  });
+  test('Linux desktop launcher is only evidence of desktop installation', () => {
+    file('.local/share/applications/qoder.desktop');
+    expect(inventory({ HOME: root, PATH: '' }, 'linux')[0].desktopDetected).toBe(true);
+  });
+  test.each(['win32', 'darwin', 'linux'])('%s preserves explicit path and reports login required without an executable remediation command', async platform => {
+    const executable = path.join(root, "中文 user's folder/qodercli.exe");
+    const probeFn = jest.fn(async (_exe, args) => args[0] === '--list-models'
+      ? { status: 'probe_failed', output: 'Not logged in. private-provider-output' } : { status: 'passed' });
+    const result = await preflight({ provider: 'qoder', providerPath: executable }, { platform, probe: probeFn });
+    expect(result.ready).toBe(false);
+    expect(result.readyForEnrollment).toBe(true);
+    expect(result.providers[0].remediation).not.toHaveProperty('command');
+    expect(result.providers[0]).toMatchObject({ status: 'login_required', protocolProbe: 'passed', usable: false, registrable: true,
+      remediation: { action: 'INFORMATION_ONLY', requiresExplicitUserRequest: true, automaticActionAllowed: false } });
+    expect(JSON.stringify(result)).not.toContain('private-provider-output');
+    expect(probeFn.mock.calls.every(call => call[0] === executable)).toBe(true);
+  });
+  test.each(['launch_failed', 'probe_timeout', 'probe_failed'])('preserves %s instead of claiming not installed', async status => {
+    const result = await preflight({ provider: 'codex', providerPath: '/fixture' }, { probe: async () => ({ status }) });
+    expect(result.providers[0].status).toBe(status);
+    expect(result.ready).toBe(false);
+  });
+  test('Windows cold CLI completes version, protocol and auth without a false timeout', async () => {
+    let now = 0;
+    const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+    const durations = [14000, 17000, 21000];
+    try {
+      const result = await preflight({ provider: 'qoder', providerPath: '/fixture' }, {
+        platform: 'win32', probe: async (_exe, _args, _rpc, options) => {
+          const duration = durations.shift();
+          now += Math.min(duration, options.timeoutMs);
+          return { status: duration <= options.timeoutMs ? 'passed' : 'probe_timeout' };
+        },
+      });
+      expect(result.providers[0]).toMatchObject({ status: 'ready', usable: true });
+      expect(durations).toHaveLength(0);
+    } finally { clock.mockRestore(); }
+  });
+  test('explicit deadlines still bound slow Windows probes', async () => {
+    let now = 0;
+    const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+    const execute = jest.fn(async (_exe, _args, _rpc, options) => {
+      now += options.timeoutMs;
+      return { status: 'passed' };
+    });
+    try {
+      const result = await preflight({ provider: 'qoder', providerPath: '/fixture' }, {
+        platform: 'win32', budgetMs: 20, timeoutMs: 15, probe: execute,
+      });
+      expect(execute.mock.calls.map(call => call[3].timeoutMs)).toEqual([15, 5]);
+      expect(result.providers[0]).toMatchObject({ status: 'probe_timeout', usable: false });
+    } finally { clock.mockRestore(); }
+  });
+
+  test('protocol failure is independent of login and does not start auth checks', async () => {
+    const probeFn = jest.fn(async (_exe, args) => ({ status: args[0] === '--version' ? 'passed' : 'protocol_unsupported' }));
+    const result = await preflight({ provider: 'codex', providerPath: '/fixture' }, { probe: probeFn });
+    expect(result.providers[0].status).toBe('protocol_unsupported');
+    expect(probeFn).toHaveBeenCalledTimes(2);
+    expect(result.readyForEnrollment).toBe(true);
+    expect(result.providers[0]).toMatchObject({ cliDetected: true, registrable: true, usable: false });
+  });
+
+  test('a CLI requiring login during initialization remains reportable', async () => {
+    const result = await preflight({ provider: 'qoder', providerPath: '/fixture' }, {
+      probe: async (_exe, flags) => ({ status: flags[0] === '--version' ? 'passed' : 'login_required' }),
+    });
+    expect(result).toMatchObject({ ready: false, readyForEnrollment: true,
+      providers: [{ status: 'login_required', usable: false, registrable: true, protocolProbe: 'login_required' }] });
+  });
+
+  test('an actual ACP login error is classified without exposing provider output', async () => {
+    const result = await probe(process.execPath, ['-e',
+      'process.stdin.once("data", () => console.log(JSON.stringify({jsonrpc:"2.0",id:1,error:{code:-32000,message:"Not logged in. private-output"}})))'], 'qoder', { timeoutMs: 3000 });
+    expect(result).toEqual({ status: 'login_required' });
+  });
+  test('one usable Agent allows connection while another needs login', async () => {
+    file('.local/bin/qodercli'); file('.local/bin/codex');
+    const result = await preflight({}, { env: { PATH: '' }, homedir: root, platform: 'linux',
+      probe: async (_exe, args) => args[0] === '--list-models' ? { status: 'probe_failed', output: 'Not logged in' } : { status: 'passed' } });
+    expect(result.ready).toBe(true);
+    expect(result.providers.find(p => p.provider === 'qoder').usable).toBe(false);
+    expect(result.providers.find(p => p.provider === 'codex').status).toBe('ready');
+  });
+
+  test('installed deferred CLI is never probed, advertised or considered usable', async () => {
+    file('.local/bin/opencode');
+    const execute = jest.fn(async () => ({ status: 'passed' }));
+    const result = await preflight({}, { env: { PATH: '' }, platform: 'linux', homedir: root, probe: execute });
+    expect(result.ready).toBe(false);
+    expect(result.providers.map(p => p.provider)).toEqual(['qoder', 'codex']);
+    expect(result).toMatchObject({ advisoryOnly: true, automaticInstallAllowed: false });
+    expect(JSON.stringify(result)).not.toMatch(/installCommand|npm install|"command":/);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  test('provider-only checks only that type, even when another CLI is usable', async () => {
+    file('.local/bin/codex');
+    const execute = jest.fn(async () => ({ status: 'passed' }));
+    const result = await preflight({ provider: 'qoder' }, { env: { PATH: '' }, platform: 'linux', homedir: root, probe: execute });
+    expect(result.ready).toBe(false);
+    expect(result.providers).toHaveLength(1);
+    expect(result.providers[0]).toMatchObject({ provider: 'qoder', status: 'cli_not_found' });
+    expect(execute).not.toHaveBeenCalled();
+  });
+  test('provider-only automatically locates the selected executable', async () => {
+    const cli = file('.local/bin/qodercli');
+    file('.local/bin/codex');
+    const execute = jest.fn(async () => ({ status: 'passed' }));
+    const result = await preflight({ provider: 'qoder' }, { env: { PATH: '' }, platform: 'linux', homedir: root, probe: execute });
+    expect(result.ready).toBe(true);
+    expect(result.providers).toHaveLength(1);
+    expect(execute.mock.calls.every(call => call[0] === cli)).toBe(true);
+  });
+  test('an invalid earlier installation does not hide a usable user CLI', async () => {
+    const bad = file('.local/bin/qodercli'), good = file('.qoder/bin/qodercli');
+    const result = await preflight({ provider: 'qoder' }, { env: { PATH: '' }, platform: 'linux', homedir: root,
+      probe: async exe => ({ status: exe === bad ? 'launch_failed' : 'passed' }) });
+    expect(result.providers[0]).toMatchObject({ executable: good, status: 'ready' });
+  });
+  test('later broken paths do not erase a detected CLI whose protocol check failed', async () => {
+    const detected = file('.local/bin/qodercli'); file('.qoder/bin/qodercli');
+    const result = await preflight({ provider: 'qoder' }, { env: { PATH: '' }, platform: 'linux', homedir: root,
+      probe: async (exe, flags) => ({ status: exe === detected ? flags[0] === '--version' ? 'passed' : 'protocol_unsupported' : 'launch_failed' }) });
+    expect(result.providers[0]).toMatchObject({ executable: detected, registrable: true, usable: false });
+    expect(result.readyForEnrollment).toBe(true);
+  });
+  test('Windows command shim really launches from a path with spaces and Chinese characters', async () => {
+    if (process.platform !== 'win32') { return; }
+    const cmd = file('中文 folder/qodercli.cmd');
+    fs.writeFileSync(cmd, '@echo off\r\nexit /b 99\r\n');
+    fs.writeFileSync(cmd.replace(/\.cmd$/, '.ps1'), "Write-Output 'fixture-version'\nexit 0\n");
+    expect(await probe(cmd, ['--version'], null, { timeoutMs: 45000 })).toMatchObject({ status: 'passed', output: expect.stringContaining('fixture-version') });
+  }, 60000);
+
+  test('Windows npm shim preserves live stdin for ACP', async () => {
+    if (process.platform !== 'win32') { return; }
+    const cmd = file('duplex/qodercli.cmd');
+    fs.writeFileSync(cmd, '@echo off\r\nexit /b 99\r\n');
+    fs.writeFileSync(cmd.replace(/\.cmd$/, '.ps1'), [
+      '$line = [Console]::In.ReadLine()',
+      'if ($null -eq $line) { exit 23 }',
+      'Write-Output \'{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":1}}\'',
+    ].join('\n'));
+    await expect(probe(cmd, ['--acp'], 'qoder', { timeoutMs: 45000 })).resolves.toMatchObject({ status: 'passed' });
+  }, 60000);
+
+  test.each([['--version'], ['--list-models'], ['login', 'status']])('Windows finite probe %j runs without an input pipe', async (...args) => {
+    const { EventEmitter } = require('events');
+    const { PassThrough } = require('stream');
+    const cmd = file('中文 folder/finite-cli.cmd');
+    file('中文 folder/finite-cli.ps1');
+    const probeSpawn = (_exe, _args, options) => {
+      const child = new EventEmitter();
+      child.stdin = options.stdio[0] === 'pipe' ? new PassThrough() : null;
+      child.stdout = new PassThrough();
+      child.stderr = new PassThrough();
+      // A finite launcher must not depend on a redirected stdin handle closing.
+      // Keep that case stalled so this also covers the reported timeout result.
+      if (!child.stdin) {
+        queueMicrotask(() => {
+          child.stdout.write('fixture-version\n');
+          child.emit('close', 0);
+        });
+      }
+      return child;
+    };
+    await expect(probe(cmd, args, null, { platform: 'win32', probeSpawn, timeoutMs: 100 }))
+      .resolves.toMatchObject({ status: 'passed', output: expect.stringContaining('fixture-version') });
+  });
+
+  test('Windows npm shims use the same PowerShell sibling as Runtime without shell interpolation', () => {
+    const cmd = file("中文 folder/quote's/qodercli.cmd");
+    file("中文 folder/quote's/qodercli.ps1");
+    const result = probeCommand(cmd, ['login', "literal'value;$x"], 'win32', { SystemRoot: 'C:\\Windows' });
+    expect(result.args).toEqual([
+      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File',
+      cmd.replace(/\.cmd$/, '.ps1'), 'login', "literal'value;$x",
+    ]);
+    expect(() => probeCommand(file('bare.cmd'), ['--version'], 'win32')).toThrow();
+  });
+  test('a successful CLI exit without an RPC response is not a protocol handshake', async () => {
+    const result = await probe(process.execPath, ['-e', 'console.log("usage")'], 'qoder', { timeoutMs: 3000 });
+    expect(result.status).toBe('protocol_unsupported');
+  });
+  test('interrupting a probe removes signal listeners and cannot allow connection', async () => {
+    const { EventEmitter } = require('events');
+    const signals = new EventEmitter();
+    const result = probe(process.execPath, ['-e', 'setInterval(()=>{},1000)'], null, { signals });
+    signals.emit('SIGINT');
+    expect((await result).status).toBe('probe_cancelled');
+    expect(signals.listenerCount('SIGTERM')).toBe(0);
+    expect(signals.listenerCount('SIGINT')).toBe(0);
+  });
+  test('a cancelled provider prevents continuation even when another provider passed', async () => {
+    file('.local/bin/qodercli'); file('.local/bin/codex');
+    const result = await preflight({}, { env: { PATH: '' }, platform: 'linux', homedir: root,
+      probe: async exe => ({ status: exe.includes('qoder') ? 'probe_cancelled' : 'passed' }) });
+    expect(result.ready).toBe(false);
+    expect(result.readyForEnrollment).toBe(false);
+  });
+  test('real bounded process probe times out without a model call', async () => {
+    const result = await probe(process.execPath, ['-e', 'setInterval(()=>{},1000)'], null, { timeoutMs: 200 });
+    expect(result.status).toBe('probe_timeout');
+  });
+  test('real protocol probe accepts a valid response and stops the owned process', async () => {
+    const code = 'process.stdin.once("data",()=>{console.log(JSON.stringify({id:1,result:{protocolVersion:1}}));});';
+    const result = await probe(process.execPath, ['-e', code], 'qoder', { timeoutMs: 3000 });
+    expect(result.status).toBe('passed');
+  });
+});
+
+
+test('connect inventories every CLI without duplicating runtime auth/model probes',async()=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'all-providers-'));
+  try {
+    fs.mkdirSync(path.join(root,'.local/bin'),{recursive:true});
+    for(const name of ['codex','qodercli']) {fs.writeFileSync(path.join(root,'.local/bin',name),'fixture',{mode:0o700});}
+    const execute=jest.fn(async()=>({status:'passed'}));
+    const result=await preflight({command:'connect'},{platform:'linux',homedir:root,env:{PATH:''},probe:execute});
+    expect(result.providers.filter(p=>p.registrable).map(p=>p.provider).sort()).toEqual(['codex','qoder']);
+    expect(result.providers.every(p=>p.authKnown===false && p.protocolProbe==='not_run')).toBe(true);
+    expect(execute.mock.calls.map(call=>call[1])).toEqual([['--version'],['--version']]);
+    execute.mockClear();
+    await preflight({command:'doctor'},{platform:'linux',homedir:root,env:{PATH:''},probe:execute});
+    expect(execute).toHaveBeenCalledTimes(6);
+  } finally {fs.rmSync(root,{recursive:true,force:true});}
+});
+
+test.each([['Qoder CLI 1.1.60','Qoder CLI 1.1.60'],['codex-cli 0.114.0','codex-cli 0.114.0'],['secret banner',undefined]])('only recognized version output is reused: %s',async(output,version)=>{
+  const result=await preflight({command:'connect',provider:'codex',providerPath:process.execPath},{probe:async()=>({status:'passed',output})});
+  expect(result.providers[0].version).toBe(version);
+});

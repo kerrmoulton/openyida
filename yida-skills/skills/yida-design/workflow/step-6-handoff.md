@@ -1,62 +1,27 @@
-# Step 6：写入 prd.md 和 design.md
+# 写入与校验 design.md
 
-> 本流程把业务设计结果分别写入 `prd/<项目名>/prd.md` 和 `prd/<项目名>/design.md`。这里不写 JSX/TSX，也不直接输出 `page-spec.json`；页面实现阶段由 `yida-app` 同时读取 PRD 与 design.md，只有走页面生成器或需要稳定交接时才派生 `page-spec.json`。
+Fast 直接维护 `prd/<项目名>/design.md`，Plan 更新计划事实后由 CLI 派生；单页改造只补当前页面并保留已有业务契约。完整应用的业务与基础视觉可并行，页面事实齐备后再补逐页应用，不覆盖 `yida-prd` 的业务文档。
 
-## 写 prd.md
+## 写入
 
-| 模块 | 必填内容 |
-| --- | --- |
-| 应用基本信息 | 应用名称、应用类型、业务目标、核心用户、使用场景、核心对象、主题色、权限口径 |
-| 应用配置 | `appType`、`corpId`、`baseUrl`；已有应用填真实值，从零创建时写待创建/待确认 |
-| 数据结构 | 普通表单、流程表单、字段语义、Divider 分组、流程节点 |
-| 页面与功能设计 | 按页面逐节写清页面类型、页面定位、页面目标、页面关系、关联表单/流程/报表/详情页、需要设计的区块、布局骨架、核心组件、主操作、PC/移动端差异；自定义页面逐区块写清目的、数据来源、主操作和状态 |
-| 应用主题与风格摘要 | 只写 design.md 引用、应用主题色、风格关键词和业务理由；完整 UI 设计系统放在 `design.md` |
-| 业务逻辑与状态 | 表单提交后行为、新增/提交入口、详情查看、权限、空/载/错态 |
-| 资源蓝图 | 应用、表单、流程、自定义页面、报表等资源清单和创建策略 |
-| 资源创建顺序 | 先应用，再表单/流程，再自定义页面，再报表/数据源，最后发布与导航排序 |
-| 页面实现交付顺序 | 按页面开发和验收顺序排列，主页面先交付，核心业务页随后，辅助页靠后 |
-| 导航顺序 | 按用户入口排序，主入口靠前，业务办理/数据管理/经营分析/系统配置分组明确，并写清导航呈现方式 |
-| 验收标准 | 主页面访问、数据录入、数据查看、权限/流程、视觉一致性、导航可用 |
+已有设计文件只修改相关内容。Plan 按 [局部调整](../../yida-app/workflow/plan/step-4-deliver.md#4-处理调整) 更新；Fast 保留未改的章节和 token。下面的结构用于首版编写与完整性核对，不要求每次重写五章。
 
-## 写三种顺序
+1. 读取 [唯一输出契约](output-design.md)，按 frontmatter、H1、五章正文组织项目文件。
+2. 保留选中主题的基础语言和完整变量，按 [整体主题规则](../references/application-theme-consistency.md#导航与应用框架) 合入导航、应用框架、表单、记录详情和自定义页面设计，清除模板身份和编写说明。
+3. frontmatter 仅维护机器数据与 anchor 索引，完整规则只写在正文一次。每个实际自定义页覆盖输出契约的八项要点，场景和页面标识与共享需求/计划一致。
+4. 检查 [页面质量门禁](../references/page-quality-gates.md)，确认数据、动作、导航、权限与业务事实一致；主题、状态、素材和响应式均可实现。
 
-| 顺序类型 | 含义 | 默认规则 |
-| --- | --- | --- |
-| 资源创建顺序 | `yida-app` 真正创建资源的依赖顺序 | 应用 → 表单/流程 → 自定义页面 → 报表/数据源 → 发布/导航 |
-| 页面实现交付顺序 | 页面开发和验收的先后顺序 | 主页面 / 工作台 / 官网首页 → 核心列表/管理页 → 详情/看板/大屏 → 辅助页 |
-| 导航顺序 | 用户在应用导航中看到的展示顺序 | 门户/首页 → 业务办理 → 数据管理 → 经营分析 → 系统配置 |
+## 校验
 
-## 写 design.md
+Fast 完成手写后执行 `openyida check-design prd/<项目名>/design.md --json`；PRD 就绪时添加 `--prd prd/<项目名>/prd.md`。业务仍并行生成时，先完成单文件检查，由 `yida-app` 在合并时补跨文档校验。Plan 由物化流程调用同一校验，失败则修正源事实后重新生成。
 
-| 模块 | 必填内容 |
-| --- | --- |
-| frontmatter | version、design_id、baseDesignSource、styleDesignSelection、themeProfile、themeAdaptationResult、yidaThemeRuntime、tokens、visual_dna、scenes、density、layout、tone |
-| 总览 / 设计风格选择依据 / 主题色与换肤结果 / 适用场景 / 视觉氛围 | 可复用设计意图、选中风格和排除风格、主题色来源、换肤策略、适合与不适合场景、密度、气质和页面组织方式 |
-| 视觉 DNA / 设计母体 | 所有页面都必须保留的 2-5 个视觉 DNA，每个包含证据、规则、实现钩子、失败表现和置信度 |
-| 色彩角色 / 字体 / 布局 / 深度 / 形状 | token、字体栈、字号、网格、间距、层级、圆角和材质规则 |
-| 组件样式 / 快捷入口区域 | 按组件写 default、hover、active、focus、disabled、loading、selected、error；工作台等必须写快捷入口区域 |
-| 页面结构配方 | 中性槽位、`visualScaffold`、`surfaceMap`、`componentRecipe` |
-| 状态与交互 / 响应式 / 可访问性 | loading、empty、error、mobile、reduced motion、焦点和对比度 |
-| 实现适配 | CSS 变量、Yida / YidaCodeCanvas 容器重置、`Yida Global Theme Runtime Contract`、YidaCodeCanvas / 平台 JSX 组件 helper 使用规则 |
-| 包含项 / 禁止项 / 错误 vs 正确 / Agent 使用提示 / 交付自检 | 保护视觉 DNA、contentBlocks 推荐 8-10 个区块以上、禁大白卡、自定义色 token 注入、实现前读取双文件 |
+完成条件：文件非空、公共校验通过、每个真实页面与 PRD 引用均能定位到正文、页面设计具体且无重复规则副本。设计步骤不写页面源码或编造真实资源 ID。
 
-## 写文件前检查
+跨文档检查会核对 PRD 的 `designFile` 是否指向当前设计文件。默认从项目工作目录执行；从其他目录检查时用 `--base-dir <项目根目录>` 解析 PRD 中的相对引用，命令输入文件的路径仍相对当前工作目录。导出包按同一规则检查，不能忽略路径不一致错误。
 
-1. 读取 [PRD 输出格式](output-prd.md)。
-2. 读取 [design.md 输出格式](output-design.md)。
-3. 读取 [页面质量门禁](../references/page-quality-gates.md)，确认每个 display 页面都有薄 `pageSpecHandoff`，并且 `design.md` 视觉契约完整。
-4. 用 Step 1-4 的产物填充 `prd.md`，只写业务、资源、页面结构和 design 引用。
-5. 用 Step 2 和 Step 5 的产物填充 `design.md`，写完整视觉系统、场景配方、组件规则和状态规则。
-6. 将 PRD 写入 `prd/<项目名>/prd.md`，将设计契约写入 `prd/<项目名>/design.md`。
-7. 确认 PRD 已写应用级上下文 `appType/corpId/baseUrl`；表单、字段、页面等创建后的细节 ID 由实现阶段写入 `.cache/<项目名>-schema.json`。
+主题 CSS 生成与上传沿用 [输出契约](output-design.md#应用主题-css-的职责)。CLI 会检查括号、字符串及注释闭合，报错时先修复源文件；`check-design` 通过不代表 CSS 已校验或页面视觉已验收。
 
-## 完成标准
+主题 CSS 交付前必须完成实例化：模板中的 `{{PRIMARY_COLOR}}` 和 `<生成实际色值：…>` 不可上传，不能只替换主色。完成 design.md 后执行 `openyida sample yida-design app-theme --design-file <design.md> --output <app-theme.css>`；遇到 `THEME_CSS_UNRESOLVED_TOKEN` 按返回的 token 修复设计源并重新生成。
 
-- `prd/<项目名>/prd.md` 包含 PRD 必填内容。
-- `prd/<项目名>/design.md` 包含 design.md 必填内容。
-- 表单/流程在资源创建顺序中位于自定义页面之前。
-- 页面实现交付顺序写清每个页面的实现重点、依赖资源和验收点。
-- 导航顺序写清分组和页面展示顺序。
-- 表单提交入口保留原生表单能力，并说明 PC/移动端打开方式。
-- 每个 display 页面都有 `pageSpecHandoff`，包含 `pageStructure`、`scene`、`contentBlocks`、`themeProfile`、`designFile`、`designRefs`、数据来源和主操作。
-- 页面实现交付说明明确：创建或更新页面前必须同时读取 `prd.md` 与 `design.md`。
+
+应用级主题上传仅在确认新版主题能力时自动执行。旧主题或能力未知时，先按 [旧主题注入与停用规则](../references/application-style-library.md#旧主题应用的样式作用域与确认) 设计页面局部样式；应用层注入必须取得目标应用的明确用户确认，不得自动追加确认参数。用户要求去掉应用中的 appCustomTheme 时使用 `update-app --disable-custom-theme`，保留资源配置和品牌色并回读核验布尔值 false。

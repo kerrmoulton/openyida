@@ -4,9 +4,21 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { compileCanvasLocal } = require('../lib/app/canvas-compile');
+const createForm = require('../lib/app/create-form');
 const { applyTemplateVariables, run } = require('../lib/core/sample');
 
 describe('sample templates', () => {
+  test('empty-query is emitted as usable helpers for form and page searches', async () => {
+    const output = path.join(tmpDir, 'empty-query.js');
+    await run(['yida-data-management', 'empty-query', '--output', output]);
+    const helpers = require(output);
+    const conditions = helpers.buildEmptyConditions({ fieldId: 'cascadeDateField_period', componentName: 'CascadeDateField' }, 'end-only');
+    expect(conditions.map(condition => [condition.key, condition.operator])).toEqual([
+      ['cascadeDateField_period.start', 'is'], ['cascadeDateField_period.end', 'is_not'],
+    ]);
+    expect(helpers.countFilledRangeEndpoints([0, ''])).toBe(1);
+    expect(helpers.buildCountConditions({ fieldId: 'numberField_count', componentName: 'NumberField' }, 'filled')[0]).toMatchObject({ operator: 'gt', value: 0 });
+  });
   let tmpDir;
   let consoleLogSpy;
   let consoleErrorSpy;
@@ -23,12 +35,464 @@ describe('sample templates', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
+  test('native cool-card sample emits an import payload with typed preview data and linked rich text', async () => {
+    const output = path.join(tmpDir, 'project-brief.json');
+    const appUrl = 'https://example.aliwork.com/APP_EXAMPLE?view=project&source=card';
+    await run(['yida-cool-card', 'project-brief', '--var', `APP_URL=${appUrl}`, '--output', output]);
+    const payload = JSON.parse(fs.readFileSync(output, 'utf8'));
+    expect(Object.keys(payload).sort()).toEqual(['editorData', 'type', 'widgetInfo']);
+    expect(payload.type).toBe('im');
+    expect(payload.widgetInfo).toEqual({}); // The official editor generates compiler products.
+    const editor = JSON.parse(payload.editorData);
+    const data = editor.mockData.cardData;
+    expect(data.appUrl).toBe(appUrl);
+    const variables = new Map(editor.variableList.map(variable => [variable.id, variable]));
+    for (const variable of editor.variableList) {
+      expect(data).toHaveProperty(variable.id);
+      if (variable.type === 'number') { expect(typeof data[variable.id]).toBe('number'); }
+      if (variable.type === 'loopArray') {
+        expect(Array.isArray(data[variable.id])).toBe(true);
+        for (const row of data[variable.id]) {
+          for (const field of variable.schema) { expect(row).toHaveProperty(field.name); }
+        }
+      }
+    }
+    const nodes = [];
+    const visit = node => { nodes.push(node); (node.children || []).forEach(visit); };
+    editor.schema.componentsTree.forEach(visit);
+    for (const node of nodes.filter(node => node.componentName === 'RichText')) {
+      expect(variables.get(node.props.content.variable).type).toBe('markdown');
+      expect(() => JSON.parse(node.props.text.raw)).not.toThrow();
+      expect(data[node.props.content.variable].items.length).toBeGreaterThan(0);
+    }
+    const button = nodes.find(node => node.componentName === 'ButtonBlock').props.buttons[0];
+    expect(button.actionType).toBe('url');
+    expect(data[button.url.variable]).toBe(appUrl);
+    expect(fs.readFileSync(output, 'utf8')).not.toContain('{{APP_URL}}');
+  });
+
   test('applyTemplateVariables replaces {{KEY}} tokens', () => {
     const output = applyTemplateVariables('Hello {{BRAND_NAME}} / {{BRAND_NAME}}', {
       BRAND_NAME: 'OpenKuma',
     });
 
     expect(output).toBe('Hello OpenKuma / OpenKuma');
+  });
+
+  test.each([
+    ['--output'], ['--output', '--design-file', 'design.md'],
+    ['--var'], ['--var', 'PRIMARY_COLOR'], ['--var', ' =red'],
+    ['--primary-color', '#123456'], ['--border-radius', '12px'],
+  ])('rejects invalid sample parameters before writing files: %j', async (...options) => {
+    const output = path.join(tmpDir, 'theme.css');
+    await expect(run(['yida-design', 'app-theme', '--output', output, ...options]))
+      .rejects.toMatchObject({ code: 'SAMPLE_ARGUMENT_INVALID' });
+    expect(fs.readdirSync(tmpDir)).toEqual([]);
+  });
+
+  test('theme generation rejects generic variable substitution instead of silently ignoring it', async () => {
+    const output = path.join(tmpDir, 'theme.css');
+    await expect(run(['yida-design', 'app-theme', '--output', output, '--var', 'PRIMARY_COLOR=#123456']))
+      .rejects.toMatchObject({ code: 'SAMPLE_ARGUMENT_INVALID' });
+    expect(fs.existsSync(output)).toBe(false);
+  });
+
+  test.each(['side', 'top', 'mixed', 'dock', 'tabs'])('navigation %s copies only the selected layout and compiles with existing content', async (layout) => {
+    const output = path.join(tmpDir, `nav-${layout}.jsx`);
+    await run(['openyida-page-template', `canvas-nav-${layout}`, '--output', output]);
+    const fragment = fs.readFileSync(output, 'utf8');
+    expect(consoleErrorSpy.mock.calls.flat().join(' ')).toContain('平台导航页默认只实现业务内容');
+    const component = layout === 'tabs' ? 'CanvasTabs' : 'CanvasNav';
+    const result = compileCanvasLocal(`${fragment}\nfunction YidaComp() { return <${component} items={[]} activeKey="home" onSelect={() => {}}><p>已有业务内容</p></${component}>; }`);
+    expect(JSON.parse(result.importedModules)).toEqual(['side', 'top', 'mixed'].includes(layout) ? ['lucide-react', 'react'] : ['react']);
+    expect(fragment).not.toMatch(/function YidaComp|export default|ConfigProvider|Drawer|iframe|fetch\(|hashchange|document\.body|:root|--pod-nav-[\w-]+\s*:/);
+    for (const other of ['side', 'top', 'mixed', 'dock'].filter(name => name !== layout)) {
+      expect(fragment).not.toContain(`oy-nav-${other} `);
+    }
+    const fragmentBudgets = { side: 15000, mixed: 15500, top: 8500, dock: 7000, tabs: 7000 };
+    expect(Buffer.byteLength(fragment)).toBeLessThan(fragmentBudgets[layout]);
+    expect(fragment.includes('function CanvasSidebar')).toBe(['side', 'mixed'].includes(layout));
+    if (layout !== 'tabs') {
+      expect(fragment).toContain('--pod-nav-item-text-disabled-color');
+      expect(fragment).toContain('--pod-nav-menu-bg-selected-color');
+      expect(fragment).toContain('border: var(--pod-nav-menu-item-border, none)');
+      expect(fragment).toContain('--pod-nav-menu-item-hover-border');
+      expect(fragment).toContain('--pod-nav-menu-item-selected-border');
+      expect(fragment).toContain('box-shadow: var(--pod-nav-menu-item-selected-shadow, none)');
+      expect(fragment).not.toContain('box-shadow: inset');
+      expect(fragment).toContain('padding: var(--pod-nav-menu-item-padding, 8px 12px)');
+      expect(fragment).toContain('line-height: var(--pod-nav-menu-line-height, 20px)');
+    }
+    if (['top', 'mixed'].includes(layout)) {
+      const menuSelector = layout === 'top' ? '.oy-nav-top .oy-nav-menu' : '.oy-nav-mixed .oy-nav-groups';
+      expect(fragment).toContain(`${menuSelector} .oy-nav-item { min-height: var(--pod-nav-top-tab-height, 40px); padding: var(--pod-nav-top-tab-item-padding, 0 12px); max-width: var(--pod-nav-top-tab-item-max-width, 240px); }`);
+      expect(fragment).toContain('padding: calc(var(--pod-nav-menu-gap, 8px) / 2)');
+      expect(fragment).toContain('min-height: var(--pod-nav-platform-header-height, 48px)');
+    }
+    if (['side', 'top', 'mixed'].includes(layout)) {
+      expect(fragment).toContain('gap: var(--pod-nav-menu-gap, 8px)');
+    }
+    if (['side', 'mixed'].includes(layout)) {
+      expect(fragment).toContain('padding: var(--pod-nav-slide-aside-padding, 8px)');
+      if (layout === 'mixed') {
+        expect(fragment).toContain('.oy-canvas-nav.oy-nav-mixed .oy-nav-sidebar { padding: var(--pod-nav-l-aside-padding, 8px); }');
+      }
+    }
+  });
+
+  test('CLI top navigation output defaults to full width and preserves explicit floating opt-in', async () => {
+    const output = path.join(tmpDir, 'nav-top.jsx');
+    await run(['openyida-page-template', 'canvas-nav-top', '--output', output]);
+    const { runtimeCode } = compileCanvasLocal(`${fs.readFileSync(output, 'utf8')}
+      function YidaComp() { return CanvasNav(window.testProps); }`);
+    const render = props => new Function('window', `${runtimeCode}; return YidaComp();`)({
+      testProps: props,
+      React: {
+        createElement: (type, props, ...children) => ({ type, props, children }),
+        useState: () => [false, () => {}],
+        useId: () => 'top-menu',
+        useEffect: () => {},
+      },
+      LucideReact: { Menu: () => null },
+    });
+    const normal = render({ title: '品牌', children: '已有内容' });
+    expect(normal.props.className).toBe('oy-canvas-nav oy-nav-top');
+    expect(normal.children[2].children).toContain('已有内容');
+    expect(render({ floating: false }).props.className).toBe(normal.props.className);
+    expect(render({ floating: true }).props.className).toBe(`${normal.props.className} is-floating`);
+    const header = render({ headerOnly: true, overlay: true, children: '不能重复包裹正文' });
+    expect(header.props.className).toBe(`${normal.props.className} is-header-only is-overlay`);
+    expect(header.children[2]).toBe(false);
+  });
+
+  test('navigation content sample compiles and switches scroll ownership for embedded pages', async () => {
+    const output = path.join(tmpDir, 'nav-content.jsx');
+    await run(['openyida-page-template', 'canvas-nav-content', '--output', output]);
+    const fragment = fs.readFileSync(output, 'utf8');
+    expect(fragment).not.toMatch(/function CanvasNav\(|CANVAS_NAV_CSS/);
+    const { runtimeCode, importedModules } = compileCanvasLocal(`${fragment}
+      function YidaComp() { return CanvasNavigationContent(window.testProps); }`);
+    expect(JSON.parse(importedModules)).toEqual(['react']);
+    const render = props => new Function('window', `${runtimeCode}; return YidaComp();`)({
+      React: {
+        createElement: (type, props, ...children) => ({ type, props, children }),
+        useRef: current => ({ current }),
+        useLayoutEffect: () => {},
+      },
+      testProps: props,
+    });
+    const local = render({ navigation: '导航', children: '工作台', height: 640 });
+    expect(local.props.style.height).toBe(640);
+    expect(local.children[0].children).toContain('导航');
+    const localViewport = local.children[1].children[0];
+    expect(localViewport.props.style.overflow).toBe('auto');
+    expect(localViewport.children).toContain('工作台');
+    const embedded = render({ iframeSrc: '/submission/form', title: '报修', contentKey: 'repair' });
+    const viewport = embedded.children[1].children[0];
+    expect(viewport.props.style.overflow).toBe('hidden');
+    expect(viewport.props.style.maxWidth).toBe(localViewport.props.style.maxWidth);
+    expect(viewport.children[0]).toMatchObject({ type: 'iframe', props: {
+      src: '/submission/form', title: '报修', style: { position: 'absolute', height: '100%' },
+    } });
+    expect(render({ children: '无可用导航' }).children[1].children[0].children).toContain('无可用导航');
+    const document = render({ layout: 'document', navigation: '品牌菜单', children: '首屏与产品区' });
+    expect(document.props.style).toMatchObject({ display: 'grid', overflow: 'visible' });
+    expect(document.props.style.height).toBe('auto');
+    expect(document.children[1].props.style).toMatchObject({ display: 'block', minHeight: 'auto', flex: undefined });
+    expect(document.children[0].props.style).toMatchObject({ gridArea: '1 / 1', position: 'sticky' });
+    expect(document.children[1].props.style).toMatchObject({ gridArea: '1 / 1', padding: 0 });
+    const documentViewport = document.children[1].children[0];
+    expect(documentViewport.props.style).toMatchObject({ overflow: 'visible', borderRadius: 0, minHeight: 'auto', flex: undefined });
+    expect(documentViewport.props.style.maxWidth).toBeUndefined();
+    expect(() => render({ layout: 'document', iframeSrc: '/submission/form' })).toThrow('requires workspace layout');
+  });
+
+  test('navigation restores each local view even when the detached DOM has lost its scroll position', async () => {
+    const output = path.join(tmpDir, 'nav-content.jsx');
+    await run(['openyida-page-template', 'canvas-nav-content', '--output', output]);
+    const { runtimeCode } = compileCanvasLocal(`${fs.readFileSync(output, 'utf8')}
+      function YidaComp() { return CanvasNavigationContent(window.testProps); }`);
+    const refs = [];
+    let cursor = 0;
+    let effects = [];
+    const runtime = {
+      React: {
+        createElement: (type, props, ...children) => ({ type, props, children }),
+        useRef: current => refs[cursor++] ||= { current },
+        useLayoutEffect: effect => effects.push(effect),
+      },
+    };
+    const renderComponent = new Function('window', `${runtimeCode}; return YidaComp;`)(runtime);
+    const render = props => {
+      cursor = 0;
+      effects = [];
+      runtime.testProps = props;
+      const tree = renderComponent();
+      const viewport = tree.children[1].children[0];
+      const dom = { scrollTop: 0, scrollLeft: 0 };
+      viewport.props.ref.current = dom;
+      effects.forEach(effect => effect());
+      return { dom, viewport };
+    };
+    const home = render({ contentKey: 'home', preserveScroll: true });
+    home.dom.scrollTop = 720;
+    home.dom.scrollLeft = 35;
+    home.viewport.props.onScroll({ currentTarget: home.dom });
+    // React 可先移除内容再清理父 effect；不能等卸载时才采集位置。
+    home.dom.scrollTop = 0;
+    home.dom.scrollLeft = 0;
+    expect(render({ contentKey: 'products', preserveScroll: true }).dom.scrollTop).toBe(0);
+    expect(render({ contentKey: 'home', preserveScroll: true }).dom).toEqual({ scrollTop: 720, scrollLeft: 35 });
+    expect(render({ contentKey: 'home', preserveScroll: false }).dom.scrollTop).toBe(0);
+    const embedded = render({ contentKey: 'home', preserveScroll: true, iframeSrc: '/submission/form' });
+    embedded.dom.scrollTop = 99;
+    embedded.viewport.props.onScroll({ currentTarget: embedded.dom });
+    expect(render({ contentKey: 'home', preserveScroll: true }).dom.scrollTop).toBe(720);
+  });
+
+  test.each(['sticky', 'fixed'])('document %s navigation follows nested host scroll and releases observers', async navigationPosition => {
+    const output = path.join(tmpDir, 'nav-content.jsx');
+    await run(['openyida-page-template', 'canvas-nav-content', '--output', output]);
+    const { runtimeCode } = compileCanvasLocal(`${fs.readFileSync(output, 'utf8')}
+      function YidaComp() { return CanvasNavigationContent({layout:'document', navigation:'菜单', navigationPosition:'${navigationPosition}'}); }`);
+    const effects = [];
+    const observe = jest.fn();
+    const disconnect = jest.fn();
+    let measure;
+    const runtime = {
+      React: {
+        createElement: (type, props, ...children) => ({ type, props, children }),
+        useRef: current => ({ current }),
+        useLayoutEffect: effect => effects.push(effect),
+      },
+      ResizeObserver: class {
+        constructor(callback) {
+          measure = callback;
+          this.observe = observe;
+          this.disconnect = disconnect;
+        }
+      },
+      getComputedStyle: () => ({ overflowY: 'auto' }),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    };
+    const tree = new Function('window', `${runtimeCode}; return YidaComp();`)(runtime);
+    const setProperty = jest.fn();
+    let height = 80;
+    let top = 40;
+    const navStyle = { position: 'sticky', left: '', width: '', top: '0px' };
+    tree.props.ref.current = { style: { setProperty }, dataset: {},
+      parentElement: { clientTop: 0, getBoundingClientRect: () => ({ top: 40 }) },
+      getBoundingClientRect: () => ({ top, left: 220, width: 980, bottom: top + 1600 }) };
+    tree.children[0].props.ref.current = { style: { ...navStyle }, getBoundingClientRect: () => ({ height }) };
+    const cleanups = effects.map(effect => effect());
+    expect(observe).toHaveBeenCalledWith(tree.children[0].props.ref.current);
+    expect(setProperty).toHaveBeenLastCalledWith('--openyida-navigation-height', '80px');
+    expect(tree.props.ref.current.dataset.scrolled).toBe('false');
+    expect(runtime.addEventListener).toHaveBeenCalledWith('scroll', measure, true);
+    top = -500;
+    measure();
+    expect(tree.props.ref.current.dataset.scrolled).toBe('true');
+    const nav = tree.children[0].props.ref.current;
+    if (navigationPosition === 'fixed') {
+      expect(nav.style).toEqual({ position: 'fixed', left: '220px', width: '980px', top: '40px' });
+      top = -1580;
+      measure();
+      expect(nav.style.top).toBe('-60px');
+    } else { expect(nav.style).toEqual(navStyle); }
+    top = 40;
+    height = 240;
+    measure();
+    expect(tree.props.ref.current.dataset.scrolled).toBe('false');
+    expect(setProperty).toHaveBeenLastCalledWith('--openyida-navigation-height', '240px');
+    cleanups.forEach(cleanup => cleanup?.());
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(runtime.removeEventListener).toHaveBeenCalledWith('resize', measure);
+    expect(runtime.removeEventListener).toHaveBeenCalledWith('scroll', measure, true);
+    expect(nav.style).toEqual(navStyle);
+    expect(tree.children[1].props.style.display).toBe('block');
+  });
+
+  test('sidebar keyboard resizing uses current DOM width and respects bounds', async () => {
+    const output = path.join(tmpDir, 'nav-side.jsx');
+    await run(['openyida-page-template', 'canvas-nav-side', '--output', output]);
+    const fragment = fs.readFileSync(output, 'utf8');
+    const { runtimeCode } = compileCanvasLocal(`${fragment}\nfunction YidaComp() { return CanvasSidebar({}); }`);
+    const setters = [];
+    const React = {
+      createElement: (type, props, ...children) => ({ type, props, children }),
+      useState: initial => {
+        const setter = jest.fn();
+        setters.push(setter);
+        return [typeof initial === 'function' ? initial() : initial, setter];
+      },
+      useRef: current => ({ current }),
+      useId: () => 'sidebar',
+      useEffect: () => {},
+      useLayoutEffect: () => {},
+    };
+    const sidebar = new Function('window', `${runtimeCode}; return YidaComp();`)({ React, LucideReact: {}, innerWidth: 1280 });
+    let domWidth = 180;
+    sidebar.props.ref.current = { getBoundingClientRect: () => ({ width: domWidth }) };
+    const handle = sidebar.children.find(child => child?.props?.role === 'separator');
+    const resize = key => {
+      const preventDefault = jest.fn();
+      handle.props.onKeyDown({ key, preventDefault });
+      expect(preventDefault).toHaveBeenCalled();
+      domWidth = setters[2].mock.calls.at(-1)[0];
+      return domWidth;
+    };
+    // The observed width is still 216; rapid key presses must use the actual width.
+    expect(resize('ArrowRight')).toBe(204);
+    expect(resize('ArrowRight')).toBe(228);
+    expect(resize('Home')).toBe(180);
+    expect(resize('ArrowLeft')).toBe(180);
+    expect(resize('End')).toBe(400);
+    expect(resize('ArrowRight')).toBe(400);
+  });
+
+  test('sidebar observes its parent container instead of the browser viewport', async () => {
+    const output = path.join(tmpDir, 'nav-side-container.jsx');
+    await run(['openyida-page-template', 'canvas-nav-side', '--output', output]);
+    const fragment = fs.readFileSync(output, 'utf8');
+    const { runtimeCode } = compileCanvasLocal(`${fragment}\nfunction YidaComp() { return CanvasSidebar({}); }`);
+    const setters = [];
+    const layoutEffects = [];
+    const observed = [];
+    let observerCallback;
+    const runtime = {
+      innerWidth: 1600,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      ResizeObserver: class {
+        constructor(callback) { observerCallback = callback; }
+        observe(node) { observed.push(node); }
+        disconnect() {}
+      },
+      React: {
+        createElement: (type, props, ...children) => ({ type, props, children }),
+        useState: initial => {
+          const setter = jest.fn();
+          setters.push(setter);
+          return [typeof initial === 'function' ? initial() : initial, setter];
+        },
+        useRef: current => ({ current }),
+        useId: () => 'sidebar-container',
+        useEffect: () => {},
+        useLayoutEffect: effect => layoutEffects.push(effect),
+      },
+      LucideReact: {},
+    };
+    const sidebar = new Function('window', `${runtimeCode}; return YidaComp();`)(runtime);
+    const parent = { getBoundingClientRect: () => ({ width: 600 }) };
+    const aside = { parentElement: parent, getBoundingClientRect: () => ({ width: 216 }) };
+    sidebar.props.ref.current = aside;
+    const cleanup = layoutEffects[0]();
+
+    expect(observed).toEqual([parent, aside]);
+    expect(setters[3].mock.calls.at(-1)[0](1600)).toBe(600);
+    expect(setters[5].mock.calls.at(-1)[0](0)).toBe(216);
+    observerCallback();
+    expect(setters[3]).toHaveBeenCalledTimes(2);
+    cleanup();
+  });
+
+  test('navigation data filters PRD menus by viewer visibility without adopting server order or extra entries', async () => {
+    const output = path.join(tmpDir, 'nav-data.jsx');
+    await run(['openyida-page-template', 'canvas-nav-data', '--output', output]);
+    const source = fs.readFileSync(output, 'utf8');
+    expect(source).not.toMatch(/CANVAS_NAV_CSS|function CanvasNav|import /);
+    const navs = [
+      { navUuid: 'hidden', hidden: true, children: [{ navUuid: 'hidden-child' }] },
+      { navUuid: 'group', children: [{ navUuid: 'allowed', url: '/target', targetNew: true }, { navUuid: 'blocked', slug: 'hidden-slug' }] },
+      { navUuid: 'vm-hidden', children: [{ navUuid: 'vm-hidden-child' }] },
+      { navUuid: 'last', children: [] },
+      { navUuid: 'unplanned', children: [] },
+    ];
+    const items = [
+      { key: 'workbench', label: '工作台', formUuid: 'last', children: [] },
+      { key: 'tasks', label: '任务入口', children: [
+        { key: 'submit', label: '活动报名', formUuid: 'allowed', targetType: 'submission' },
+        { key: 'manage', label: '报名管理', navUuid: 'allowed', targetType: 'page' },
+        { key: 'blocked', formUuid: 'blocked' },
+        { key: 'hidden-child', formUuid: 'hidden-child' },
+        { key: 'vm-hidden-child', formUuid: 'vm-hidden-child' },
+      ] },
+      { key: 'empty-group', children: [{ key: 'missing', formUuid: 'not-returned' }] },
+    ];
+    const fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, content: { navs } }) });
+    const load = new Function('fetch', `${source}; return loadCanvasNavigation;`)(fetch);
+    const input = { items, appType: 'APP_TEST', formUuid: 'FORM_CURRENT', csrfToken: 'runtime-token', hiddenNav: ['hidden-slug', 'vm-hidden'] };
+    const result = await load(input);
+    expect(result.map(item => item.key)).toEqual(['workbench', 'tasks']);
+    expect(result[0]).toEqual(items[0]);
+    expect(result[1]).toEqual({ ...items[1], children: items[1].children.slice(0, 2) });
+    expect(items[1].children).toHaveLength(5);
+    expect(navs[1].children).toHaveLength(2);
+    const [url, options] = fetch.mock.calls[0];
+    expect(url).toContain('/APP_TEST/query/formdesign/getAccessableNavs.json?');
+    expect(new URL(url, 'https://example.com').searchParams.get('formUuid')).toBe('FORM_CURRENT');
+    expect(options).toMatchObject({ credentials: 'include', cache: 'no-store' });
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, content: { navs: [...navs].reverse() } }) });
+    await expect(load(input)).resolves.toEqual(result);
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, content: { navs: navs.filter(nav => nav.navUuid !== 'last') } }) });
+    await expect(load(input)).resolves.toEqual([result[1]]);
+    fetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, content: { navs: [] } }) });
+    await expect(load(input)).resolves.toEqual([]);
+    for (const payload of [{ success: false, content: { navs } }, { success: true, content: {} }]) {
+      fetch.mockResolvedValue({ ok: true, json: async () => payload });
+      await expect(load(input)).rejects.toThrow('导航加载失败');
+    }
+    fetch.mockResolvedValue({ ok: false });
+    await expect(load(input)).rejects.toThrow('导航加载失败');
+    await expect(load({ appType: 'APP_TEST' })).rejects.toThrow('缺少 PRD 导航配置');
+  });
+
+  test('navigation task selects submission or management for the same form', async () => {
+    const output = path.join(tmpDir, 'nav-data.jsx');
+    await run(['openyida-page-template', 'canvas-nav-data', '--output', output]);
+    const source = fs.readFileSync(output, 'utf8');
+    const build = new Function(`${source}; return buildCanvasNavigationUrl;`)();
+    const item = { navUuid: 'FORM_TEST', params: { activity: '活动 A' } };
+    const submission = new URL(build({ ...item, targetType: 'submission' }, 'APP_TEST', { embedded: true }), 'https://example.com');
+    expect(submission.pathname).toBe('/APP_TEST/submission/FORM_TEST');
+    expect(submission.searchParams.get('isRenderNav')).toBe('false');
+    expect(submission.searchParams.get('activity')).toBe('活动 A');
+    const management = new URL(build({ ...item, targetType: 'page' }, 'APP_TEST', { embedded: true }), 'https://example.com');
+    expect(management.pathname).toBe('/APP_TEST/workbench/FORM_TEST');
+    expect(management.searchParams.get('iframe')).toBe('true');
+    expect(build({ navUuid: 'FORM_TEST', targetType: 'submission' }, 'APP_TEST')).toBe('/APP_TEST/submission/FORM_TEST');
+    expect(() => build(item, 'APP_TEST')).toThrow('请明确导航入口用途');
+  });
+
+  test('navigation links preserve href and modified clicks while local selection stays controlled', async () => {
+    const output = path.join(tmpDir, 'nav.jsx');
+    await run(['openyida-page-template', 'canvas-nav-dock', '--output', output]);
+    const fragment = fs.readFileSync(output, 'utf8');
+    const { runtimeCode } = compileCanvasLocal(`${fragment}\nfunction YidaComp(props) { return CanvasNavItem(props); }`);
+    const render = new Function('window', `${runtimeCode}; return YidaComp;`)({
+      React: { createElement: (type, props, ...children) => ({ type, props, children }) },
+    });
+    const item = { key: 'orders', label: '订单', href: '/custom/FORM?locale=zh_CN#/orders' };
+    const onSelect = jest.fn();
+    const preventDefault = jest.fn();
+    const link = render({ item, activeKey: 'orders', onSelect });
+    expect(link.type).toBe('a');
+    expect(link.props.href).toBe(item.href);
+    expect(link.props['aria-current']).toBe('page');
+    link.props.onClick({ button: 0, metaKey: true, preventDefault });
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(onSelect).not.toHaveBeenCalled();
+    link.props.onClick({ button: 0, preventDefault });
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith(item);
+    const newWindow = render({ item: { ...item, targetNew: true }, onSelect });
+    expect(newWindow.props.target).toBe('_blank');
+    newWindow.props.onClick({ button: 0, preventDefault });
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    const disabled = render({ item: { ...item, disabled: true }, onSelect });
+    expect(disabled.type).toBe('button');
+    expect(disabled.props.disabled).toBe(true);
   });
 
   test('Canvas-first chart and table-form samples are discoverable and compile', async () => {
@@ -46,11 +510,203 @@ describe('sample templates', () => {
     expect(JSON.parse(chartResult.importedModules)).toEqual(['antd', 'react', 'recharts']);
     expect(chartSource).toContain('sample/seed 聚合数据');
     expect(chartSource).not.toMatch(/\.(?:reduce|groupBy)\(/);
+    expect(chartSource).not.toContain('data-theme-scope');
+    expect(chartSource).toContain('min-height: 100vh');
+    expect(chartSource).toContain('var(--pod-page-bg-color, var(--color-white, #fff))');
 
     expect(JSON.parse(tableResult.importedModules)).toEqual(['antd', 'dayjs', 'react']);
     expect(tableSource).toContain('writeBridge.verified');
     expect(tableSource).toContain('Promise.all');
+    expect(tableSource).toContain('resolveCanvasTheme');
+    expect(tableSource).toContain('min-height: 100vh');
+    expect(tableSource).toContain('background: var(--pod-page-bg-color, var(--color-white, #fff))');
+    expect(tableSource).toContain('background: var(--pod-card-bg-color, var(--color-white, #fff))');
+    expect(tableSource).not.toContain('linear-gradient(145deg, #F0F9F7');
     expect(tableSource).not.toContain('this.utils.yida');
+    expect(tableSource).not.toContain('data-theme-scope');
+  });
+
+  test('container-responsive layout sample compiles and preserves local business state', async () => {
+    const output = path.join(tmpDir, 'canvas-responsive-layout.jsx');
+    await run(['openyida-page-template', 'canvas-responsive-layout', '--output', output]);
+    const source = fs.readFileSync(output, 'utf8');
+    const result = compileCanvasLocal(source, { sourcePath: output });
+
+    expect(JSON.parse(result.importedModules)).toEqual(['react']);
+    expect(source).toContain('container: oy-content / inline-size');
+    expect(source).toContain('@container oy-content (max-width: ${breakpoints.stacked - 1}px)');
+    expect(source).toContain('observer.disconnect()');
+    expect(source).toContain('window.cancelAnimationFrame');
+    expect(source).toContain('overflow-x: auto');
+    expect(source).not.toMatch(/key=\{(?:layout|width|measurement)/);
+    expect(result.warnings.map(warning => warning.rule)).not.toContain('responsive-viewport-only');
+  });
+
+  test('OpenYida page templates are copied, substituted, and compile the drawer container', async () => {
+    const formOutput = path.join(tmpDir, 'form-fields.json');
+    const pageOutput = path.join(tmpDir, 'canvas-form-drawer.canvas.jsx');
+
+    await run(['openyida-page-template', 'form-fields', '--output', formOutput]);
+    await run([
+      'openyida-page-template',
+      'canvas-form-drawer',
+      '--output',
+      pageOutput,
+      '--var',
+      'APP_TYPE=APP_SAMPLE',
+      '--var',
+      'FORM_UUID=FORM_SAMPLE',
+    ]);
+
+    const fields = JSON.parse(fs.readFileSync(formOutput, 'utf8'));
+    const pageSource = fs.readFileSync(pageOutput, 'utf8');
+    const pageResult = compileCanvasLocal(pageSource, { sourcePath: pageOutput });
+
+    // 校验生成并编译后的 iframe 使用容器高度，避免外层再次出现滚动。
+    const runtimeWindow = {
+      React: {
+        createContext: () => ({}),
+        createElement: (type, props, ...children) => ({ type, props, children }),
+        useMemo: (factory) => factory(),
+      },
+      antd: { Typography: {} },
+      LucideReact: {},
+    };
+    Object.assign(runtimeWindow.React, {
+      useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}],
+      useEffect: () => {},
+      useRef: (current) => ({ current }),
+    });
+    runtimeWindow.innerWidth = 1440;
+    // eslint-disable-next-line no-new-func
+    const FormOpenContainer = new Function('window', pageResult.runtimeCode + '; return FormOpenContainer;')(runtimeWindow);
+    const drawer = FormOpenContainer({ request: { type: 'submission', formUuid: 'FORM_SAMPLE' }, currentAppType: 'APP_SAMPLE' });
+    const iframe = drawer.children.find((child) => child && child.type === 'iframe');
+    expect(drawer.props.contentMode).toBe('iframe');
+    expect(iframe.props.style).toMatchObject({ position: 'absolute', inset: 0, height: '100%', minHeight: 0 });
+    const renderShell = (props) => drawer.type(props).children.find((child) => child?.props?.styles);
+    const frameShell = renderShell({ ...drawer.props, children: iframe });
+    expect(frameShell.props.styles.header).toMatchObject({
+      height: 'var(--pod-nav-platform-header-height, 48px)',
+      flex: '0 0 var(--pod-nav-platform-header-height, 48px)',
+      background: 'transparent',
+    });
+    expect(frameShell.props.styles.body).toMatchObject({ display: 'flex', flex: '1 1 0', padding: 0, minHeight: 0, overflow: 'hidden' });
+    expect(frameShell.children.some((child) => child?.props?.className === 'oy-drawer-frame')).toBe(true);
+    const contentShell = renderShell({ open: true, children: '正文' });
+    expect(contentShell.props.styles.body.padding).toBe('0 8px 8px');
+    expect(contentShell.children.some((child) => child?.props?.className === 'oy-drawer-card')).toBe(true);
+    const drawerBackground = 'var(--pod-shell-theme-bg-color, var(--color-white, #fff))';
+    expect(contentShell.props.styles.content.background).toBe(drawerBackground);
+    expect(frameShell.props.styles.content.background).toBe(drawerBackground);
+    expect(frameShell.props.styles.header.color).toBe('var(--drawer-title-color, var(--pod-page-header-text-color, var(--color-text1-4, #1f2329)))');
+    expect(frameShell.props.styles.content.color).toBe('var(--drawer-content-color, var(--pod-page-header-text-color, var(--color-text1-4, #1f2329)))');
+    expect(pageSource).toContain('--pod-page-header-text-color');
+    expect(contentShell.props.styles.body.background).toBe('transparent');
+    expect(pageSource.match(/\.openyida-form-drawer \.oy-drawer-card \{([^}]+)\}/)[1]).toContain('background: transparent;');
+    expect(renderShell({ open: true, background: '#123456' }).props.styles.content.background).toBe('#123456');
+    const customForm = FormOpenContainer({ request: { type: 'submission', formUuid: 'FORM_SAMPLE', background: '#123456' }, currentAppType: 'APP_SAMPLE' });
+    expect(renderShell(customForm.props).props.styles.content.background).toBe('#123456');
+
+
+    for (const type of ['submission', 'detail']) {
+      const request = {
+        type, formUuid: 'FORM_SAMPLE', formInstId: 'REAL_INSTANCE',
+        params: { corpid: 'ding_test', source: '活动 A&B', isRenderNav: true, formInstId: 'WRONG_INSTANCE' },
+      };
+      const container = FormOpenContainer({ request, currentAppType: 'APP_SAMPLE' });
+      const frame = container.children.find((child) => child && child.type === 'iframe');
+      expect(container.props.contentMode).toBe('iframe');
+      const formShell = renderShell({ ...container.props, children: frame });
+      expect(formShell.props.styles.body.padding).toBe(0);
+      expect(formShell.children.some((child) => child?.props?.className === 'oy-drawer-card')).toBe(false);
+      expect(formShell.children.some((child) => child?.props?.className === 'oy-drawer-frame')).toBe(true);
+      const url = new URL(frame.props.src, 'https://example.com');
+      expect(url.searchParams.get('corpid')).toBe('ding_test');
+      expect(url.searchParams.get('source')).toBe('活动 A&B');
+      expect(url.searchParams.get('isRenderNav')).toBe('false');
+      if (type === 'detail') {
+        expect(url.searchParams.get('formInstId')).toBe('REAL_INSTANCE');
+        expect(url.searchParams.get('navConfig.layout')).toBe('1180');
+      }
+    }
+
+
+    expect(() => createForm._private.validateFormFieldDefinitions(fields)).not.toThrow();
+    expect(JSON.parse(pageResult.importedModules)).toEqual(['antd', 'lucide-react', 'react']);
+    expect(pageSource).toContain('function FormOpenContainer');
+    expect(pageSource).toContain('resolveCanvasTheme');
+    expect(pageSource).toContain('min-height: 100vh');
+    expect(pageSource).toContain('background: var(--pod-page-bg-color, var(--color-white, #fff))');
+    expect(pageSource).toContain('background: var(--pod-card-bg-color, var(--color-white, #fff))');
+    expect(pageSource).toContain('border: var(--pod-card-border, none)');
+    expect(pageSource).toContain('border-radius: var(--pod-card-border-radius, 20px)');
+    expect(pageSource).not.toContain('linear-gradient(180deg, #F5FAF9');
+    expect(pageSource).toContain("'navConfig.layout': 1180");
+    expect(pageSource).toContain('row.formInstId || row.formInstanceId || row.instanceId || row.id');
+    expect(pageSource).not.toContain('FORM_INST_SAMPLE');
+    expect(pageSource).not.toContain('{{APP_TYPE}}');
+    expect(pageSource).not.toContain('{{FORM_UUID}}');
+    expect(pageSource).not.toContain('脚手架预览');
+    expect(pageSource).not.toContain('当前仍是脚手架占位资源');
+  });
+
+  test('standalone drawer sample integrates into an existing Canvas page without page scaffolding', async () => {
+    const output = path.join(tmpDir, 'form-open-container.jsx');
+    await run(['openyida-page-template', 'form-open-container', '--output', output]);
+    const fragment = fs.readFileSync(output, 'utf8');
+    const source = `${fragment}\nfunction YidaComp() {
+      const { openForm, formOpenContainer } = useYidaFormOpen('APP_EXISTING', () => {});
+      return <><button onClick={() => openForm({ type: 'submission', formUuid: 'FORM_EXISTING' })}>新增</button>{formOpenContainer}</>;
+    }\nexport default YidaComp;`;
+    const result = compileCanvasLocal(source, { sourcePath: output });
+    expect(JSON.parse(result.importedModules)).toEqual(['antd', 'lucide-react', 'react']);
+    expect(fragment).not.toMatch(/SAMPLE_ROWS|RAW_APP_TYPE|ConfigProvider|function YidaComp|export default|\{\{APP_TYPE\}\}/);
+
+    const generic = compileCanvasLocal(`${fragment}\nfunction YidaComp() { return <CanvasDrawer open title="客户资料" onClose={() => {}}><p>客户信息</p></CanvasDrawer>; }`, { sourcePath: output });
+    const element = new Function('window', `${generic.runtimeCode}; return YidaComp();`)({
+      React: { createElement: (type, props, ...children) => ({ type, props, children }) },
+      antd: {}, LucideReact: {},
+    });
+    expect(element.type.name).toBe('CanvasDrawer');
+    expect(element.children[0].children).toEqual(['客户信息']);
+  });
+
+  test('dialog sample compiles with controlled actions and custom footer props', async () => {
+    const output = path.join(tmpDir, 'canvas-dialog.jsx');
+    await run(['openyida-page-template', 'canvas-dialog', '--output', output]);
+    const fragment = fs.readFileSync(output, 'utf8');
+    const result = compileCanvasLocal(`${fragment}\nfunction YidaComp() {
+      return <CanvasDialog open title="归档" footer={null} confirmLoading onOk={() => 'ok'} onCancel={() => 'cancel'} rootClassName="customer-dialog"><p>记录</p></CanvasDialog>;
+    }`, { sourcePath: output });
+    expect(JSON.parse(result.importedModules)).toEqual(['antd', 'react']);
+    const element = new Function('window', `${result.runtimeCode}; return YidaComp();`)({
+      React: { createElement: (type, props, ...children) => ({ type, props: { ...props, children }, children }) },
+      antd: { Modal: 'Modal' },
+    });
+    const modal = element.type(element.props).children[1];
+    expect(modal.type).toBe('Modal');
+    expect(modal.props).toMatchObject({ open: true, footer: null, confirmLoading: true, rootClassName: 'openyida-dialog customer-dialog' });
+    expect(modal.props.onOk()).toBe('ok');
+    expect(modal.props.onCancel()).toBe('cancel');
+  });
+
+  test('application theme template is copied byte-for-byte through the CLI', async () => {
+    const themeOutput = path.join(tmpDir, 'app-theme.css');
+    const themeSource = path.join(
+      __dirname,
+      '..',
+      'yida-skills',
+      'skills',
+      'yida-design',
+      'references',
+      'theme',
+      'app-custom-theme-template.css'
+    );
+
+    await run(['yida-design', 'app-theme', '--output', themeOutput]);
+
+    expect(fs.readFileSync(themeOutput)).toEqual(fs.readFileSync(themeSource));
   });
 
   test('remaining samples avoid near-black default business surfaces', () => {
@@ -58,6 +714,7 @@ describe('sample templates', () => {
       path.join(__dirname, '..', 'lib', 'samples', 'yida-density'),
       path.join(__dirname, '..', 'lib', 'samples', 'yida-table-form'),
       path.join(__dirname, '..', 'lib', 'samples', 'yida-chart'),
+      path.join(__dirname, '..', 'lib', 'samples', 'openyida-scaffold'),
     ];
     const appThemePattern = /followRuntimeTheme:\s*true|var\(--color-brand/i;
     const nearBlackThemePattern = /#111827|#0f172a|#1f2937|rgba\(17,\s*24,\s*39|rgba\(23,?\s*26,?\s*29|rgba\(31,?\s*41,?\s*55/i;
@@ -65,7 +722,8 @@ describe('sample templates', () => {
     sampleRoots.forEach((root) => {
       fs.readdirSync(root).filter((filename) => /\.(js|jsx)$/.test(filename)).forEach((filename) => {
         const source = fs.readFileSync(path.join(root, filename), 'utf8');
-        expect(source).not.toMatch(appThemePattern);
+        // Canvas templates consume application CSS variables; platform JSX samples use their runtime theme adapter.
+        if (!filename.endsWith('.canvas.jsx')) {expect(source).not.toMatch(appThemePattern);}
         expect(source).not.toMatch(nearBlackThemePattern);
       });
     });
@@ -107,5 +765,208 @@ describe('sample templates', () => {
     expect(tableForm).toContain('importDemoRows');
     expect(tableForm).toContain('clearAllRows');
     expect(tableForm).toContain('最近操作');
+  });
+});
+
+describe('application theme from design.md', () => {
+  const { readDesignTokens, applyDesignTokens } = require('../lib/app/theme-from-design');
+  const { renderDesign } = require('../lib/design-plan/materialize');
+  const template = fs.readFileSync(path.join(__dirname, '../yida-skills/skills/yida-design/references/theme/app-custom-theme-template.css'), 'utf8');
+  const fixture = require('./fixtures/design-plan.json');
+  const themeIndex = require('../yida-skills/skills/yida-design/templates/design-themes/index.json');
+  const tokens = {
+    '--color-brand1-1': '#7197EE', '--color-brand1-2': '#EFF3FE', '--color-brand1-3': '#DAE3FD',
+    '--color-brand1-5': '#2245AA', '--color-brand1-6': '#315BCC', '--color-brand1-9': '#1F3D99',
+    '--color-brand1-10': '#B5C4EE', '--pod-card-border-radius': '16px',
+  };
+  const fastDesign = `---\ntokens:\n${Object.entries(tokens).map(([k, v]) => `  ${k}: ${v}`).join('\n')}\n---\n`;
+  const structure = css => css.replace(/(--[\w-]+)\s*:[^;]+;/g, '$1: TOKEN;');
+  const navigationShape = /\/\* openyida-navigation-shape:start \*\/[\s\S]*?\/\* openyida-navigation-shape:end \*\//;
+
+  test('Fast changes token values while preserving selectors and semantic colors', () => {
+    const css = applyDesignTokens(template, fastDesign);
+    expect(css).toContain('--color-brand1-6: #315BCC;');
+    expect(css).toContain('--pod-card-border-radius: 16px;');
+    // Explicit brand references follow the new value; historical fallback colors
+    // remain fallback-only and must not be globally replaced by equal color value.
+    expect(css).toContain('--pod-nav-logo-bg: var(--color-brand1-6, rgba(155, 136, 121, 1));');
+    // Mobile aliases are present in the base template; generation also adds the chart palette.
+    const root = css.match(/^:root\s*\{([^{}]*)\}/m)[1];
+    for (const name of ['--color-brand-1', '--color-brand-2', '--color-brand-3', '--color-brand-4', '--color-group']) {
+      expect(root).toContain(`${name}:`);
+    }
+    const withoutAliases = css.replace(/^[ \t]*--color-group\s*:[^;]+;\n/gm, '');
+    expect(structure(withoutAliases)).toBe(structure(template.replace(navigationShape, '')));
+    expect(css.match(/--color-error[^;]+;/g)).toEqual(template.match(/--color-error[^;]+;/g));
+  });
+
+  test.each(themeIndex.themes.filter(theme => theme.mode !== 'creative').map(theme => [theme.id || theme.themeId]))('Plan theme %s uses the public CSS pipeline', themeId => {
+    const plan = JSON.parse(JSON.stringify(fixture));
+    const theme = themeIndex.themes.find(item => item.themeId === themeId);
+    const authored = require('../lib/design/document').parseDesignDocument(fs.readFileSync(
+      require('../lib/design-plan/themes').themeTemplatePath(theme), 'utf8')).metadata.tokens['application-global'].colors['--color-brand1-6'];
+    plan.visualStyle.forUser.colorStrategy.primaryColor = /^#[0-9a-f]{6}$/i.test(authored) ? authored : '#6F4E37';
+    delete plan.visualStyle.forUser.themeProfile;
+    plan.visualStyle.forUser.selectedTheme = themeIndex.themes.find(theme => theme.themeId === themeId);
+    plan.visualStyle.tokens = { '--pod-card-border-radius': '16px' };
+    const design = renderDesign(plan);
+    const css = applyDesignTokens(template, design);
+    const root = css.match(/^:root\s*\{([^{}]*)\}/m)[1];
+    const rootTokens = Object.fromEntries([...root.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)]
+      .map(([, name, value]) => [name, value.trim()]));
+    for (const [name, value] of Object.entries(readDesignTokens(design))) {
+      expect(rootTokens[name]).toBe(value);
+    }
+    expect(readDesignTokens(design)['--pod-card-border-radius']).toBe('16px');
+    expect(css).toContain('--pod-card-border-radius: 16px;');
+    expect(css).toContain(`--color-brand1-6: ${plan.visualStyle.forUser.colorStrategy.primaryColor};`);
+    // Ignore new theme declarations while preserving all existing selectors and scope.
+    const rootPattern = /^:root\s*\{([\s\S]*?)^\}/m;
+    const originalRoot = template.match(rootPattern)[1];
+    const originalNames = new Set([...originalRoot.matchAll(/(--[\w-]+)\s*:/g)].map(m => m[1]));
+    let withoutExtra = css.replace(rootPattern, root => root.replace(
+      /^[ \t]*(--[\w-]+)\s*:[^;]+;\n/gm, (line, name) => originalNames.has(name) ? line : ''
+    ));
+    const designTokens = readDesignTokens(design);
+    expect(css).not.toMatch(/\.pod-premium\.(?:is|nav)-(?:light|dark|white|gray)\s*\{/);
+    const recipe = plan.visualStyle.forUser.selectedTheme.collection === 'application-styles'
+      ? fs.readFileSync(path.join(__dirname, '../yida-skills/skills/yida-design/references/theme/application-style-recipes.css'), 'utf8') : '';
+    const hasExtraShape = Object.keys(designTokens).some(name => /^--pod-nav-menu-item-(?:border|hover-border|selected-border|selected-shadow)$/.test(name));
+    expect(navigationShape.test(withoutExtra)).toBe(hasExtraShape);
+    withoutExtra = withoutExtra.replace(navigationShape, '');
+    const baseTemplate = template.replace(navigationShape, '');
+    expect(structure(withoutExtra).trim()).toBe(structure(recipe ? baseTemplate.trimEnd() + '\n\n' + recipe : baseTemplate).trim());
+  });
+
+  test('CLI applies only changed tokens and skips identical writes', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'openyida-theme-delta-'));
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const design = path.join(dir, 'design.md');
+      const css = path.join(dir, 'app-theme.css');
+      const snapshot = `${css}.tokens.md`;
+      const apply = () => run(['yida-design', 'app-theme', '--design-file', design, '--output', css]);
+      fs.writeFileSync(design, fastDesign);
+      await apply();
+      fs.writeFileSync(css, fs.readFileSync(css, 'utf8')
+        .replace('--pod-card-border-radius: 16px;', '--pod-card-border-radius: 27px;')
+        .replace(/--color-brand-1:[^;]+;/, '--color-brand-1: #123456;') + '\n.my-popup { padding: 23px; }\n');
+      fs.writeFileSync(design, fastDesign.replace('#315BCC', '#8844AA'));
+      await apply();
+      const updated = fs.readFileSync(css, 'utf8');
+      expect(updated).toContain('--color-brand1-6: #8844AA;');
+      expect(updated).toContain('--pod-card-border-radius: 27px;');
+      expect(updated).toContain('--color-brand-1: #123456;');
+      expect(updated).toContain('.my-popup { padding: 23px; }');
+      fs.writeFileSync(css, updated.replace(':root {', ':root\n{'));
+      const modified = [css, snapshot].map(file => fs.statSync(file).mtimeMs);
+      await apply();
+      expect([css, snapshot].map(file => fs.statSync(file).mtimeMs)).toEqual(modified);
+      fs.writeFileSync(design, fastDesign.replace('#315BCC', '#8844AA').replace('16px', '18px'));
+      await apply();
+      expect(fs.readFileSync(css, 'utf8')).toContain('--pod-card-border-radius: 18px;');
+      // Explicit template reset clears the previous baseline so the next application is complete.
+      await run(['yida-design', 'app-theme', '--output', css]);
+      await apply();
+      expect(fs.readFileSync(css, 'utf8')).toContain('--color-brand1-6: #8844AA;');
+    } finally {
+      err.mockRestore(); log.mockRestore(); fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test.each([false, true])('CLI rejects damaged existing CSS without changing files (design changed: %s)', async changed => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'openyida-theme-structure-'));
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const design = path.join(dir, 'design.md');
+      const css = path.join(dir, 'app-theme.css');
+      const snapshot = `${css}.tokens.md`;
+      const apply = () => run(['yida-design', 'app-theme', '--design-file', design, '--output', css]);
+      fs.writeFileSync(design, fastDesign);
+      await apply();
+      // Reproduce the missing first root closure, with otherwise valid downstream rules.
+      const broken = fs.readFileSync(css, 'utf8').replace(/^\}/m, '');
+      fs.writeFileSync(css, broken);
+      if (changed) {fs.writeFileSync(design, fastDesign.replace('16px', '18px'));}
+      const before = [css, snapshot].map(file => fs.readFileSync(file, 'utf8'));
+      await expect(apply()).rejects.toMatchObject({ code: 'THEME_CSS_STRUCTURE_INVALID' });
+      expect([css, snapshot].map(file => fs.readFileSync(file, 'utf8'))).toEqual(before);
+    } finally {
+      err.mockRestore(); log.mockRestore(); fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('template-only export rejects damaged source CSS before writing', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'openyida-theme-template-'));
+    const output = path.join(dir, 'app-theme.css');
+    const read = fs.readFileSync;
+    const spy = jest.spyOn(fs, 'readFileSync').mockImplementation((file, ...args) => {
+      const content = read(file, ...args);
+      return String(file).endsWith('app-custom-theme-template.css') ? content.replace(/^\}/m, '') : content;
+    });
+    try {
+      await expect(run(['yida-design', 'app-theme', '--output', output]))
+        .rejects.toMatchObject({ code: 'THEME_CSS_STRUCTURE_INVALID' });
+      expect(fs.existsSync(output)).toBe(false);
+      expect(fs.existsSync(`${output}.tokens.md`)).toBe(false);
+    } finally {
+      spy.mockRestore(); fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('failed baseline installation rolls back CSS and its previous token snapshot', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'openyida-theme-rollback-'));
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+    let rename;
+    try {
+      const design = path.join(dir, 'design.md');
+      const css = path.join(dir, 'app-theme.css');
+      const snapshot = `${css}.tokens.md`;
+      fs.writeFileSync(design, fastDesign);
+      const apply = () => run(['yida-design', 'app-theme', '--design-file', design, '--output', css]);
+      await apply();
+      const before = [css, snapshot].map(file => fs.readFileSync(file, 'utf8'));
+      fs.writeFileSync(design, fastDesign.replace('16px', '18px'));
+      const original = fs.renameSync;
+      rename = jest.spyOn(fs, 'renameSync').mockImplementation((from, to) => {
+        if (to === snapshot && from.endsWith('next')) { throw new Error('snapshot write failed'); }
+        return original(from, to);
+      });
+      await expect(apply()).rejects.toThrow('snapshot write failed');
+      expect([css, snapshot].map(file => fs.readFileSync(file, 'utf8'))).toEqual(before);
+    } finally {
+      rename?.mockRestore(); err.mockRestore(); log.mockRestore(); fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('CLI generates CSS and leaves an existing output intact when design tokens are invalid', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'openyida-theme-cli-'));
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const designPath = path.join(dir, 'design.md');
+      const cssPath = path.join(dir, 'app-theme.css');
+      fs.writeFileSync(designPath, fastDesign);
+      await run(['yida-design', 'app-theme', '--design-file', designPath, '--output', cssPath]);
+      fs.appendFileSync(cssPath, '\n.custom-popup { padding: 23px; }\n');
+      await run(['yida-design', 'app-theme', '--design-file', designPath, '--output', cssPath]);
+      const before = fs.readFileSync(cssPath, 'utf8');
+      expect(before).toContain('.custom-popup { padding: 23px; }');
+      expect(before).toContain('--color-brand1-6: #315BCC;');
+      fs.writeFileSync(designPath, fastDesign.replace('#315BCC', '<待生成>'));
+      await expect(run(['yida-design', 'app-theme', '--design-file', designPath, '--output', cssPath])).rejects.toMatchObject({
+        code: 'DESIGN_THEME_TOKEN_INVALID', details: { token: '--color-brand1-6' },
+      });
+      expect(fs.readFileSync(cssPath, 'utf8')).toBe(before);
+      await expect(run(['yida-design', 'app-theme', '--design-file', designPath, '--output', designPath])).rejects.toMatchObject({ code: 'SAMPLE_OUTPUT_CONFLICT' });
+      // Values outside tokens are metadata, never CSS declarations.
+      expect(readDesignTokens(fastDesign.replace('---\n', '---\ntokensOther:\n  --color-brand1-6: #000000\n'))['--color-brand1-6']).toBe('#315BCC');
+    } finally {
+      log.mockRestore(); err.mockRestore();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

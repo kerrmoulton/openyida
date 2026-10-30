@@ -1,69 +1,81 @@
-# Step 2：选择主题色和 token
+# 选择主题色和 token
 
-> 这一步选择应用主色、辅助色、字体层级、组件基调和宜搭 token 作用域。
+> 这一步同时设计导航、应用框架、表单、记录详情和自定义页面，确定配色、字体、形状、间距与状态，并写入应用 token。
 
 视觉方向要从“高级 / 简洁 / 商务”继续落细。PRD 只写应用主题色和风格摘要；`design.md` 写完整 `themeProfile`、主题 token、主色、辅助色、中性色、字体层级和组件基调。
 
-已有应用里的单页重构/美化优先读取并沿用当前应用主题；只有用户明确要求完全不同视觉、独立品牌/活动页、页面级沉浸页、应用导航隐藏后的自绘壳或指定新品牌色时，才做页面级独立主色。
+本节用于应用级主题。旧主题新增页先按 [单页风格范围](../sub_skill/page-design/SKILL.md#旧主题应用新增页面的风格范围) 确认；仅本页独立设计时使用局部样式，不进入主题生成和上传。
+
+已有应用里的单页重构/美化默认读取并沿用当前应用主题。用户要求更换主色时，更新应用级主题文件，不在页面代码中创建或向上层写入另一套主题。
+
+先按[意向识别](../references/theme-selection.md#已选风格只确认一次)确定是否需要比较。用户已有风格描述时直接推演构图、层级、材质和色彩关系；参考网站或设计图先按[视觉 DNA 提取](../references/reference-visual-dna.md)读取再设计；仅无意向、参考或可复用选择时进入[设计方向比较](../references/theme-selection.md#设计方向比较)。
 
 ## 选择主题色
 
-先确定主题色来源，再确定是否能传给应用主题接口。主题色来源优先级如下：
+必需的品牌色阶是 `--color-brand1-1/2/3/5/6/9/10` 七档，统一写入 design.md 并生成到顶层 `:root`。精简可选导航 token 时仍须保留完整色阶。生成或上传报缺档、空值或引用问题时回到设计源修复，不以只替换主色、局部页面声明或追加默认调色板绕过校验。
+
+先确定主题色来源，再生成应用主题文件。用户确认“自然绿意”等整体风格时，页面浅底、卡片、填充、边界和交互一起协调，不能只改主按钮；字体保持清晰中性层级，状态保持语义色。模板固定雾白/灰阶不能覆盖该选择。完整规则见 [用户配色与模板的优先级](output-design.md#用户配色与模板的优先级)。主题色来源优先级如下：
 
 | 优先级 | themeColorSource | 触发条件 | 输出规则 |
 | --- | --- | --- | --- |
-| 1 | `user-specified` | 用户明确给出色值、品牌色、主题 key 或换肤要求 | 原样记录用户意图；命中平台 key 才允许传 `--theme`，任意色值写 token |
-| 2 | `application-theme` | 已有应用、工作区、历史命令输出中能读到 `theme`、`colour`、`themeProfile` 或 `customThemeStyle.tokens` | 单页美化和已有应用改造默认跟随；页面主按钮、链接、选中态和图表主序列跟随应用主题 |
-| 3 | `platform-preset-match` | 根据业务气质推导出的主题刚好命中平台预置主题 key | 写 `themePresetKey=<key>`，`shouldPassCreateAppTheme=true` |
-| 4 | `business-inferred` | 无明确主题证据，需要根据行业、品牌气质、业务情绪和视觉目标推导 | 设计自定义品牌色盘，写 token 和注入方案，`shouldPassCreateAppTheme=false` |
-| 5 | `template-default` | 没有任何主题证据且无法稳定推导业务色彩 | 临时使用 Step 5 所选 style-design 的默认 brand token，并明确标记为兜底 |
+| 1 | `user-specified` | 用户已选主题，或明确风格、颜色及换肤要求 | 保留所选主题并落实最新颜色要求；平台 key 才传 `--theme`，任意色值写 token |
+| 2 | `application-theme` | 已有应用或工作区中能读到当前 `theme`、`colour`、`themeColor` 或 `navTheme` | 沿用应用整体配色和已定义的组件颜色角色；缺少角色时结合当前背景补齐，不要求所有强调都用主色 |
+| 3 | `business-inferred` | 无明确视觉约束或可复用主题，按真实任务、阅读环境和状态区分推导 | 写清颜色用途与业务依据，形成项目色盘；不因 CRM、库存等名称默认选绿或蓝 |
 
-1. 先判断业务气质：行业、目标用户、品牌关键词、业务情绪、视觉目标，以及是否需要亲和/专业/活力/稳重/科技/自然感。
-2. 再判断是否命中平台预置主题 key：命中时写 `themePresetKey=<key>`，创建或更新应用时才允许传 `--theme <key>` / `colour=<key>`。
-3. 若设计色不是平台预置主题 key，写 `shouldPassCreateAppTheme=false`，创建应用时不要显式传 `theme/colour`。
-4. 自定义色的 token 和注入方式写入 `design.md`，通过 `style#yida-global-theme` 或 `customThemeStyle.tokens` 注入，至少包含 `--color-brand1-6`、`--color-brand1-9`、`--color-brand1-2`、`--color-brand-1` ~ `--color-brand-4` 和 `--color-group`。
-5. `podBlue`、`podGreen`、`podOrange` 只是常用浅底候选，不是固定默认。不要因为没有特别说明就自动回到 #1677ff，也不要套用“科技=蓝、宠物=橙、法律=蓝”这类行业刻板配色。
-6. 主题色只作为 Step 5 所选设计风格的换肤输入；除用户明确要求深色/夜间/高对比或强品牌独立页外，不用主题色反向决定风格。
+
+1. 先判断主要任务、使用频率、信息密度与终端，再结合品牌证据和视觉目标判断业务气质。高频管理按[场景适配判断](../references/theme-selection.md#高频管理场景的适配判断)设计；行业名词不能直接决定配色、材质或布局。
+2. 在 `design.md` 中记录主题色、`navTheme`、`logoSource` 和业务已确定的 `layoutDirection`。命名模板继承导航差异 token（未声明项沿用平台绑定） 和模板派生的 `navTheme`；自由创意明确设计两者。按 [导航与应用框架](../references/application-theme-consistency.md#导航与应用框架) 将导航外观与各类页面一起写入主题。
+3. 主题文件按 [生成与更新规则](output-design.md#cli-token-契约fast--plan-共用) 准备；Plan 复用已生成的主题 CSS。
+4. 主题 CSS 生成后读取并核对目标 token；需要修改变量时回到设计源文件，再通过 CLI 生成并重新上传。只有 CLI 未覆盖且已核实选择器的样式覆盖，才在现有 CSS 末尾小范围追加。按 [共用主题规则](../references/application-theme-consistency.md) 处理，不另写脚本生成或重写主题文件。
+5. 整体暗色时，按 [浮层适配](../references/theme/theme-token-presets.md#暗色主题浮层适配) 补齐组件 token 和必要的 classname 覆盖。
+6. `podBlue`、`podGreen`、`podOrange` 只是常用浅底候选，不是固定默认。不要因为没有特别说明就自动回到 #1677ff，也不要套用“科技=蓝、宠物=橙、法律=蓝”这类行业刻板配色。
+7. 先读取所选模板的完整 Token 和颜色角色，再确定项目主色与实际修改范围。主色是整套设计中的一个角色，不是覆盖导航、表单、详情和画布的全局染色参数；不能独立选主色后直接拼接另一套固定导航。用户明确要求换色时，在同一份设计里协调所有受影响的角色，保留有意设计的辅助色与状态色。
 
 ## 品牌 token 语义
 
-`design.md` 必须写清 `--color-brand1-*` 与 `--color-brand-*` 的语义。`--color-brand1-*` 是页面和 PC 端主要消费的品牌色阶，`--color-brand-*` 是移动端和部分原生表单/壳层桥接仍会消费的品牌色阶，不能删掉、改名或替换为别的变量。
+`design.md` 必须写清 `--color-brand1-*` 与 `--color-brand-*` 的语义。`--color-brand1-1/2/3/5/6/9/10` 是平台主题契约要求的品牌色阶，由应用自定义主题文件统一提供；`4/7/8` 不在平台契约内，不得由 AI 猜测补齐。`--color-brand1-*` 是页面和 PC 端主要消费的品牌色阶，`--color-brand-*` 是移动端和部分原生表单/壳层消费的品牌色阶，不能删掉、改名或替换为别的变量。
+
+平台填充色阶同时包含被原生图标消费的 `--color-fill1-6`。它不是装饰底色，通常承担弱图标、选择器末尾按钮和辅助操作 glyph 的前景色；深色内容界面应映射到当前主题可读的辅助前景色，例如 `var(--color-text1-3)`。
 
 | token | 语义 | 典型用途 |
 | --- | --- | --- |
-| `--color-brand1-1` | 明亮品牌浅色或浅 hover 色 | 列表 hover、菜单 hover、轻量背景，不直接当深色文字 |
+| `--color-brand1-1` | 品牌交互悬停色 | 按主题定义用于交互 hover，不直接充当持续数据色 |
 | `--color-brand1-2` | 品牌浅底 | 标签浅底、提示块、选中底、弱强调背景 |
-| `--color-brand1-3` | 品牌透明/浅边界 | 选中边框、禁用/弱化品牌态、浅描边 |
-| `--color-brand1-5` | 主色 hover 档 | 主按钮 hover、链接 hover、可点击强调 hover |
+| `--color-brand1-3` | 品牌派生浅色 | 按主题和平台的既有消费关系使用 |
+| `--color-brand1-5` | 品牌派生深色 | 深色导航或强调表面等主题指定角色 |
 | `--color-brand1-6` | 主品牌色 | 主按钮、链接、选中态、重点标签、图表主序列 |
-| `--color-brand1-7` | 主色 active 档 | 按下态、active、pressed |
-| `--color-brand1-9` | 深主色 | 深色强调、深底按钮、强调标题、深色场景锚点 |
-| `--color-brand1-10` | 深色或透明强调档 | 深色 hover、强强调背景、深色主题补充 |
-| `--color-brand-1` | 移动端品牌浅/透明档 1 | 移动端壳层、移动端表单、旧版移动组件浅品牌态 |
+| `--color-brand1-9` | 品牌交互激活色 | active / 按下状态，持续数据焦点另用主题数据变量 |
+| `--color-brand1-10` | 品牌交互禁用色 | 品牌控件 disabled 状态 |
+| `--color-brand-1` | 移动端品牌浅/透明档 1 | 移动端壳层、移动端表单、移动组件浅品牌态 |
 | `--color-brand-2` | 移动端品牌浅/中档 2 | 移动端 hover、轻量强调、移动端组件浅色面 |
 | `--color-brand-3` | 移动端主品牌档 3 | 移动端主操作、选中态、原生表单移动主色 |
 | `--color-brand-4` | 移动端深品牌档 4 | 移动端 active、深色强调、移动壳层深色态 |
 | `--color-group` | 图表和分类色组 | 多系列图表、排行、状态分组；第一色通常跟随主色 |
 
-自定义色盘生成时，先确定 `--color-brand1-6` 主色，再推导浅底、hover、active、深色和移动端桥接色阶。移动端 `--color-brand-1` ~ `--color-brand-4` 必须保留，不能只输出 `--color-brand1-*`。
+自定义色盘生成时，先确定 `--color-brand1-6` 主色，再推导平台实际消费的浅底、hover、深色和移动端桥接色阶。移动端 `--color-brand-1` ~ `--color-brand-4` 必须保留，不能只输出 `--color-brand1-*`。
+
+共享主题使用项目 `PRIMARY_COLOR` 作为主色输入，不默认采用 CSS 示例中的咖啡色。按选中主题推导品牌色阶和真实用到的图表色，保留成功、警告、错误、通知等独立语义。圆角与组件形状采用主题的用途映射，不统一改成大圆角或胶囊。
 
 ## 处理应用主题和页面风格
 
-- 平台导航、顶部壳层或应用菜单可见时，应用主题色是页面主色来源；页面主按钮、链接、选中态、重点标签、图表主序列和表单入口都使用应用主题 `--color-brand1-*`。
-- `design.md` 负责布局配方、信息密度、卡片形态、图表语言和视觉 DNA；当 `design.md` 色相与应用主题不同，把 `design.md` 色相降为辅助色、浅背景、分组色或装饰色。
-- 需要页面主色明显不同于应用主题时，PRD 只写业务原因：页面级沉浸页、应用导航隐藏后的自绘壳、独立品牌/活动页、公开落地页，或用户明确要求全局换肤；`design.md` 写 `themeScope=app/page`、`themeRelation`、token 和注入方式。
-- 若截图或预览中出现左侧导航选中态与页面主操作颜色不一致，优先把页面主操作和高频强调色改回应用主题；只有用户确认要改变整个应用主题时，再调用应用主题配置能力。
+- 平台导航、页面和组件共用项目配色体系，但不同角色不必同色。主操作、指标强调、链接和选中态分别按背景、层级和用途选色，保留应用的整体气质。
+- `design.md` 明确各角色的颜色、搭配理由和适用表面；辅助色可以承担主操作或指标强调，前提是与整页协调、不会混淆状态，并在同类组件中一致使用。
+- 组件需要不同色相时，复用或补充项目角色变量，不重定义品牌 token。只有改变应用整体主色时，才同步主题摘要、`themeRelation` 和应用主题文件。
+- 导航选中态与按钮不同色不直接判为冲突。先检查是否符合项目设计、视觉主次是否清楚、前景是否可读；发现实现偏差时按已定义的角色修正，不一律改回品牌色。
 
 ## 写颜色角色
 
-- 主色：先按行业、品牌、业务情绪和视觉目标做创意判断，可选择平台预置主题，也可设计自定义品牌色盘；不得固定为 `podBlue` / #1677ff，不得套用行业刻板配色。
-- 辅助色：用于按钮强调、状态提示、图表分组和重点指标。
+- 主色：沿用用户选定主题及最新风格、颜色要求；无约束时结合品牌证据、真实任务、阅读环境和状态色设计，记录用途；模板中的绿、蓝示例不作为默认答案。
+- 辅助色：按整体搭配用于内容分组、图表系列、指标或操作强调；明确用途和面积，状态提示仍沿用语义色。
 - 中性色：背景、文字、边框、分割线，默认保持浅底业务风。
 - 语义色：成功、警告、错误、信息保持稳定，不随意改成品牌色。
-- 明暗模式：默认 `light`；`design.md` 的 `themeProfile.navTheme` 保持 `light`。
+- 界面明暗：默认浅色；用户选择暗色、黑色或夜间主题时，按 [暗色主题浮层适配](../references/theme/theme-token-presets.md#暗色主题浮层适配) 确定浮层 token 与必要的 class 覆盖。
+- 导航明暗：`themeProfile.navTheme` 从所选主题模板的 `navTheme` 派生；深色导航可以搭配浅色内容界面。用户明确要求另一种导航明暗时重新匹配主题，不在项目化阶段改写模板导航 Token。
+- 固定主题输出一套 token；light、dark、white、gray 只是同一声明块的覆盖入口，不根据模式生成另一套配色。同步应用设置时读取设计中的 `navTheme`，不能用主题 ID 前缀或写死名单判断。
+- 明暗双轴：按[主题明暗双轴](../references/application-style-library.md#主题明暗双轴)分别填写 `themeProfile.contentTone` 与 `themeProfile.navTheme`。`contentTone` 默认 `light`；自由创意的导航明暗由项目设计明确填写，并配套导航 Token。
 - `design.md` 的 `themeProfile.colorMode` 是宜搭配色模式，例如 `gradient`，不表示暗黑模式。
 
-`openyida create-app --theme <key>` / `openyida update-app --theme <key>` 只填写平台预置主题 key。完整 key 与 token 见 [应用主题与 token 参考](../references/theme/theme-token-presets.md)。自定义色盘不传 `--theme`，token 和注入方案写入 `design.md`。
+主题 CSS 就绪后，将主题文件路径、`navTheme`、`logoSource` 和 `layoutDirection` 写入 `design.md`。获取真实 `appType` 后，先按 [旧主题注入与停用规则](../references/application-style-library.md#旧主题应用的样式作用域与确认) 核验服务端主题能力；只有新版主题或取得目标旧应用的明确注入确认后，才执行 `openyida update-app <appType> --theme-file <CSS路径>` 更新应用基础设置，并以 `themeVerification.verified=true` 确认资源已绑定。旧主题未获注入确认时保留平台主题、采用页面局部样式；后续修改已绑定 CSS 也须重新上传保存。平台负责整套应用的主题一致性；只有 `YidaCodeCanvas` 页面源码需要在组件内部使用主题 token。
 
 ## 写字体层级
 
@@ -83,29 +95,33 @@
 
 ## 写组件基调
 
-统一按钮、卡片、表格、标签、抽屉、弹窗、图标、空态、加载态和错误态。页面级自定义主题写入 `style#yida-global-theme` 或 scoped token；应用级换肤写 `customThemeStyle.tokens`。
+统一按钮、卡片、表格、标签、抽屉、弹窗、图标、空态、加载态和错误态，并写入 `design.md` 与应用主题 CSS。
+
+包含表单时，按 [表单样式与提交页背景](../references/native-form-styles.md) 从已选应用风格推导提交、编辑和详情的字体、控件、密度、布局、标签节奏、背景、Divider 辅助色及底栏。修改详情页时，同时设计只读字段数据框的背景、文字、圆角、指示线、阴影、字号、行高、最小高度、内距和元素间距，并将对应 `--pod-field-preview-*`、`--yida-divider-secondary-color` 与 `--form-element-medium-font-size` 写入设计源。布局决策写入 `design.md` 并落实到表单配置；主题变量和经核实的样式规则归同一份应用主题 CSS。应用主题覆盖导航、自定义页面、表单、编辑和详情，形成一致的视觉语言。
+
+指标卡与按钮按[配色规则](../references/application-theme-consistency.md#指标卡与按钮配色)成组设计，明确普通信息、重点信息、主操作与次操作的颜色关系，不能仅写“深色强调”或“跟随主题”。
+
+表单主题同时显式确定 `--pod-page-footer-bg-color` 和 `--pod-sticky-footer-box-shadow`，写入设计源的 token 并生成到应用 CSS；背景及阴影随应用材质选择，不一律透明，也不漏配后沿用默认阴影。
 
 ## 产出
 
 ```markdown
-PRD 主题摘要：
+供 PRD 一致性校验使用的主题摘要：
 - 应用主题色：<平台预置 key 或自定义色盘名称>
 - 风格摘要：<2-3 个业务风格关键词>
-- 主题作用域摘要：<app / page；完整配置见 design.md>
+- 主题交付摘要：<平台预置 / 应用自定义主题文件 / 继承当前应用>
 
-design.md Theme Profile：
-- themeProfile.name：<平台预置 key 或自定义色盘名称>
-- themeScope：<page/app>
-- themeColorSource：<user-specified / application-theme / platform-preset-match / business-inferred / template-default>
-- themePresetKey：<命中平台预置时填写；自定义色盘留空>
-- shouldPassCreateAppTheme：<true 仅限平台预置；false 表示 create-app 不传 theme/colour>
-- globalThemeInjection：<style#yida-global-theme / customThemeStyle.tokens / none>
-- navTheme：light
-- colorMode：<宜搭配色模式，如 gradient；不表示暗黑>
-- typography：<标题/正文/数字层级>
-- componentTone：<按钮/卡片/表格/标签/抽屉风格>
+design.md 的机器字段与正文分工按 output-design.md：
+- themeProfile：项目方向名称、真实主色及来源、contentTone、navTheme、themeDelivery、themeFile 与既有导航配置。
+- tokens：选中主题的全局和局部变量，以及明确的项目差异。
+- 正文：色彩角色、字体层级和组件规则；不再复制一组 customThemeTemplate/customThemeFile/themeColorToken 交接字段。
 ```
 
 ## 下一步
 
-→ [Step 3：规划页面和导航](step-3-information-architecture.md)
+→ [页面结构和交互设计](step-4-wireframe-interaction.md)
+
+
+应用整体设计可使用[应用风格模板或自由创意](../references/application-style-library.md)。导航、自定义页面、表单与详情继承同一设计语言；自由创意从业务推演，不强制选模板。模板中的表单布局 JSON 提供结构起点，使用时填入真实字段并核对间距和响应式。
+
+移动端 `--color-brand-1`、`--color-brand-2`、`--color-brand-3`、`--color-brand-4` 由 CLI 按应用色阶生成桥接；最终 CSS 也必须在顶层 `:root` 完整提供这四项。生成后和上传前同时校验 PC 七档与移动端四档的缺失、无效颜色及引用循环，不要求在 design.md 重复声明自动桥接。

@@ -13,83 +13,19 @@
 const { version: currentVersion } = require('../package.json');
 const { t } = require('../lib/core/i18n');
 const { warn } = require('../lib/core/chalk');
-const { CliError, isCliError, toErrorPayload } = require('../lib/core/cli-error');
+const {
+  CliError,
+  isCliError,
+  shouldUseStructuredErrorOutput,
+  toErrorPayload,
+} = require('../lib/core/cli-error');
 const { COMMAND_GROUPS, buildCommandManifest, findCommandSuggestion } = require('../lib/core/command-manifest');
 
 const command = process.argv[2];
 const args = process.argv.slice(3);
 const rawArgs = process.argv.slice(3);
-
-function isAgentEnvironment(env) {
-  return !!(
-    env.CODEX_SHELL ||
-    env.CODEX_CI ||
-    env.CODEX_THREAD_ID ||
-    env.CODEX_HOME ||
-    env.CLAUDE_CODE ||
-    env.CLAUDE_CODE_ENTRYPOINT ||
-    env.MULERUN_CHAT_ID ||
-    env.MULE_DATA_DIR ||
-    env.MULE_WORKSPACE_DIR ||
-    env.OPENCODE ||
-    env.OPENCODE_CLIENT ||
-    env.QODER_IDE ||
-    env.QODER_AGENT ||
-    env.QODERCLI_INTEGRATION_MODE ||
-    env.QODER_WORK_INTEGRATION_PRODUCT ||
-    env.QWENWORK_INTEGRATION_MODE ||
-    env.QWENWORKCN_INTEGRATION_MODE ||
-    env.QWENWORK ||
-    env.QWENWORK_CLIENT ||
-    env.QWENWORK_WORKSPACE_DIR ||
-    env.QWENWORK_SANDBOX_ID ||
-    env.QWENWORK_PREVIEW_URL ||
-    env.QWENWORK_VNC_URL ||
-    (env.AGENT_PLATFORM || '').toLowerCase().includes('qwenwork') ||
-    env.CURSOR_TRACE_ID ||
-    env.AGENT_WORK_ROOT ||
-    env.OPENYIDA_AGENT_MODE ||
-    (env.__CFBundleIdentifier || '').toLowerCase().includes('codex') ||
-    (env.__CFBundleIdentifier || '').toLowerCase().includes('qoder') ||
-    (env.__CFBundleIdentifier || '').toLowerCase().includes('qwenwork') ||
-    (env.__CFBundleIdentifier || '').toLowerCase().includes('qwen-work')
-  );
-}
-
-function shouldRunUpdateCheck() {
-  if (process.env.OPENYIDA_SKIP_UPDATE_CHECK || process.env.NO_UPDATE_NOTIFIER) {
-    return false;
-  }
-  if (process.env.CI || isAgentEnvironment(process.env)) {
-    return false;
-  }
-  if (!process.stderr.isTTY) {
-    return false;
-  }
-  if (!command || command === '--help' || command === '-h' || command === '--version' || command === '-v') {
-    return false;
-  }
-  if (args.includes('--help') || args.includes('-h')) {
-    return false;
-  }
-  if (command === 'commands' || command === 'agent-capabilities' || command === 'mcp') {
-    return false;
-  }
-  if (args.includes('--json') || args.includes('--check-only')) {
-    return false;
-  }
-  return true;
-}
-
-function maybeCheckForUpdate() {
-  if (!shouldRunUpdateCheck()) {
-    return;
-  }
-  const { checkUpdate } = require('../lib/core/check-update');
-  checkUpdate(currentVersion).catch(() => {});
-}
-
-maybeCheckForUpdate();
+const { beginCommandReceipt } = require('../lib/agent/command-receipt');
+let commandReceipt;
 
 function shouldUseEnvManagement(argsList) {
   const subCommand = argsList[0];
@@ -369,7 +305,6 @@ const UNSUPPORTED_LEGACY_LOGIN_FLAGS = new Set([
   '--browser',
   '--codex',
   '--qoder',
-  '--wukong',
 ]);
 
 function findUnsupportedLegacyLoginFlag(...argLists) {
@@ -556,6 +491,49 @@ function printCommandUsage(...lines) {
   console.log(lines.filter(Boolean).join('\n'));
 }
 
+const MANIFEST_HELP_PATHS = Object.freeze({
+  'get-schema': ['get-schema'],
+  'query-data': ['data'],
+  'data-manage': ['data'],
+  data: ['data'],
+  report: ['report'],
+  'create-process': ['create-process'],
+  'configure-process': ['configure-process'],
+  'create-report': ['create-report'],
+  'append-chart': ['append-chart'],
+  'save-share-config': ['save-share-config'],
+  'verify-short-url': ['verify-short-url'],
+  'integration-create': ['integration', 'create'],
+  'save-permission': ['save-permission'],
+  'get-permission': ['get-permission'],
+  copy: ['copy'],
+});
+
+function printManifestCommandHelp(commandName) {
+  const canonicalPath = MANIFEST_HELP_PATHS[commandName];
+  if (!canonicalPath) {
+    return false;
+  }
+
+  const manifest = buildCommandManifest({ t, version: currentVersion });
+  const matches = manifest.commands.filter((entry) =>
+    canonicalPath.every((token, index) => entry.path[index] === token)
+  );
+  const exact = matches.find((entry) => entry.path.length === canonicalPath.length);
+  const entries = exact ? [exact] : matches;
+  if (entries.length === 0) {
+    return false;
+  }
+
+  printCommandUsage(...entries.flatMap((entry) => [
+    entry.usage,
+    entry.description,
+    ...(entry.notes || []),
+    ...(entry.examples || []),
+  ]));
+  return true;
+}
+
 function printLoginHelp() {
   printCommandUsage(t('cli.login_usage'), t('cli.login_example'));
 }
@@ -595,8 +573,60 @@ function assertNoUnsupportedLegacyLoginFlags(...argLists) {
 }
 
 async function main() {
+  const { assertManagedInvocation, resolveManagedHelp } = require('../lib/agent/managed-run');
+  const { readManagedContext } = require('../lib/agent/managed-context');
+  if (readManagedContext() && [command, ...rawArgs].some(arg => arg === '--help' || arg === '-h')) {
+    assertManagedInvocation(command, rawArgs);
+    const entries = resolveManagedHelp(command, rawArgs, { t, version: currentVersion });
+    // Managed help is static and local: no Receipt, auth, update, first-run
+    // guide or business command module may run on this path.
+    commandReceipt = { finish() {} };
+    if (rawArgs.includes('--json')) {
+      console.log(JSON.stringify({ name: 'openyida', version: currentVersion, commands: entries }, null, 2));
+    } else {
+      printCommandUsage(...entries.flatMap(entry => [entry.usage, entry.description, ...(entry.examples || [])]));
+    }
+    return;
+  }
+  // Template-only preflight; managed runs retain their existing guard contract.
+  if (command === 'solution-template' && !hasHelpFlag(rawArgs) && !readManagedContext()) {
+    require('../lib/solution-template/solution-template').assertIndependentLocalAgent();
+  }
+  commandReceipt = beginCommandReceipt({ command, args: rawArgs });
+  process.once('exit', code => {
+    try {commandReceipt.finish(code);} catch {process.exitCode = 1;}
+  });
+  assertManagedInvocation(command, rawArgs);
   applyQuietFlag();
+  // 一次性票据只在当前进程消费，不能先自更新并重启命令。
+  switch (command) {
+    case 'login-qwenwork':
+      await require('../lib/auth/qwenwork-desktop').run(args);
+      return;
+  }
   applyGlobalEnvironmentFlags();
+  // 网页态由 CLI 消费宿主凭据；桌面态继续消费宿主准备的登录态。
+  const webLogin = (command === 'login' || (command === 'auth' && args[0] === 'login')) &&
+    require('../lib/core/qwenwork-login-guidance').isQwenWorkWebRuntime(require('../lib/core/utils').detectRuntimeCapabilities());
+  if ((command === 'login' && args.includes('--qwenwork')) || webLogin) {
+    const loginArgs = applyLoginEnvironmentFlags(command === 'auth' ? args.slice(1) : args, { inferTargetUrl: true });
+    if (hasHelpFlag(loginArgs)) { printLoginHelp(); return; }
+    assertNoUnsupportedLegacyLoginFlags(rawArgs, loginArgs);
+    await require('../lib/auth/qwenwork-login').run(loginArgs, buildTokenLoginOptions(loginArgs));
+    return;
+  }
+
+  const { maybeAutoUpdate } = require('../lib/core/update');
+  const updateResult = await maybeAutoUpdate({
+    currentVersion,
+    command,
+    args,
+    argv: process.argv,
+  });
+  if (updateResult.reexecuted) {
+    process.exitCode = updateResult.exitCode;
+    return;
+  }
 
   if (!command || command === '--help' || command === '-h') {
     handleFirstRunGuide();
@@ -617,6 +647,10 @@ async function main() {
   }
   if (safetyDecision.action === 'plan') {
     console.log(JSON.stringify(safetyDecision.output, null, 2));
+    process.exit(0);
+  }
+
+  if (hasHelpFlag(args) && printManifestCommandHelp(command)) {
     return;
   }
 
@@ -646,6 +680,12 @@ async function main() {
 
     case 'agent-capabilities': {
       const { run } = require('../lib/core/agent-capabilities');
+      await run(args);
+      break;
+    }
+
+    case 'agent': {
+      const { run } = require('../lib/agent/cmd');
       await run(args);
       break;
     }
@@ -717,6 +757,10 @@ async function main() {
 
     case 'auth': {
       const subCommand = args[0];
+      if (subCommand === 'qwenwork') {
+        await require('../lib/auth/qwenwork').run(args.slice(1));
+        break;
+      }
       const authArgs = applyLoginEnvironmentFlags(args.slice(1), { inferTargetUrl: true });
       const { getAuthStatus } = require('../lib/core/utils');
       const { tokenLogin, tokenLogout, tokenRefresh } = require('../lib/auth/token-auth');
@@ -729,7 +773,10 @@ async function main() {
         console.log(JSON.stringify(listAuthProfiles(buildTokenLoginOptions(authArgs)), null, 2));
       } else if (subCommand === 'profile') {
         const profileSubCommand = authArgs[0];
-        if (profileSubCommand === 'switch') {
+        if (profileSubCommand === 'list') {
+          const { listAuthProfiles } = require('../lib/auth/profile');
+          console.log(JSON.stringify(listAuthProfiles(buildTokenLoginOptions(authArgs.slice(1))), null, 2));
+        } else if (profileSubCommand === 'switch') {
           const target = getFirstPositionalArg(authArgs, 1);
           const { switchAuthProfile } = require('../lib/auth/profile');
           console.log(JSON.stringify(switchAuthProfile(target, buildTokenLoginOptions(authArgs)), null, 2));
@@ -761,8 +808,42 @@ async function main() {
       break;
     }
 
+    case 'cool-card': {
+      const { run } = require('../lib/app/cool-card');
+      await run(args);
+      break;
+    }
+    case 'data-card': {
+      const { run } = require('../lib/app/data-card');
+      await run(args);
+      break;
+    }
+    case 'plugin': {
+      const { run } = require('../lib/plugin/plugin-lifecycle');
+      await run(args);
+      break;
+    }
+
+    case 'app-settings': {
+      const { run } = require('../lib/app/app-settings');
+      await run(args);
+      break;
+    }
+
+    case 'app-entry': {
+      const { run } = require('../lib/app/app-entry');
+      await run(args);
+      break;
+    }
+
     case 'app-list': {
       const { run } = require('../lib/app/app-list');
+      await run(args);
+      break;
+    }
+
+    case 'solution-template': {
+      const { run } = require('../lib/solution-template/solution-template');
       await run(args);
       break;
     }
@@ -775,6 +856,12 @@ async function main() {
 
     case 'create-app': {
       const { run } = require('../lib/app/create-app');
+      await run(args);
+      break;
+    }
+
+    case 'design-plan': {
+      const { run } = require('../lib/design-plan/design-plan');
       await run(args);
       break;
     }
@@ -803,6 +890,26 @@ async function main() {
       break;
     }
 
+    case 'custom-button': {
+      const { run } = require('../lib/app/custom-button');
+      await run(args);
+      break;
+    }
+    case 'form-message': {
+      const { run } = require('../lib/app/form-message');
+      await run(args);
+      break;
+    }
+    case 'print-template': {
+      const { run } = require('../lib/print-template/print-template');
+      await run(args);
+      break;
+    }
+    case 'form-view': {
+      const { run } = require('../lib/app/form-view');
+      await run(args);
+      break;
+    }
     case 'aggregate-table': {
       const { run } = require('../lib/aggregate-table/aggregate-table');
       await run(args);
@@ -821,6 +928,12 @@ async function main() {
       break;
     }
 
+    case 'check-design': {
+      const { run } = require('../lib/design/check-design');
+      await run(args);
+      break;
+    }
+
     case 'er': {
       const { run } = require('../lib/app/er');
       await run(args);
@@ -833,6 +946,8 @@ async function main() {
       if (subCommand === 'evaluate' || subCommand === 'check') {
         const { run } = require('../lib/formula/evaluate');
         await run(subArgs);
+      } else if (['contracts', 'functions', 'types', 'inspect', 'test'].includes(subCommand)) {
+        await require('../lib/formula/commands').run(subCommand, subArgs);
       } else {
         throwCliUsage(t('cli.formula_usage'), t('cli.formula_example'));
       }
@@ -904,8 +1019,8 @@ async function main() {
       if (args.length < 4) {
         throwCliUsage(t('cli.form_config_usage'), t('cli.form_config_example'));
       }
-      process.argv = [process.argv[0], process.argv[1], ...args];
-      require('../lib/app/update-form-config');
+      const { run: runUpdateFormConfig } = require('../lib/app/update-form-config');
+      await runUpdateFormConfig(args);
       break;
     }
 
@@ -915,18 +1030,27 @@ async function main() {
       break;
     }
 
-    case 'form-detail-style': {
-      const { run: runFormDetailStyle } = require('../lib/app/form-detail-style');
-      await runFormDetailStyle(args);
-      break;
-    }
-
     case 'update-app': {
-      if (args.length < 2) {
+      if (args.length < 2 && !hasHelpFlag(args)) {
         throwCliUsage(t('cli.update_app_usage'), t('cli.update_app_example'));
       }
       const { run: runUpdateApp } = require('../lib/app/update-app');
       await runUpdateApp(args);
+      break;
+    }
+
+    case 'data-manage-style': {
+      await require('../lib/style/data-manage-style').run(args);
+      break;
+    }
+
+    case 'app-theme': {
+      await require('../lib/app/app-theme').run(args);
+      break;
+    }
+
+    case 'upgrade-app-theme': {
+      await require('../lib/app/upgrade-app-theme').run(args);
       break;
     }
 
@@ -1038,9 +1162,6 @@ async function main() {
     }
 
     case 'create-process': {
-      if (args.length < 2) {
-        throwCliUsage(t('cli.create_process_usage'), t('cli.create_process_example'));
-      }
       const { run: runCreateProcess } = require('../lib/process/create-process');
       await runCreateProcess(args);
       break;
@@ -1058,7 +1179,9 @@ async function main() {
       const subCommand = args[0];
       const subArgs = args.slice(1);
 
-      if (subCommand === 'preview') {
+      if (subCommand === 'fields') {
+        await require('../lib/process/process-fields').run(subArgs);
+      } else if (subCommand === 'preview') {
         if (subArgs.length < 2) {
           throwCliUsage(t('cli.process_preview_usage'), t('cli.process_preview_example'));
         }
@@ -1079,6 +1202,17 @@ async function main() {
     case 'append-chart': {
       const { run } = require('../lib/report/append');
       await run(args);
+      break;
+    }
+
+    case 'report': {
+      const subCommand = args[0];
+      if (!['inspect', 'configure'].includes(subCommand)) {
+        throwCliUsage('用法: openyida report <inspect|configure> ... --json');
+      }
+      const { run } = subCommand === 'inspect'
+        ? require('../lib/report/inspect') : require('../lib/report/configure');
+      await run(args.slice(1));
       break;
     }
 
@@ -1118,6 +1252,7 @@ async function main() {
         'export-action':     '../lib/connector/connector-export-action',
         'delete':            '../lib/connector/connector-delete',
         'add-action':        '../lib/connector/connector-add-action',
+        'update-action':     '../lib/connector/connector-update-action',
         'list-actions':      '../lib/connector/connector-list-actions',
         'delete-action':     '../lib/connector/connector-delete-action',
         'test':              '../lib/connector/connector-test',
@@ -1140,12 +1275,13 @@ async function main() {
   export-action <connector-id> <operation-id> [output]  导出单个动作到 JSON 文件
   delete <connector-id> [--force]              删除连接器
   add-action --operations <file> --connector-id <id>  添加执行动作
+  update-action --connector-id <id> --action <id> --query-json <JSON> --confirm  安全更新动作 Query 默认值
   list-actions <connector-id>                  列出执行动作
   delete-action <connector-id> <operation-id>  删除执行动作
-  test --connector-id <id> --action <actionId> 测试执行动作
+  test --connector-id <id> --action <actionId> [结构化 JSON 参数] 测试执行动作
   list-connections <connector-id>              列出鉴权账号
-  create-connection <connector-id> <name>      创建鉴权账号
-  smart-create --curl "curl命令"               智能创建连接器
+  create-connection <connector-id> <name> [--interactive] 创建鉴权账号；钉钉凭据可在本机隐藏输入
+  smart-create --curl "curl命令"               生成脱敏连接器动作草稿（不创建远端资源）
   parse-api [选项]                             解析接口信息
   gen-template [输出路径]                       生成接口文档模板
 
@@ -1188,6 +1324,14 @@ async function main() {
       break;
     }
 
+    case 'permission-manage': {
+      await require('../lib/permission/permission-manage').run(args);
+      break;
+    }
+    case 'matrix': {
+      await require('../lib/permission/matrix-manage').run(args);
+      break;
+    }
     case 'integration': {
       const subCommand = args[0];
       const subArgs = args.slice(1);  // 路由层消费 subCommand，传递剩余参数
@@ -1200,6 +1344,11 @@ async function main() {
       if (subCommand === 'create') {
         const { run: runIntegration } = require('../lib/integration/integration-create');
         await runIntegration(subArgs);
+      } else if (subCommand === 'update') {
+        const { run: runIntegrationUpdate } = require('../lib/integration/integration-update');
+        await runIntegrationUpdate(subArgs);
+      } else if (['monitor', 'copy', 'rename', 'delete'].includes(subCommand)) {
+        await require('../lib/integration/integration-manage').run(subCommand, subArgs);
       } else if (subCommand === 'list') {
         const { runList } = require('../lib/integration/integration-list');
         await runList(subArgs);
@@ -1215,6 +1364,9 @@ async function main() {
       } else if (subCommand === 'check') {
         const { run: runIntegrationCheck } = require('../lib/integration/integration-check');
         await runIntegrationCheck(subArgs);
+      } else if (subCommand === 'detail-log') {
+        const { run: runIntegrationDetailLog } = require('../lib/integration/integration-detail-log');
+        await runIntegrationDetailLog(subArgs);
       } else if (subCommand === 'diagnose' || subCommand === 'doctor') {
         const { run: runIntegrationDiagnose } = require('../lib/integration/integration-diagnose');
         await runIntegrationDiagnose(subArgs);
@@ -1256,6 +1408,10 @@ async function main() {
     }
 
     case 'feedback': {
+      if (args[0] === 'github') {
+        await require('../lib/feedback/github').run(args.slice(1));
+        break;
+      }
       const { run: runFeedback } = require('../lib/feedback/feedback');
       await runFeedback(args);
       break;
@@ -1285,12 +1441,6 @@ async function main() {
       break;
     }
 
-    case 'eval': {
-      const { main: evalMain } = require('../scripts/eval/runner');
-      await evalMain(args);
-      break;
-    }
-
     default: {
       throwUnknownCommand(command, args);
     }
@@ -1298,8 +1448,10 @@ async function main() {
 }
 
 main()
+  .then(() => { commandReceipt.finish(process.exitCode || 0); })
   .catch((err) => {
-    if (isCliError(err) && args.includes('--json')) {
+    try {commandReceipt?.finish(err && err.exitCode ? err.exitCode : 1);} catch { /* Intent remains recoverable. */ }
+    if (shouldUseStructuredErrorOutput(err, args)) {
       console.error(JSON.stringify(toErrorPayload(err), null, 2));
     } else if (isCliError(err)) {
       warn(t('cli.exec_failed', err.message));
@@ -1309,5 +1461,7 @@ main()
     } else {
       warn(t('cli.exec_failed', err.message));
     }
-    process.exit(err && err.exitCode ? err.exitCode : 1);
+    // Let pending stdout/stderr writes drain, especially large JSON diagnostics
+    // sent through pipes on macOS/Linux. process.exit() can truncate them.
+    process.exitCode = err && err.exitCode ? err.exitCode : 1;
   });

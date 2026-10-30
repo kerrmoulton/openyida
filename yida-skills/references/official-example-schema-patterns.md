@@ -43,6 +43,8 @@ GET /query/loginFreeFormData/listFormDataByType.json?type=templateCenter
 }
 ```
 
+以上只读抓取参数保留官方页面原值。OpenYida 生成新的分页查询代码时，一般显式写 `pageSize: 50`，除非用户明确要求其他页大小。
+
 3. 通过模板 ID 获取源模板应用：
 
 ```text
@@ -84,7 +86,7 @@ GET https://template.aliwork.com/alibaba/web/{APP_TYPE}/query/formdesign/getSche
 | 类型 | 高频组件 | 范式解释 |
 | --- | --- | --- |
 | 表单页 | `FormContainer`、`TextField`、`NumberField`、`DateField`、`EmployeeField`、`TableField`、`RichText` | 字段结构、公式和少量说明文本承载能力 |
-| 自定义页 | `Div`、`Text`、`Image`、`Button`、`PageSection`、`Dialog`、`TablePc`、`Pagination` | 列表、看板、工具页、弹窗和分页承载交互 |
+| 自定义页 | `Div`、`Text`、`Image`、`Button`、`Dialog`、`TablePc`、`Pagination` | 列表、看板、工具页、弹窗和分页承载交互 |
 | 报表页 | `YoushuPageHeader`、`YoushuTopFilterContainer`、`YoushuSelectFilter`、`YoushuTable`、`YoushuPieChart` | 原生报表负责筛选、聚合和图表 |
 | 流程页 | `FormContainer` + 表单字段 | 表单只承载数据，审批节点由流程规则承载 |
 

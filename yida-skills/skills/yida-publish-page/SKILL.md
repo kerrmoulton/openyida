@@ -1,6 +1,6 @@
 ---
 name: yida-publish-page
-description: 自定义页面编译发布技能。
+description: 将已编写的宜搭自定义页面源码发布或更新到指定页面。提供源码路径、应用 ID 和自定义页面 ID 后，执行编译、发布和内容回读；原生表单不使用本技能。
 ---
 
 # 发布自定义页面
@@ -9,7 +9,11 @@ description: 自定义页面编译发布技能。
 
 ## 执行边界
 
-本技能负责三件事：确认发布目标、执行 `openyida publish`（包含必要编译和 Schema 写入）、给出 final 证据。新建或默认自定义页面源码先由 `yida-canvas-custom-page` 产出。缺少自定义页面容器时，先交给 `yida-create-page` 创建后再回来发布。
+发布已有页面美化结果时，遵守 [ui-improve](../yida-design/sub_skill/ui-improve/SKILL.md)：先核对当前方案的用户确认、可恢复备份、UI-only diff 和功能契约；缺任一项不得以“发布闭环”绕过。恢复发布使用本轮备份的原线上源码及已验证的恢复路径，保留同一目标资源，不需要重新审批已经要求的恢复动作。
+
+自定义页替换 UI 组件是允许的；发布前须有组件替换记录和等价绑定核验，业务实现不变，事件参数、触发次数、请求/提交、权限及状态行为保持原样。编译和发布读回不会自动证明业务未改，缺少此检查时不得宣称业务保持不变。
+
+本技能负责三件事：确认发布目标、执行 `openyida publish`（包含必要编译和 Schema 写入）、核实结果并用业务语言交付。新建或默认自定义页面源码先由 `yida-canvas-custom-page` 产出。缺少自定义页面容器时，先交给 `yida-create-page` 创建后再回来发布。
 
 ## 发布目标确认
 
@@ -25,7 +29,7 @@ description: 自定义页面编译发布技能。
 
 - 不要在未加载对应页面开发技能的情况下临时编写页面源码；使用 `YidaCodeCanvas` 组件实现的页面先看 `yida-canvas-custom-page`。
 - 不要把普通 React / Next / Vite 项目源码直接发布；可发布源码必须是 OpenYida 页面源码，并放在 `project/pages/src/*.{canvas.jsx,canvas.tsx,oyd.jsx,jsx,tsx}`
-- 不要混用预检命令：`.canvas.jsx` / `.canvas.tsx` 不走 `openyida check-page` / `openyida compile`；`.oyd.jsx` / `.jsx` / `.tsx` 不要当成 `YidaCodeCanvas` 页面发布，除非已明确确认源码就是 `YidaCodeCanvas` 组件源码并使用 `--canvas`
+- 不要混用预检模式：`.canvas.jsx` / `.canvas.tsx` 不走 `openyida check-page`，统一执行 `openyida compile <源文件> --json` 让 CLI 按扩展名选择 Canvas 编译器；`.oyd.jsx` / `.jsx` / `.tsx` 不要当成 `YidaCodeCanvas` 页面发布，除非已明确确认源码就是 `YidaCodeCanvas` 组件源码并使用 `--canvas`
 - 不要在平台 `renderJsx` / `didMount` 形态里手写 React Hooks；需要 Hooks 的页面应交回对应页面开发技能改成可编译的源码形态
 - 不要编造 appType 和 formUuid，必须从已有记录或命令返回中获取
 - 不要把普通表单、流程表单或数据底表的 `formUuid` 当作发布目标；除非已确认目标是自定义展示页面，否则不要用 `--force` 绕过保护
@@ -34,10 +38,17 @@ description: 自定义页面编译发布技能。
 
 - 发布前确认页面源码已通过对应页面开发技能编写：`.canvas.jsx` / `.canvas.tsx` 发布为 `YidaCodeCanvas` 组件；`.oyd.jsx` / `.jsx` / `.tsx` 发布为平台 `Jsx` 组件
 - 平台 `Jsx` 组件 / `oyb.jsx` / `renderJsx` 维护源码发布前优先执行 `openyida check-page <源文件路径>` 和 `openyida compile <源文件路径>`；本技能只把它们作为发布前 guard
-- 使用 `YidaCodeCanvas` 组件实现的页面不单独运行普通 JSX 编译命令；执行 `openyida publish <源文件> <appType> <displayPageFormUuid>` 时，由发布流程校验并写入 `runtimeCode + importedModules`
+- 使用 `YidaCodeCanvas` 组件实现的页面发布前必须执行 `openyida compile <源文件> --json`；CLI 会自动选择 Canvas 编译器。失败时按[本地校验修复](../../references/source-repair.md)处理结构化错误，不要改用 `node -e`、`compileCanvasLocal` 或 `run_workspace_script` 绕行
+- Canvas 本地编译通过后，执行 `openyida publish <源文件> <appType> <displayPageFormUuid> --canvas --health-check`，由发布流程再次校验并写入 `runtimeCode + importedModules`
+- 主题已集成的页面直接编译发布原文件；只有使用 `/* @canvas-theme-provider */` 标记装配时才生成并发布 `.themed.canvas.jsx`。`OPENYIDA_CANVAS_THEME_NOT_ASSEMBLED` 表示误用了尚未装配的源文件，应先运行主题脚本再编译输出文件。
+- 图标报 `OPENYIDA_CANVAS_ICON_EXPORT_UNAVAILABLE` 时，按 `details.exportName`、源码行列与建议修正 import，并重新 compile；禁止换成动态全局引用绕过。校验以 CLI 内置的宜搭运行时导出清单为准；动态名称仍需组件映射与兜底。`--health-check` 的发布回读不等于浏览器渲染验收，不能据此把 `runtimeSmokeVerified: false` 报为已通过。
+- 导航报 `OPENYIDA_CANVAS_NAVIGATION_INVALID` 时，按 issueType 修正：local_platform 使用 local 页内模式或绑定真实平台资源；document_flex 重新提取 canvas-nav-content 并采用自然高度。发布后需实际检查各菜单、刷新/返回、滚动到页脚并回顶、窄屏展开；不能仅凭编译或回读认定通过。
+- Canvas 编译和发布共用主题结构检查。出现 `OPENYIDA_CANVAS_THEME_PROVIDER_INVALID` 时，按报错位置调整 Provider 和业务组件的层级，再执行原命令；发布后打开实际页面检查首屏和交互。
+- 使用 `YidaCodeCanvas` 组件实现的页面发布时，发布流程会在外层页面 `didMount` 注入 `window.__OPENYIDA_YIDA_API__` 和 `window.__OPENYIDA_UTILS__`；不要在 Canvas 源码内补写 `this.utils.yida.*` 或根级 `this.utils.*`
 - 推荐源码放在 `project/pages/src/`：使用 `YidaCodeCanvas` 组件实现的页面用 `<页面名>.canvas.jsx` / `<页面名>.canvas.tsx`；平台 `Jsx` 组件维护源码用 `<页面名>.oyd.jsx` / `<页面名>.jsx` / `<页面名>.tsx`
 - 发布前注意 CLI 会检查 `<workspace>/project/pages/src/` 与 `<workspace>/projects/<id>/artifacts/` 中同名源码是否内容不一致；出现警告时必须确认实际要发布哪一份
 - 发布前确认 `openyida env` 检测通过，登录态有效
+- Canvas 页面含普通表单提交/详情入口时，沿用 `openyida compile <源文件> --json` 预检，并核对标准 `form-open-container` 片段已接入、`openForm` 已绑定、`formOpenContainer` 已挂载。不能通过添加同名空组件或忽略检查来绕过；发布后实际点击，验证 iframe、标题栏三个操作、拖拽调宽及关闭刷新。源码检查通过不代替交互验收。
 - corpId 不匹配时，必须询问用户是否切换组织，不得强行发布
 - 重新发布已有自定义页面时，`openyida publish` 会自动读取目标页面现有 Schema 并合并页面级 `dataSource`；不要靠 Agent 口头承诺“保留数据源”，必须使用新版 CLI 的默认保护能力
 - 如果源码包含 `this.dataSourceMap.`，而发布输出包含 `No custom page data sources to preserve`，本次发布不能视为完成；说明源码依赖设计器数据源但目标页没有可保留数据源。必须回到对应页面开发技能修复源码并重新发布，或先通过 `yida-data-source-connectors` 创建并绑定数据源后重新发布
@@ -61,15 +72,30 @@ description: 自定义页面编译发布技能。
 ---
 
 
+## 前台单页面入口
+
+- 本轮业务用途已确定为前台自定义页面时，默认持久化隐藏该页的平台导航；缺少 `entryMode` 时按用途补齐独立入口，不要求用户提供新参数。发布前查询 `get-form-config`，未隐藏时执行 `update-form-config <appType> <formUuid> false "<页面标题>"` 并回读。用户明确保留导航或仅修改后台内容页时保留原配置；不要全局隐藏应用导航。
+- `publish` 默认读取页面导航配置。确认 `renderNav=false` 后，`url` 和 `standaloneUrl` 返回干净的 `/custom/<formUuid>`，另保留 `workbenchUrl`；无须新 CLI 开关，不追加 `isRenderNav=false` 等导航 URL 参数。
+- 缺失、无效或失败的回读不等于隐藏成功：`standaloneUrl=null` 时检查 `navigationVerification` / `navigationWarning`，修复配置后用 `get-form-config --json` 取得最新地址，不为补链接重复发布源码。确认页面类型为 display 才返回自定义页地址。
+- 本轮包含前台时，最终回复必须包含对应的前台页面链接；显式保留平台导航的前台使用已验证的 `workbenchUrl`，独立前台使用 `standaloneUrl`；若无法确认，明确说明前台入口未完成，不能仅给工作台或开发后台。现有已验证的公开/分享地址保留原样，不因隐藏导航而开启公开访问。完整应用继续按[入口登记](../yida-app/workflow/step-9-output-finish.md#登记应用访问入口)保存并回读两端地址；单页更新不扩大登记范围。
+
+## Canvas 主题处理
+
+- `compile` 和 `publish` 默认保留固定品牌色覆盖，在结果 `warnings` 中返回源码位置、字段、色值与影响；即使使用 `--json` 也保留告警。告警不表示品牌色已跟随应用主题。
+- 三个主题参数仅用于 Canvas 页面，按下方参数表选择；普通发布无需添加主题参数。`OPENYIDA_CANVAS_STRICT_THEME=1` 启用严格检查，`OPENYIDA_CANVAS_ALLOW_FIXED_BRAND=1` 明确保留固定色覆盖。
+- `publish --fix-theme` 显式迁移固定品牌色覆盖，可与 `--strict-theme` 合用，不能与 `--allow-fixed-brand` 合用。待迁移控件须位于已装配、已挂载的 `CanvasThemeProvider` 内；旁侧无关 Provider 不算主题来源。无法静态确认的动态渲染路径保留原文件，按主题开发技能手动接入；CLI 在内存中完成迁移和全部 Canvas 编译检查，通过后才写回。没有主题来源时先按主题开发技能接入，不能靠删除颜色回退到默认主题。
+- 发布不等待 stdin，不自动弹出迁移询问；未指定 `--fix-theme` 不改写品牌色。编译错误时保留原源码。
+- 迁移范围为品牌交互色覆盖；标准动态 Provider、抽屉背景/文字/圆角/阴影和 iframe 实现保持不变。迁移后检查主操作、链接、Tabs，以及实际使用的明暗主题和抽屉内外页面。
+
 ## 命令
 
 ```bash
-openyida publish <源文件路径> <appType> <formUuid> [--compat] [--canvas] [--health-check] [--auto-nav-order] [--force]
+openyida publish <源文件路径> <appType> <formUuid> [--health-check] [--force] [--canvas] [--compat] [--skip-lint] [--fix-theme] [--strict-theme] [--allow-fixed-brand] [--auto-nav-order] [--open|--no-open] [--json]
 ```
 
 路径口径：从仓库根执行时，源文件用 `project/pages/src/...`；如果 Bash cwd 已经是 `<workspace>/project`，源文件用 `pages/src/...`，不要传 `project/pages/src/...` 导致查找 `project/project/pages/src/...`。发布失败提示源文件不存在时，先按该规则切换路径，不要自动发布另一份文件。
 
-> `openyida publish` 会按源码扩展名选择发布模式：`.canvas.jsx` / `.canvas.tsx` 写入 `YidaCodeCanvas`，`.oyd.jsx` / `.jsx` / `.tsx` 写入平台 `Jsx` 组件。
+> `openyida publish` 会按源码扩展名选择发布模式：`.canvas.jsx` / `.canvas.tsx` 写入 `YidaCodeCanvas`，并注入 yida/utils window 桥；`.oyd.jsx` / `.jsx` / `.tsx` 写入平台 `Jsx` 组件。
 > 发布前确认源码已由对应页面开发技能完成并通过相应本地检查；本技能只把真实成功的 `openyida publish` 作为远端完成证据。
 
 | 参数 | 必填 | 说明 |
@@ -79,9 +105,15 @@ openyida publish <源文件路径> <appType> <formUuid> [--compat] [--canvas] [-
 | `formUuid` | 是 | 自定义页面 ID，必须是 `openyida list-forms <appType>` 返回的 `formType=display` 目标，不要使用数据底表或流程表单 ID |
 | `--compat` / `--modern` | 否 | 兼容构建开关；仅在确认源文件属于平台 JSX 组件页面且扩展名不规范时使用；`.oyd.jsx` 默认自动启用 |
 | `--canvas` | 否 | 显式写入 `YidaCodeCanvas` Schema；`.canvas.jsx` / `.canvas.tsx` 扩展名已自动启用，仅当扩展名不规范但确认为 `YidaCodeCanvas` 组件源码时需要 |
+| `--fix-theme` | 否 | 仅 Canvas：需要将固定品牌色改为跟随应用主题时使用。确认控件位于主题 Provider 内、编译通过后才写回源码；可与 `--strict-theme` 合用，不能与 `--allow-fixed-brand` 合用 |
+| `--strict-theme` | 否 | 仅 Canvas：需要阻止固定品牌色覆盖时使用；发现覆盖即报错，不修改源码。不能与 `--allow-fixed-brand` 合用 |
+| `--allow-fixed-brand` | 否 | 仅 Canvas：明确保留固定品牌色覆盖，仍返回告警；不修改源码。不能与 `--strict-theme` 或 `--fix-theme` 合用 |
 | `--health-check` | 否 | 发布成功后用 token 读回目标页面 Schema，校验 `YidaCodeCanvas.runtimeCode` 或平台 `Jsx + actions.module.compiled` 与本次发布内容匹配；不请求页面 HTML，不依赖 Cookie |
-| `--auto-nav-order` | 否 | 发布成功后立刻执行轻量导航排序；PRD 已写明导航顺序时优先用 `openyida nav-group order <appType> <页面/表单...>`，PRD 缺少明确页面清单时才用本参数兜底；排序失败只警告，不回滚已发布页面 |
+| `--auto-nav-order` | 否 | 仅在 PRD 缺少明确导航清单时使用；完整应用逐页发布不传此参数，全部页面开发并发布完成后由主流程单独执行 `nav-group auto-order`；PRD 已写明顺序时不要传本参数，发布后只执行一次 `openyida nav-group order <appType> <页面/表单...>`。排序失败不回滚页面，结果保留在结构化 `navOrder` 中 |
 | `--force` | 否 | 显式绕过发布目标类型保护；只有确认目标是自定义页面但导航接口暂时无法识别时才使用 |
+| `--skip-lint` | 否 | 历史平台 JSX 的 lint 开关；不跳过 Canvas 编译和抽屉检查，不能用来满足发布验收 |
+| `--open` / `--no-open` | 否 | 控制成功后是否返回浏览器打开提示，由宿主执行打开 |
+| `--json` | 否 | 机器可读输出；不改变校验和发布流程 |
 
 ## 确认命令
 
@@ -93,12 +125,15 @@ openyida list-forms <appType> --keyword <页面名>
 
 只选择 `formType=display` 的 `formUuid` 作为发布目标。源码里用于 `this.utils.yida` 读写数据的普通表单常量（如 `FORM_SKILL`、`FORM_DATA`、`FORM_TABLE`）通常是数据底表，不能作为 `openyida publish` 的第三个参数。
 
-## Final 证据契约
+## 内部发布证据
 
-- final 中“页面已更新 / 已重新发布 / 已上线”的依据只能是成功的 `openyida publish <source> <appType> <displayPageFormUuid>` 命令结果，最好同时带发布输出中的 URL、`formUuid`、`success:true` 或 `healthCheck.mode=publish_readback` 摘要。
+以下命令和字段供 Agent 判断真实完成状态，保留在内部执行记录。最终回复、交付卡片和后续建议统一遵循[完成总结](../../references/user-facing-summary.md)，无需展示校验字段或执行过程。
+
+- Canvas 发布完成的内部判定：成功执行 `openyida publish <source> <appType> <displayPageFormUuid> --canvas --health-check`，且结果包含 `publishMode=canvas`、`publishReadbackVerified=true`、`healthCheck.ok=true`、`healthCheck.readback.hasYidaCodeCanvas=true` 和 `runtimeCodeBytes>0`。对用户按本轮业务改动表述，例如“已将工作台的‘待清洁房间’改为‘待清洁’，并更新页面”。
+- `--health-check` 是发布内容读回校验，不是浏览器运行态 smoke。输出中的 `runtimeSmokeVerified=false`、`runtimeSmokeStatus=not_checked` 表示本命令没有验证页面渲染与交互；需要宣称“页面可运行”时，必须另有专项运行态证据。页面检查按[本地浏览器验收](../../references/execution-rules.md#本地浏览器验收)执行。
 - `<source>` 必须是本轮实际 Write/Edit/Create 过的页面源码；`<displayPageFormUuid>` 必须是已解析的 display 自定义页面。发布了其他文件或其他目标页面，不满足本轮源码修改的 doneWhen。
-- 若 publish 没执行、执行失败、目标不明、登录态/组织不一致或用户要求先暂停，final 只能说“源码已修改，尚未发布”，并给出下一步需要执行的 publish 命令或阻塞原因。
-- 平台 JSX 组件页面的 `check-page` / `compile`、使用 `YidaCodeCanvas` 组件实现页面的 `compileCanvasLocal` 都是发布前 guard，不是远端完成证据。
+- 若 publish 没执行、执行失败、目标不明、登录态/组织不一致或用户要求先暂停，保持未发布状态。已完成修改时可说“已完成修改，待发布”；确实需要用户操作时，用一句话说明影响和必要下一步。CLI 指令仅在用户明确询问命令或用法时提供。
+- 平台 JSX 组件页面的 `check-page` / `compile`、Canvas 页面统一入口 `openyida compile <源文件> --json` 都是发布前 guard，不是远端完成证据。
 
 ## 数据源保留
 
@@ -115,7 +150,7 @@ openyida list-forms <appType> --keyword <页面名>
 
 `openyida publish` 会在保存 Schema 前执行确定性编译；Agent 不要把这一步改成口头检查：
 
-1. `.canvas.jsx` / `.canvas.tsx`：执行 `YidaCodeCanvas` 页面编译，产出并写入 `runtimeCode` 与 `importedModules`。该类源码不使用 `openyida check-page` / `openyida compile` 作为预检。
+1. `.canvas.jsx` / `.canvas.tsx`：发布前执行 `openyida compile <源文件> --json`；统一入口会按扩展名执行与发布阶段相同的 `YidaCodeCanvas` 编译并返回结构化结果。不要执行 `openyida check-page`，也不要直接调用内部编译函数或临时脚本。
 2. `.oyd.jsx` / `.openyida.jsx` 或显式 `--compat`：先运行 OpenYida compatibility compiler，输出宜搭平台 `Jsx` 组件可执行源码。
 3. 普通 `.jsx` / `.tsx` 源码如果已有 `export function renderJsx()`：视为平台 `Jsx` 组件源码，执行 lint、Babel、UglifyJS 后构建 Schema。
 4. 普通 `.jsx` / `.tsx` 源码如果没有 `renderJsx` 但存在 `export default function Page()`：只允许走有限 authoring 降级；Hooks、生命周期和运行态限制以`yida-custom-page` 为准。
@@ -125,10 +160,10 @@ openyida list-forms <appType> --keyword <页面名>
 
 这部分不是技能路由说明；它只是发布命令对不同源码扩展名的真实编译行为。
 
-## 输出
+## CLI 输出（内部核验）
 
 ```json
-{"success":true,"formUuid":"FORM-XXX","version":0,"healthCheck":{"ok":true,"mode":"publish_readback","authMode":"token","targetReadable":true,"schemaParsed":true,"displayComponentPresent":true,"publishedContentMatched":true}}
+{"success":true,"formUuid":"FORM-XXX","version":0,"url":"{base_url}/APP_XXX/custom/FORM-XXX","standaloneUrl":"{base_url}/APP_XXX/custom/FORM-XXX","workbenchUrl":"{base_url}/APP_XXX/workbench/FORM-XXX","navigationVerification":{"renderNav":false,"verified":true},"navigationWarning":null,"publishMode":"canvas","publishReadbackVerified":true,"warnings":[],"runtimeSmokeVerified":false,"runtimeSmokeStatus":"not_checked","healthCheck":{"ok":true,"mode":"publish_readback","expectedPublishMode":"canvas","displayComponentPresent":true,"publishedContentMatched":true,"readback":{"hasYidaCodeCanvas":true,"runtimeCodeBytes":1024}}}
 ```
 
 ## 自动注入的 CSS
@@ -152,29 +187,24 @@ body { background-color: #f2f3f5; }
 
 ## 异常处理
 
+保留正常 JSX 事件绑定（如 `onClick={fn}`）；发布失败按[诊断规则](../yida-canvas-custom-page/references/waf-safe-authoring.md)核对回执，修复已定位的问题。
+
 | 异常场景 | 处理方式 |
 |---------|----------|
 | 源码构建或发布前校验失败 | 回到对应页面开发技能修复源码格式、语法或运行时兼容问题，再重新执行 `openyida publish` |
 | 发布目标不是自定义展示页面 | 运行 `openyida list-forms <appType> --keyword <页面名>`，改用 `formType=display` 的页面 ID；不要对数据底表追加 `--force` |
-| saveFormSchema 接口失败（401） | 执行 `openyida login` 重新登录后重试 |
-| corpId 不匹配 | 询问用户是否切换组织或创建新应用，不得强行发布 |
+| saveFormSchema 接口失败（401） | 检查登录态并恢复授权，核对原页面后按返回的恢复指引处理 |
+| corpId 不匹配 | 核对目标组织，需切换时询问用户，不得强行发布或新建应用规避 |
 | 发布后页面空白 | `YidaCodeCanvas` 页面检查 `YidaComp` 是否正确导出和依赖是否可加载；平台 JSX 组件页面检查 `renderJsx` 是否正确导出；同时查看浏览器控制台报错 |
-| 发布接口成功但页面坏了 | 重新执行 `openyida publish <源文件路径> <appType> <formUuid> --health-check` 先确认远端 Schema 已读回且内容匹配；首屏渲染、控制台报错和体验问题仍结合浏览器验证 |
+| 发布接口成功但页面坏了 | 先用 `get-schema` 只读核对远端 Schema 与本轮发布回执，不为检查结果重复写入；首屏渲染、控制台报错和体验问题仍结合浏览器验证 |
 | 发布后功能异常 | `YidaCodeCanvas` 页面优先查依赖白名单、`YidaComp` 导出、hooks 副作用清理；平台 JSX 组件页面检查 `forceUpdate is not a function` 等常见错误，参考 `yida-custom-page` 平台 JSX 组件页面规范 |
+| 发布超时、非 JSON 或网关提示 | 保留回执并先只读核实保存结果，按上方诊断规则定位原因；证据不足时记录原因未确认 |
 
-## Agent 错误处理策略
+## 错误恢复
 
-当 Agent 执行本技能遇到错误时，必须遵循以下默认行为：
+本地编译失败按[本地校验修复](../../references/source-repair.md)处理，修复明确字段后再检查；不要因可修复的源码错误重新确认需求或创建新页面。参数缺失先从当前任务记录恢复，无法唯一确定目标时才询问。
 
-| 错误类型 | 默认处理策略 |
-|---------|-------------|
-| 命令执行失败 | 停止执行，向用户展示错误信息，询问是否重试或调整参数 |
-| 参数缺失（appType/formUuid 等） | 主动询问用户补充，不得猜测或编造 |
-| 权限不足 / 登录态失效 | 停止执行，提示用户执行 `openyida login` 重新登录 |
-| 源码构建失败 | 停止执行，展示错误详情，引导用户回到对应页面开发技能修复源码 |
-| corpId 不匹配 | 停止执行，询问用户是否切换组织或创建新应用 |
-| 网络超时 | 重试 1 次，仍失败则停止并提示用户检查网络 |
-| 未知错误 | 停止执行，完整展示错误信息，建议用户反馈问题 |
+权限或组织不匹配时停止写入并说明原因。发布请求超时、响应未知或保存后回读失败时，保留原页面并先只读核对，不能盲目重发发布或新建替代页。只有明确未写入、原因已修复且命令允许重试时才重试；源码诊断的重试规则不适用于远端写操作。
 
 ## 与其他技能配合
 

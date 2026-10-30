@@ -96,14 +96,14 @@ IF(GE(#{numberField_score}, 90), "A", IF(GE(#{numberField_score}, 75), "B", IF(G
 ### 公式
 
 ```
-SUM(#{tableField_items.numberField_subtotal})
+IF(ISEMPTY(#{numberField_subtotal}), 0, SUM(#{numberField_subtotal}))
 ```
 
 ### 注意事项
 
-- 子表字段引用格式：`#{子表fieldId.子表内字段fieldId}`
+- 普通子表字段引用使用子字段自身 ID：`#{numberField_subtotal}`；此例配置在主表合计字段，空明细返回 0
 - 公式中的 fieldId 必须通过 `openyida get-schema` 获取，不能猜测
-- 比较运算必须用函数（`GE`、`LE`、`GT`、`LT`、`EQ`），禁止使用 `>=`、`<=` 等符号
+- 原生公式原文使用 `GE`、`LE`、`GT`、`LT`、`EQ`、`NE` 比较函数；JavaScript 和已编译流程条件按各自格式处理
 
 ---
 

@@ -10,21 +10,155 @@ module.exports = {
     canonical_case: 'Dùng tên hàm chính thức "{1}" thay cho "{0}".',
     save_failed: 'Xác thực công thức thành viên mặc định thất bại; biểu mẫu chưa được lưu.',
   },
+  qwenwork: {
+    organization_switch_success: 'Đã chuyển tổ chức thông qua đăng nhập QwenWork.',
+    login_check_failed: 'Unable to verify the login session. Please retry.',
+    desktop_login_failed: 'Đăng nhập QwenWork trên máy tính không thành công. Hãy kiểm tra tài khoản và kênh đăng nhập trước khi thử lại.',
+    desktop_login_usage: 'Cách dùng： openyida login --qwenwork [--json] [--check-only]',
+    desktop_login_standalone: 'Run the recommended login command directly: {0}. No extra PATH or output setup is needed. After success continue the business operation silently; on failure follow the returned guidance.',
+    credential_missing: 'No cloud Agent credential is available. Run this command inside the QwenWork cloud execution environment.',
+    gateway_missing: 'QWENWORK_GATEWAY_URL or MULE_GATEWAY_URL is required.',
+    invalid_url: 'The QwenWork gateway must use HTTPS (HTTP is allowed only for loopback) and contain no credentials, query or fragment.',
+    request_failed: 'The QwenWork request failed. Check the stage and HTTP status in the diagnostic details.',
+    request_timeout: 'The QwenWork request timed out.',
+    invalid_response: 'QwenWork returned an invalid authentication or identity response.',
+    identity_mismatch: 'The returned QwenWork identity does not match the cloud execution context or exchanged credential.',
+    expired_token: 'QwenWork returned an expired user credential.',
+    usage: 'Usage: openyida auth qwenwork user-info [--json]',
+  },
+  plugin_lifecycle: { description: 'Manage YiDA platform plugin versions, installation state, and runtime registrations', failed: 'Plugin operation stopped: {0}', usage: 'Usage: openyida plugin <dev-list|get|version-list|version-get|extensions|installed-list|installed-get|runtime-list|probe|create|create-version|save-dev|configure|enable|disable|upgrade|uninstall> [pluginId] [version] [options]' },
+  solution_template: {
+    description: 'Mẫu cho Agent cục bộ độc lập: tìm kiếm, liên kết xây dựng AI đám mây và kích hoạt',
+    local_agent_only: 'Lệnh mẫu chỉ dành cho Agent cục bộ độc lập đã nhận diện. Trên đám mây, tiếp tục quy trình AI mẫu gốc.',
+    usage: "Usage: openyida solution-template search [--query <text>] [--scene <scene>] [--industry <industry>] [--page <n>] [--size <n>] [--json]\n       openyida solution-template detail <TPL_...> [--json]\n       openyida solution-template prepare <TPL_...> --name <appName> [--with-data y|n] [--request-id <id>] [--json]\n       openyida solution-template ai-build <TPL_...> [--json]\n       openyida solution-template enable <TPL_...> --name <appName> [--with-data y|n] [--request-id <id>] [--retry] [--wait <0-60>] [--json]\n       openyida solution-template status <requestId> [--wait <0-60>] [--json]",
+    failed: 'Solution Center template operation stopped: {0}',
+    ai_build_handoff: 'The template supports native AI build. Add customization requirements and submit them in the native builder. This receipt does not mean an app exists.',
+    no_progress_api: 'The platform currently exposes no pollable percentage progress. The request receipt and app-list readback are preserved, but resubmission is still unsafe.',
+    platform_decides: "Permissions and entitlements are decided by the platform when enabling. Template source availability does not confirm authorization.",
+    rejected: "The platform rejected this attempt. The platform reason is preserved. A new submission requires an explicit retry; OpenYida does not change permissions or entitlements.",
+    pending: "The application is not visible yet. The request is preserved; check its status to continue without submitting again.",
+    accepted: "The platform accepted the request. Checking for the application entry.",
+    waiting: "Waiting for the application to appear. Only checking status; no new copy request is sent.",
+    no_longer_visible: "This application was verified previously but is not visible in the current query. Creation history is preserved; current access is not confirmed.",
+    readback_failed: "The application query failed. The request and platform reason are preserved; check status again without resubmitting.",
+  },
+  print_template: {
+    "description": "Manage native YiDA print templates, generate document layouts, back up, restore and request PDFs",
+    "error": "Print template operation failed: {0}",
+    "usage": "Usage: openyida print-template <list|inspect|fields|build|create|copy|save|restore|settings|status|order|render|files> <appType> <formUuid> [templateId]. See the print-template skill for action-specific flags and examples."
+},
+  custom_button: {
+    "usage": "Usage: openyida custom-button <list|inspect|options|create|update|delete> <appType> <formUuid> [buttonUuid] [--config <file>] [--expected-hash <hash>] [--backup <file>] [--yes] [--json]",
+    "invalid_config": "Cấu hình hoặc tham số không hợp lệ: {0}",
+    "invalid_response": "Phản hồi cấu hình nút không đầy đủ: {0}",
+    "api_error": "API nút thất bại: {0}. Kiểm tra đăng nhập, quyền và phiên bản.",
+    "not_found": "Nút không có trong biểu mẫu đích: {0}",
+    "conflict": "Cấu hình đã thay đổi. Đọc lại trước khi lưu.",
+    "limit": "Mỗi biểu mẫu hỗ trợ tối đa 10 nút tùy chỉnh.",
+    "readback_mismatch": "Dữ liệu đọc lại không khớp. Giữ bản sao lưu và kiểm tra trạng thái từ xa."
+  },
+  form_message: {"usage":"Usage: openyida form-message <list|inspect|options|create|update|delete> <appType> <formUuid> [messageId] [--config <file>] [--expected-hash <hash>] [--backup <file>] [--yes] [--json]","invalid_config":"Invalid form message configuration or argument: {0}","invalid_response":"Incomplete platform form-message response: {0}","api_error":"Form message API failed: {0}. Check login, permissions and edition availability.","not_found":"The message notification does not exist in the target form: {0}","conflict":"The notification changed. Inspect again before saving.","unsupported_trigger":"Writes are not verified for this trigger: {0}.","unsupported_form":"Writes are not verified for this form type: {0}.","readback_mismatch":"Saved notification does not match readback. Keep the backup and inspect remote state."},
+  dws_external: {"note": "dws is an independent external tool. OpenYida only shows installation instructions; it does not download or install it.", "install_guide": "Show official DingTalk CLI installation instructions"},
+  cool_card: {"unsupported_environment": "Phiên bản Alibaba Group không hỗ trợ tạo thẻ Cool Card.", "description": "Create and read native YiDA cool cards (interactive and pinned)", "usage": "Usage: openyida cool-card <list|templates|create|get> <appType> [cardPageCode] [--type im|onebox] [--name <title>] [--page <n>] [--size <n>] [--search <text>] [--out <file>] [--json]", "failed": "Native cool card operation stopped: {0}"},
+  data_card: {"description":"Create, read, save drafts and publish native YiDA data cards","usage":"Usage: openyida data-card <list|create|get|save|publish|probe|release-get|release-save|release-check|release-test|refs> <appType> [cardCode] [--name <title>] [--description <text>] [--schema <file>|--config <file>] [--expected-hash <hash>] [--backup <file>] [--out <file>] [--published|--version <version>] [--page <n>] [--size <n>] [--search <text>] [--allow-send] [--json]","failed":"Native data card operation stopped: {0}","conflict":"The draft changed. Read it again before saving or publishing.","mismatch":"Readback does not match the expected schema or published state. Keep the backup and inspect the card before retrying."},
+  app_settings: {"description":"Read theme, frontend/backend, native data card and cool card management links","usage":"Usage: openyida app-settings <appType> [--section theme|basic|data-card|cool-card] [--json]","failed":"Application settings could not be read: {0}"},
+  form_view: {
+    usage: "Cách dùng: openyida form-view <list|inspect|save|create|order> <appType> <formUuid> [viewUuid] [--config <file>] [--name <title>] [--with-config] [--expected-hash <hash>] [--backup <file>] [--replace] [--json]",
+    invalid_config: "Cấu hình chế độ xem gốc hoặc đối số không hợp lệ: %s",
+    target_mismatch: "Chế độ xem không thuộc biểu mẫu đích: %s",
+    api_error: "API chế độ xem gốc bị lỗi: %s. Kiểm tra quyền và gói dịch vụ; không thử ghi lại khi chưa xác minh.",
+    unsupported: "Nền tảng không trả về danh sách chế độ xem gốc. Kiểm tra loại biểu mẫu và khả năng hỗ trợ.",
+    conflict: "Chế độ xem đã thay đổi sau khi đọc. Kiểm tra lại trước khi lưu.",
+    readback_mismatch: "Cấu hình đã lưu khác kết quả đọc lại. Giữ bản sao lưu và kiểm tra chế độ xem từ xa.",
+  },
+  integration_manage: {"failed": "Automation operation failed: {0}", "usage": "integration <monitor|copy|rename|delete> <appType> ...", "desc_monitor": "Read or save automation error monitors", "desc_copy": "Copy an automation as disabled", "desc_rename": "Rename an automation", "desc_delete": "Delete a disabled automation"},
+  permission_manage: {"failed": "Permission group operation failed: {0}", "usage": "permission-manage <copy|rename|delete> <appType> <formUuid> <packageUuid> [--name name] [--dry-run] [--confirm]", "description": "Copy, rename or delete a permission group"},
+  matrix_manage: {"failed": "Matrix operation failed: {0}", "usage": "matrix <list|detail|references|rows|create|update|delete|upsert-rows|delete-rows> [matrixId] [--file config.json] [--dry-run] [--confirm]", "description": "Manage permission matrix definitions, references and rows"},
+  integration_baseline: {"failed": "Automation update stopped: {0}"},
+  integration_update_v2: {"usage": "integration update <appType> <formUuid> <processCode> --patch patch.json [--dry-run] [--expect fingerprint] [--publish]"},
+
+  conditional_actors: { unavailable: 'Conditional actors are unavailable or could not be verified.', invalid: 'Invalid conditional actors: {0}' },
+  integration_triggers: {
+    invalid: 'Invalid automation trigger: {0}',
+    end_required: 'Chọn điều kiện kết thúc: schedule.maxCount (1–100) cho số lần chạy hoặc schedule.expireDate (thời điểm hết hạn tính bằng mili giây) cho thời gian cụ thể. Với lịch chạy lâu dài, chọn ngày kết thúc xa và hiển thị ngày thực tế trong bản tóm tắt.',
+  },
+  permission_conditions: { invalid: 'Invalid permission conditions: {0}' },
+  theme_source: { conflict: 'The theme source differs from the existing CSS or cannot be verified. Generate to a new output path, review and migrate project customizations before replacing the original file.' },
+  app_entry: {
+    frontend_nav_required: 'Chưa xác minh việc ẩn điều hướng của trang {0}. Hãy lưu renderNav=false và đọc lại cấu hình trước khi đăng ký địa chỉ giao diện độc lập.',
+    desc_get: 'Read frontend and management runtime entries',
+    desc_set: 'Register application entries with partial update and readback',
+    usage: 'Usage: openyida app-entry get <appType> [--json]\n       openyida app-entry set <appType> [--frontend <url>] [--management <url>] [--clear-frontend] [--clear-management] [--json]\nRegister only published, verified runtime URLs for this application. Omitted entries remain unchanged.',
+    invalid_url: 'Cung cấp URL http:// hoặc https:// đầy đủ của trang, trang công khai hoặc liên kết rút gọn trong ứng dụng hiện tại. Không hỗ trợ đường dẫn tương đối, URL trình thiết kế và tham số xác thực tạm thời.',
+    invalid_response: 'Incomplete entry response. Read the current entries before retrying and check that the server supports the entry configuration API.',
+    readback_failed: 'Saved entries do not match the readback. Read and review the current entries; do not overwrite automatically.',
+    frontend_display_required: 'Trang giao diện {0} phải có loại display. Với biểu mẫu, dùng URL đầy đủ đã xác minh.',
+    page_not_in_app: 'Page {0} does not belong to this application and cannot be registered as an entry; confirm ownership with list-forms.',
+    page_offline: 'The frontend custom page {0} is not yet published to a standalone address; publish it before registering.',
+  },
+  design_plan: {
+    confirmation_required: 'Xác nhận cần bản chụp và phiên bản của kế hoạch hiện tại. Hãy tạo kế hoạch trước.',
+    rebase_required: 'Trước lần tạo đầu tiên, sửa business.json/visual.json. Nếu kế hoạch chính đã thay đổi, giữ các tệp và thêm --rebase-parts vào lệnh ban đầu.',
+    baseline_missing: 'Khôi phục .build-plan-base.json tương ứng từ không gian làm việc gốc. Nếu thiếu bản gốc đáng tin cậy, giữ bản nháp và báo nguyên nhân bị chặn.',
+    rebase_stage_invalid: 'Chỉ hợp nhất bản nháp trước lần tạo đầu tiên. Với kế hoạch đã hiển thị hoặc tạo, dùng patch --materialize.',
+    rebase_conflict: 'Cùng một trường có các thay đổi khác nhau. Kiểm tra conflicts và chọn giá trị hiện tại hoặc gốc trong phần kế hoạch. Chưa lưu tệp nào.',
+    repair_page_bindings: 'Sửa pageApplications trong visual.json để khớp từng mục customPageDetails trong business.json, không thêm biểu mẫu gốc. visualMemoryApplications phải là mảng; dùng [] nếu không có mục phù hợp. Giữ bản nháp, sửa các trường được liệt kê rồi chạy lại lệnh ban đầu. Không xóa thư mục hoặc chạy lại init.',
+  },
+  design_document: {
+    confirmation_snapshot_conflict: 'Confirmation snapshot {0} conflicts with its content address; the file was not overwritten.',
+    update_conflict: "Không thể cập nhật {0} ({1}): nội dung hiện tại xung đột với phiên bản được tạo trước đó. Hãy đối chiếu thay đổi cục bộ trong phần này với dữ liệu kế hoạch rồi thử lại. Chưa lưu tệp nào.",
+    theme_css_invalid: 'CSS giao diện gần dòng {0} có dấu ngoặc, chuỗi hoặc chú thích chưa đóng hoặc không khớp. Hãy sửa rồi thử lại.',
+    theme_css_unresolved: 'Token CSS chủ đề {0} vẫn chứa chỗ giữ chỗ hoặc hướng dẫn tạo màu. Hoàn thiện design.md, chạy openyida sample yida-design app-theme --design-file <design.md> --output <app-theme.css>, rồi tải tệp đã tạo lên. Chỉ thay PRIMARY_COLOR là chưa đủ.',
+    invalid: 'Xác thực thiết kế thất bại: {0} ({1})',
+    yaml: 'Frontmatter của tài liệu thiết kế không phải YAML hợp lệ',
+    token_value: 'Token {0} phải là giá trị CSS đã xác định trên một dòng',
+    token_conflict: 'Token {0} có giá trị trùng lặp hoặc xung đột',
+    tokens_required: 'design.md cần có frontmatter chứa token',
+    brand_required: 'design.md thiếu token thương hiệu: {0}',
+    usage: 'Cách dùng: openyida check-design <design.md> [--prd <prd.md>] [--base-dir <dir>] [--json]',
+    read_error: 'Không thể đọc tệp xác thực thiết kế: {0}',
+    checked: 'Xác thực thiết kế thành công: {0}; {1} trang, {2} token',
+    anchor_hint: 'Neo phải được viết trong phần thân văn bản dưới dạng thẻ HTML tự đóng, ví dụ <a id="component-button"></a> (id của thẻ không có dấu #; tham chiếu trong frontmatter viết là #component-button). Id tiêu đề Markdown {#id}, liên kết [chữ](#id) hoặc văn bản thuần không tính là neo.',
+    anchor_chapter_three_hint: 'Thẻ <a id="…"></a> của neo này phải nằm trong chương "## 3. 基础组件表达" và trước "## 4. 特色表达配方".',
+    page_anchor_chapter_five_hint: 'Thẻ neo trang <a id="page-…"></a> phải nằm trong chương "## 5. 项目应用与调整规则".',
+    page_anchor_prefix_hint: 'Id của thẻ neo trang phải bắt đầu bằng page-, ví dụ <a id="page-workbench"></a> (tham chiếu trong frontmatter là #page-workbench), và không được trùng giữa các trang.',
+    page_label_hint: 'Sau neo trang <a id="page-…"></a> và trước neo trang tiếp theo, viết tám nhãn theo từng dòng: 页面任务/首屏焦点/布局/表面与组件/主操作/状态/响应式/验收, theo dạng - **{0}：** nội dung cụ thể; giá trị phải cụ thể và khả thi, không dùng cách viết tạm như 按主题执行 hay TODO.',
+  },
+  asset: {
+    sourceRecords: 'Trong assets[] qua --input, ghi assetId, creator, sourcePage, license, licenseUrl, licenseCheckedAt (YYYY-MM-DD) và authorizationEvidence (mảng URL hoặc đường dẫn tệp chứng từ). Danh sách giữ lại các bản ghi; giá trị thiếu để trống, không tự xác nhận quyền sử dụng thương mại.',
+    executionReview: 'Cần kiểm tra bằng chứng thực thi tư liệu: {0}. Kiểm tra xác nhận tác vụ nền, thời gian công việc và lý do chuyển sang đồng bộ.',
+    localFileUnavailable: "Không tìm thấy tệp ảnh: {0}. Kiểm tra thư mục làm việc của lệnh hoặc dùng đường dẫn tuyệt đối.",
+    invalidStrategy: "Yêu cầu về ảnh phải là một đối tượng liệt kê vị trí ảnh theo từng trang.",
+  },
   help: {
+    cmd_integration_export: 'Export raw integration automation JSON',
+    cmd_safety_status: 'Show safety mode status',
+    cmd_safety_mode: 'Configure safety mode',
+    cmd_apply_plan: 'Apply a saved execution plan',
+    cmd_custom_button: "Nút tùy chỉnh: biểu mẫu, luồng tự động và liên kết trang",
+    cmd_form_message: "Native form notifications: triggers, recipients and templates",
+    cmd_check_design: 'Xác thực tài liệu thiết kế, biến giao diện và bàn giao PRD',
     subtitle: 'Công cụ phát triển AI low-code cho Yida',
     usage: 'Cách dùng:',
     alias: 'Bí danh:',
     group_auth: 'Môi trường & Xác thực',
     cmd_login: 'Login with OAuth token mode',
+    cmd_login_qwenwork: 'Log in to YiDA with a one-time QwenWork exchange ticket',
     cmd_logout: 'Đăng xuất / chuyển tài khoản',
     cmd_auth: 'Quản lý trạng thái đăng nhập',
     cmd_org: 'Quản lý tổ chức (liệt kê / chuyển)',
     cmd_env: 'Phát hiện môi trường AI và trạng thái đăng nhập',
     cmd_env_management: 'Manage public/private environment profiles',
     group_app: 'Quản lý ứng dụng',
-    cmd_app_list: 'Liệt kê ứng dụng Yida của tôi',
+    cmd_app_list: 'Phân trang ứng dụng tôi quản lý hoặc đã tạo',
     cmd_corp_efficiency: 'Truy vấn tổng quan hiệu quả doanh nghiệp và báo cáo chi tiết',
     cmd_create_app: 'Tạo ứng dụng Yida',
+    cmd_design_plan_preview: 'Cập nhật bản nháp theo mô-đun',
+    design_plan_preview_invalid: 'Cập nhật bản nháp thất bại; kiểm tra chi tiết lỗi',
+    cmd_design_plan_catalog: 'Liệt kê chủ đề và mẫu trang có sẵn để lập kế hoạch',
+    cmd_design_plan_init: 'Khởi tạo bản nháp kế hoạch từ yêu cầu đã xác nhận',
+    cmd_design_plan_materialize: "Tạo hoặc cập nhật tài liệu và giao diện kế hoạch, kiểm tra tính nhất quán",
+    cmd_design_plan_patch: "Sửa các trường kế hoạch và đồng bộ tài liệu, giao diện khi cần",
     cmd_update_app: 'Cập nhật thông tin ứng dụng',
     cmd_app_online: 'Bật ứng dụng Yida',
     cmd_app_offline: 'Tắt ứng dụng Yida',
@@ -34,10 +168,13 @@ module.exports = {
     cmd_export: 'Xuất ứng dụng (tạo gói di chuyển)',
     cmd_import: 'Nhập gói di chuyển, xây dựng lại ứng dụng',
     group_form: 'Biểu mẫu & Trang',
+    cmd_create_form_batch: 'Tạo biểu mẫu song song theo quan hệ phụ thuộc',
     cmd_create_form: 'Tạo trang biểu mẫu',
+    cmd_list_form_icons: 'Liệt kê biểu tượng điều hướng biểu mẫu khả dụng',
     cmd_validate_form: 'Validate form field JSON locally',
     cmd_update_form: 'Cập nhật trang biểu mẫu',
     cmd_list_forms: 'List forms/pages in an app',
+    cmd_form_view: "Quản lý cột hiển thị, độ rộng, cột cố định và bộ lọc của biểu mẫu",
     cmd_aggregate_table: 'Manage aggregate tables (virtualView)',
     cmd_get_schema: 'Lấy Schema biểu mẫu',
     cmd_check_prd_completeness: 'Check PRD page/resource count risk',
@@ -50,9 +187,9 @@ module.exports = {
     cmd_publish: 'Biên dịch và xuất bản trang tùy chỉnh',
     cmd_update_form_config: 'Cập nhật cấu hình biểu mẫu',
     cmd_get_form_config: 'Query form configuration',
-    cmd_form_detail_style: 'Manage form detail page style',
     group_data: 'Dữ liệu & Quyền',
     cmd_data: 'Quản lý dữ liệu thống nhất (biểu mẫu/quy trình/tác vụ/biểu mẫu con)',
+    data_notes: "Lưu ngày bằng mili giây theo múi giờ nghiệp vụ: DateField số, CascadeDateField mảng. is/is_not dùng value \"\". --resolve-aliases hỗ trợ bí danh trường, đầu mút và parentId.",
     cmd_task_center: 'Trung tâm tác vụ toàn cầu (cần làm/đã xử lý/CC v.v.)',
     cmd_basic_info: 'Truy van thong tin to chuc, dung luong, han muc va mien',
     cmd_read_dingtalk_doc: 'Lấy nội dung Markdown từ tài liệu DingTalk',
@@ -62,8 +199,9 @@ module.exports = {
     cmd_corp_manager: 'Quản lý quyền nền tảng',
     cmd_agent_center: 'Quản lý ủy quyền quy trình và nghỉ việc',
     group_process: 'Quy trình',
-    cmd_configure_process: 'Cấu hình và xuất bản quy tắc quy trình',
-    cmd_create_process: 'Tạo biểu mẫu quy trình (tích hợp)',
+    cmd_configure_process: 'Cấu hình và xuất bản quy tắc quy trình; Thêm người phê duyệt và chuyển giao qua JSON nodes[].actions.normalActions/appendActions',
+    cmd_create_process: 'Tạo biểu mẫu quy trình (tích hợp); Thêm người phê duyệt và chuyển giao qua JSON nodes[].actions.normalActions/appendActions',
+    create_process_notes: "formMode=create|reuse phân biệt tạo mới và tái sử dụng. Khi tái sử dụng, formTitle và fieldCount là null (chưa truy vấn); tạo mới trả về tên và số trường. Quy tắc này cũng áp dụng khi cấu hình thất bại. Kiểm tra success và verificationLevel. Chỉ dùng --replace khi được cho phép rõ ràng để thay toàn bộ quy trình nháp hoặc đã xuất bản.",
     cmd_ai_form_setting: 'Manage process form AI approval prompts',
     cmd_process_preview: 'Xem trước phiên bản quy trình (sơ đồ luồng)',
     group_share: 'Cấu hình & Chia sẻ trang',
@@ -74,29 +212,32 @@ module.exports = {
     group_report: 'Báo cáo',
     cmd_create_report: 'Tạo báo cáo Yida',
     cmd_append_chart: 'Thêm biểu đồ vào báo cáo hiện có',
+    cmd_report_inspect: 'Kiểm tra liên kết thời gian chạy của báo cáo ở chế độ chỉ đọc',
     group_connector: 'Trình kết nối',
     cmd_connector_list: 'Liệt kê trình kết nối HTTP',
     cmd_connector_create: 'Tạo trình kết nối',
     cmd_connector_detail: 'Xem chi tiết trình kết nối',
     cmd_connector_export: 'Export raw connector JSON',
     cmd_connector_export_action: 'Export raw action JSON',
-    cmd_connector_delete: 'Xóa trình kết nối',
+    cmd_connector_delete: 'Hiển thị hướng dẫn xóa thủ công (CLI không thực hiện xóa)',
     cmd_connector_add_action: 'Add an action',
     cmd_connector_list_actions: 'List actions',
     cmd_connector_delete_action: 'Delete an action',
     cmd_connector_test: 'Test an action',
     cmd_connector_list_connections: 'List auth connections',
     cmd_connector_create_connection: 'Create an auth connection',
-    cmd_connector_smart: 'Tạo thông minh (từ cURL)',
+    cmd_connector_smart: 'Generate a redacted action draft from cURL (no remote create)',
     cmd_connector_parse_api: 'Parse API information',
     cmd_connector_gen_template: 'Generate API document template',
     cmd_connector_more: 'Xem thêm lệnh con',
     group_integration: 'Tích hợp & DingTalk',
     cmd_integration: 'Tạo luồng tự động hóa tích hợp',
+    cmd_integration_update: 'Patch automation using a verified local dual-definition baseline',
     cmd_integration_list: 'List integration automation flows',
     cmd_integration_enable: 'Enable integration automation flow',
     cmd_integration_disable: 'Disable integration automation flow',
     cmd_integration_check: 'Check abnormal integration automation run logs',
+    cmd_integration_detail_log: 'View integration automation run log details',
     cmd_integration_diagnose: 'Diagnose integration automation tickets and common pitfalls',
     cmd_dws: 'DingTalk CLI (danh bạ/lịch/việc cần làm/phê duyệt v.v.)',
     cmd_dingtalk_link: 'Tạo liên kết DingTalk AppLink / dingtalk:// cũ',
@@ -113,7 +254,7 @@ module.exports = {
     cmd_formula_evaluate: 'Static-check Yida formula syntax and field refs',
     cmd_update: 'Kiểm tra và cập nhật lên phiên bản mới nhất',
     cmd_export_conversation: 'Xuất bản ghi hội thoại AI',
-    cmd_feedback: 'Configure experience feedback form and local reminder state',
+    cmd_feedback: 'Chuẩn bị báo cáo cục bộ, biểu mẫu phản hồi và lời nhắc',
     cmd_batch: 'Run OpenYida commands in batch',
     cmd_flash_to_prd: 'Convert flash notes or meeting notes to a PRD prompt',
     cmd_ai: 'Call Yida AI text and image recognition APIs',
@@ -127,7 +268,30 @@ module.exports = {
     quickstart_form_name: 'Thông tin nhân viên',
     docs: '📚 Tài liệu:'
   },
+  app_list: {
+    usage: 'Cách dùng: openyida app-list [--type managed|created] [--page N] [--size N]',
+    options: 'Tùy chọn:',
+    option_type: '  --type TYPE  Phạm vi: managed (mặc định) hoặc created',
+    option_page: '  --page N     Số trang, mặc định: 1',
+    option_size: '  --size N     Kích thước trang, mặc định: 16',
+    option_help: '  --help, -h   Hiển thị trợ giúp',
+    invalid_type: 'Giá trị --type không hợp lệ “{0}”; giá trị hợp lệ: {1}',
+    invalid_positive_integer: '{0} phải là số nguyên dương; giá trị nhận được: “{1}”',
+    invalid_argument: 'Đối số không hợp lệ: {0}',
+    query_failed: 'Không thể truy vấn danh sách ứng dụng: {0}',
+    auth_required: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    unknown_error: 'Lỗi không xác định',
+    scope_managed: 'Được quản lý',
+    scope_created: 'Đã tạo',
+    found: 'Ứng dụng {0}: trang {1}/{2}, {3} ứng dụng trên trang này, tổng cộng {4}',
+    next_page: 'Còn ứng dụng khác. Tiếp tục bằng lệnh: {0}',
+  },
+
   cli: {
+    design_plan_entry_mode_required: 'Chọn cách sử dụng: trang nghiệp vụ dùng chung (unified), tách trang người dùng và xử lý nghiệp vụ (service-management), chỉ trang người dùng (frontend-only), hoặc chỉ trang xử lý nghiệp vụ (backend-only).',
+    design_plan_backend_only_roles: 'Với backend-only, mọi điểm truy cập phải có role là management.',
+    design_plan_local_menu_binding: 'Menu nội bộ {0} cần trang chứa và viewKey: sceneKey của lối vào {1} phải khớp sceneKey của trang, resource bằng name của trang và viewKey không được trống. Áp dụng cho mọi vai trò.',
+    design_plan_visual_object_required: '{0} phải là đối tượng, không phải chuỗi hoặc mảng. Giữ cấu trúc do init tạo và điền giá trị. Ví dụ: {1}.',
     help: '\n' +
       'openyida - Yida CLI Tool\n' +
       '\n' +
@@ -139,7 +303,7 @@ module.exports = {
       '  copy [--force]                                               Copy project directory to current AI tool environment\n' +
       '  login                                                        Manage login credentials (cache first, then QR scan)\n' +
       '  logout                                                       Logout / switch account\n' +
-      '  create-app "<name>" [desc] [icon] [color] [theme] [nav] [layout]  Create an app, output appType\n' +
+      '  create-app "<name>" [desc] [icon] [color] [nav] [layout]  Create an app, output appType\n' +
       '  create-page <appType> "<pageName>" [--mode dashboard] [--hide-nav]        Create a custom page, output pageId\n' +
       '  create-form create <appType> "<formName>" <fieldsJSON> [--layout <layout>] [--theme <theme>] [--label-align <align>]  Create a form page\n' +
       '  create-form update <appType> <formUuid> <changesJSON>        Update a form page\n' +
@@ -171,13 +335,13 @@ module.exports = {
       '  import <file> [name]                                         Import migration package, rebuild app\n' +
       '  get-permission <appType> <formUuid>                          Query form permission config\n' +
       '  save-permission <appType> <formUuid> [--data-permission <json>] [--action-permission <json>]  Save form permission config\n' +
-      '  configure-process <appType> <formUuid> <processDefinitionFile> [processCode]  Configure and publish process\n' +
-      '  create-process <appType> <formTitle> <fieldsJsonFile> <processDefinitionFile>  Create process form (all-in-one)\n' +
-      '  create-process <appType> --formUuid <formUuid> <processDefinitionFile>         Reuse existing form for process\n' +
+      '  configure-process <appType> <formUuid> <processDefinitionFile> [processCode] [--replace]  Configure and publish process\n' +
+      '  create-process <appType> <formTitle> <fieldsJsonFile> <processDefinitionFile> [--replace]  Create process form (all-in-one)\n' +
+      '  create-process <appType> --formUuid <formUuid> <processDefinitionFile> [--replace]         Reuse existing form for process\n' +
       '  connector list [options]                                     List HTTP connectors\n' +
       '  connector create "<name>" "<domain>" --operations <file> [options]  Create connector\n' +
       '  connector detail <connector-id>                              View connector details\n' +
-      '  connector delete <connector-id> [--force]                    Delete connector\n' +
+      '  connector delete <connector-id> [--force]                    Hiển thị hướng dẫn xóa thủ công (CLI không thực hiện xóa)\n' +
       '  connector add-action --operations <file> --connector-id <id> Add action to connector\n' +
       '  connector list-actions <connector-id>                        List actions\n' +
       '  connector delete-action <connector-id> <operation-id>        Delete action\n' +
@@ -188,6 +352,7 @@ module.exports = {
       '  connector parse-api [options]                                Parse API info\n' +
       '  connector gen-template [output]                              Generate API doc template\n' +
       '  integration create <appType> <formUuid> <flowName> [options] Create integration & automation flow\n' +
+      '  integration update <appType> <formUuid> <processCode> --spec <file>  Probe blocked update capability\n' +
       '  integration check <appType...> [--json] [--output xlsx]     Check abnormal integration automation run logs\n' +
       '  create-report <appType> "<name>" <chartsJSON|file>           Create Yida report\n' +
       '  append-chart <appType> <reportId> <chartsJSON|file>          Append chart to existing report\n' +
@@ -205,7 +370,7 @@ module.exports = {
       '  openyida login\n' +
       '  openyida logout\n' +
       '  openyida create-app "Attendance"\n' +
-      '  openyida create-app "Attendance" "Employee Attendance" "xian-daka" "#00B853" "deepBlue" "dark" "slide"\n' +
+      '  openyida create-app "Attendance" "Employee Attendance" "daka" "#00B853" "deepBlue" "dark" "slide"\n' +
       '  openyida create-page APP_XXX "Game Home"\n' +
       '  openyida create-form create APP_XXX "Employee Info" .cache/openyida/forms/employee-fields.json\n' +
       `  openyida create-form update APP_XXX FORM-XXX '[{"action":"add","field":{"type":"TextField","label":"Notes"}}]'\n` +
@@ -254,16 +419,16 @@ module.exports = {
     forbidden_alias_get_schema_form_uuid_option: '`{0}` takes formUuid as the second positional argument, not `{1}`.',
     nearest_command_suggestion: 'Unknown OpenYida command root "{0}". Did you mean "{1}"?',
     run_help: 'Run openyida --help for usage',
-    integration_help: 'Cach dung: openyida integration <create|list|enable|disable> ...',
+    integration_help: 'Usage: openyida integration <create|update|list|enable|disable|check|detail-log|diagnose|monitor|copy|rename|delete> ...',
     integration_unknown: 'Lenh con integration khong xac dinh: {0}',
     integration_help_hint: 'Chay openyida integration --help de xem cac lenh con kha dung',
-    integration_list_usage: 'Cach dung: openyida integration list <appType> [--form-uuid <uuid>] [--status y|n] [--key <kw>] [--page <n>] [--size <n>] [--json]',
+    integration_list_usage: 'Cach dung: openyida integration list <appType> [--form-uuid <uuid>] [--status y|n] [--key <kw>] [--size <n>] [--json]',
     integration_list_example: 'Vi du: openyida integration list APP_XXX --form-uuid FORM-XXX --json',
     integration_enable_usage: 'Cach dung: openyida integration enable <appType> <formUuid> <processCode>',
     integration_enable_example: 'Vi du: openyida integration enable APP_XXX FORM-XXX LPROC-XXX',
     integration_disable_usage: 'Cach dung: openyida integration disable <appType> <formUuid> <processCode>',
     integration_disable_example: 'Vi du: openyida integration disable APP_XXX FORM-XXX LPROC-XXX',
-    compile_usage: 'Cách dùng: openyida compile <sourceFile>',
+    compile_usage: 'Cách dùng: openyida compile <sourceFile> [--canvas] [--compat] [--skip-lint] [--strict-theme|--allow-fixed-brand] [--json]',
     compile_example: 'Ví dụ: openyida compile pages/src/home.oyd.jsx',
     check_page_usage: 'Usage: openyida check-page <sourceFile> [--compat] [--json]',
     check_page_example: 'Example: openyida check-page pages/src/home.oyd.jsx --json',
@@ -271,11 +436,11 @@ module.exports = {
     generate_page_example: 'Example: openyida generate-page product-homepage --brand-name OpenKuma --brand-initials OK --theme-scope page --output pages/src/home.canvas.jsx --compile',
     build_page_usage: 'Usage: openyida build-page <sourceFile> [--output pages/build/page.yida.jsx|--write] [--json]',
     build_page_example: 'Example: openyida build-page pages/src/dashboard.oyd.jsx --output pages/build/dashboard.yida.jsx',
-    publish_usage: 'Usage: openyida publish <sourceFile> <appType> <formUuid> [--health-check] [--canvas] [--auto-nav-order]',
+    publish_usage: 'Usage: openyida publish <sourceFile> <appType> <formUuid> [--health-check] [--force] [--canvas] [--compat] [--skip-lint] [--auto-nav-order] [--open|--no-open] [--json]',
     publish_example: 'Example: openyida publish pages/src/home.canvas.jsx APP_XXX FORM-XXX --health-check --auto-nav-order',
     check_prd_completeness_usage: 'Usage: openyida check-prd-completeness <prd.md> --app-type <appType> [--build-manifest <file>] [--json]',
     check_prd_completeness_example: 'Example: openyida check-prd-completeness prd/order-management/prd.md --app-type APP_XXX --build-manifest prd/order-management/build-manifest.json --json',
-    formula_usage: 'Usage: openyida formula evaluate <formula|file> [--schema schema.json] [--json] [--strict]',
+    formula_usage: 'Usage: openyida formula <check|evaluate|contracts|functions|types|inspect|test> ...',
     formula_example: `Example: openyida formula evaluate 'IF(GT(#{numberField_total}, 100), "high", "low")' --schema .cache/schema.json`,
     verify_usage: 'Usage: openyida verify-short-url <appType> <formUuid> <url>',
     verify_example: 'Example: openyida verify-short-url APP_XXX FORM-XXX /o/myapp',
@@ -293,10 +458,10 @@ module.exports = {
     import_usage: 'Usage: openyida import <file> [name]',
     import_example1: 'Example: openyida import ./yida-export.json',
     import_example2: '        openyida import ./yida-export.json "Quality System (Production)"',
-    configure_process_usage: 'Usage: openyida configure-process <appType> <formUuid> <processDefinitionFile> [processCode]',
+    configure_process_usage: 'Usage: openyida configure-process <appType> <formUuid> <processDefinitionFile> [processCode] [--replace]',
     configure_process_example: 'Example: openyida configure-process "APP_XXX" "FORM-YYY" .cache/openyida/process/process-definition.json',
-    create_process_usage: 'Usage: openyida create-process <appType> <formTitle> <fieldsJsonFile> <processDefinitionFile>\n' +
-      '        openyida create-process <appType> --formUuid <formUuid> <processDefinitionFile>',
+    create_process_usage: 'Usage: openyida create-process <appType> <formTitle> <fieldsJsonFile> <processDefinitionFile> [--replace]\n' +
+      '        openyida create-process <appType> --formUuid <formUuid> <processDefinitionFile> [--replace]',
     create_process_example: 'Example: openyida create-process "APP_XXX" "Order Form" .cache/openyida/process/fields.json .cache/openyida/process/process-definition.json',
     process_usage: 'Usage: openyida process <subcommand>\n' +
       '\n' +
@@ -304,12 +469,12 @@ module.exports = {
       '  preview <appType> <processInstanceId> [--output <path>]  Preview process instance (generate visual flowchart)',
     process_preview_usage: 'Usage: openyida process preview <appType> <processInstanceId> [--output <path>]',
     process_preview_example: 'Example: openyida process preview APP_XXX proc-inst-id-xxx',
-    get_permission_usage: 'Usage: openyida get-permission <appType> <formUuid>',
+    get_permission_usage: 'Usage: openyida get-permission <appType> <formUuid> [--package-uuid <packageUuid>] [--package-type <FORM_PACKAGE_VIEW|FORM_PACKAGE_START>]',
     get_permission_example: 'Example: openyida get-permission APP_XXX FORM-XXX',
-    save_permission_usage: 'Usage: openyida save-permission <appType> <formUuid> [--data-permission <json>] [--action-permission <json>]',
+    save_permission_usage: 'Usage: openyida save-permission <appType> <formUuid> [--package-uuid <packageUuid>] [--data-permission <json>] [--action-permission <json>] [--package-type <FORM_PACKAGE_VIEW|FORM_PACKAGE_START>]',
     save_permission_example: `Example: openyida save-permission APP_XXX FORM-XXX --data-permission '{"role":"DEFAULT","dataRange":"SELF"}'`,
     exec_failed: '\n❌ Execution failed: {0}',
-    login_usage: 'Usage: openyida login [entryUrl|--public|--alibaba|--intl] [--no-browser] [--check-only] [--json] [--client-id <clientId>]',
+    login_usage: 'Usage: openyida login [--qwenwork] [entryUrl|--public|--alibaba|--intl] [--no-browser] [--check-only] [--json] [--client-id <clientId>]',
     login_example: 'Examples:\n  openyida login                         # Automatically open the browser via OAuth loopback login\n  openyida login --no-browser            # Let the caller handle the authorization URL\n  openyida login --check-only --json     # Check token auth status only\n  openyida login --intl                  # Login against the international environment\n  OPENYIDA_NO_BROWSER=1 openyida login   # Let the caller handle the authorization URL via env variable\n  openyida auth login                    # Login alias',
     login_unsupported_option: 'Removed legacy login option is no longer supported: {0}. Use token/OAuth login; host-injected mode only checks the injected token.',
     first_run_title: '  🤖 OpenYida - AI Conversation Mode Activated!               ',
@@ -327,10 +492,10 @@ module.exports = {
     first_run_tip1: '  1. Run {0}openyida env{1}   to detect environment and login status',
     first_run_tip2: '  2. Run {0}openyida login{1} to log in to Yida',
     first_run_tip3: '  3. Chat with your AI tool and describe the app you want 🚀',
-    first_run_footer1: '  Supported AI tools: Codex / Claude Code / Aone Copilot / Cursor / OpenCode',
+    first_run_footer1: '  Supported AI tools: Codex / Claude Code / Cursor / OpenCode',
     first_run_footer2: '  📚 Docs: https://github.com/openyida/openyida',
     first_run_footer3: '  (This guide only shows on first run. Use openyida --help to see all commands)',
-    auth_usage: 'Usage: openyida auth <status|login|refresh|logout|profiles|profile switch>',
+    auth_usage: 'Usage: openyida auth <status|login|refresh|logout|profiles|profile switch|qwenwork user-info> [--json]',
     auth_example: 'Examples:\n  openyida auth status                         # View login status\n  openyida auth profiles                       # List existing login profiles\n  openyida auth profile switch <auth_profile>  # Switch current project to an existing profile\n  openyida auth login                          # Add a profile when the target does not exist\n  openyida auth refresh                        # Refresh login session\n  openyida auth logout                         # Unbind current project auth\n  openyida auth logout --profile <auth_profile> # Delete a shared profile explicitly',
     org_usage: 'Usage: openyida org <list|switch> [--json] [--corp-id <corpId>]',
     org_example: 'Examples:\n' +
@@ -374,6 +539,18 @@ module.exports = {
     current: ', current: {0}',
     excel_exported: 'Excel exported: {0}'
   },
+  integration_detail_log: {
+    usage: "Usage: openyida integration detail-log <appType> <procInstId> [--json] [--include-params] (known secrets are always masked; max 100 pages / 10,000 nodes; business parameters may still be sensitive)",
+    missing_args: "Run log details require appType and procInstId",
+    unknown_option: "Unsupported run log detail option: {0}",
+    params_require_json: "--include-params requires --json; known secrets are always masked, but business parameters may still be sensitive",
+    api_failed: "Failed to query run log details: {0}",
+    invalid_response: "Run log detail response has no valid node list or total count",
+    pagination_failed: "Run log detail pages are inconsistent; incomplete data was not printed",
+    pagination_limit: "Run log details exceed the pagination limit ({0} pages / {1} nodes); incomplete data was not printed",
+    summary: "Run log details: {0} nodes (parameter keys only by default)",
+  },
+
   integration: {
     data_metadata_missing: 'Missing data source metadata: {0}',
     data_metadata_invalid: 'Invalid data source form metadata: {0}',
@@ -381,13 +558,33 @@ module.exports = {
     data_update_source_invalid: 'Invalid update source: {0}',
     data_update_field_unknown: 'Unknown update field: {0}',
     data_readback_mismatch: 'Data node readback mismatch: {0}',
+    spec_mixed_structural_flag: '{0} cannot be mixed with --spec. Put the complete node in the spec to prevent silently dropped parameters.',
+    spec_message_node_required: 'Notification flags mixed with --spec require an explicit sendMessage node in the spec.',
+    spec_get_process_schema: 'Fetch process-form Schema for {0}',
+    spec_get_process_schema_failed: 'Failed to fetch process-form Schema for {0}; remote writes were stopped: {1}',
+    spec_data_retrieve_conditions_required: 'dataRetrieve conditions must be non-empty; use getSelf for the triggering record.',
+    spec_data_create_assignments_required: 'dataCreate assignments must be non-empty.',
+    spec_data_update_assignments_required: 'dataUpdate assignments must be non-empty.',
+    spec_approval_form_required: 'initiateApproval requires formUuid.',
+    spec_approval_assignments_required: 'initiateApproval assignments must be non-empty.',
+    spec_approval_initiator_type: 'initiateApproval initiator must be current_user or select_user.',
+    spec_approval_initiator_value_required: 'initiateApproval select_user initiator requires value.',
+    spec_approval_initiator_identity_invalid: 'initiateApproval select_user initiator must be valid employee identity JSON.',
+    spec_route_branches_required: 'route must contain non-empty branches.',
+    spec_approval_current_user_required: 'initiateApproval current_user requires an authenticated user.',
+    spec_approval_initiator_missing: 'initiateApproval initiator is not configured.',
+    spec_desc_retrieve: 'Retrieve data from [{0}] using {1} condition(s)',
+    spec_desc_create: 'Write {1} field(s) to [{0}]',
+    spec_desc_update: 'Update {0} field(s) on upstream data',
+    spec_desc_approval: 'Initiate approval in [{0}] and write {1} field(s)',
     create_usage: 'Usage: openyida integration create <appType> <formUuid> <flowName> [options]',
     create_args_title: 'Arguments:',
     create_arg_app_type: '  appType              App ID, such as APP_XXX',
     create_arg_form_uuid: '  formUuid             Trigger form UUID, such as FORM-XXX',
     create_arg_flow_name: '  flowName             Integration automation name',
     create_options_title: 'Options:',
-    create_opt_process_code: '  --process-code <code>       Update an existing logic flow processCode',
+    create_opt_process_code: '  --process-code <code>       Select an existing flow for full replacement',
+    create_opt_replace: '  --replace                     Confirm --process-code is a full replacement, not a safe update',
     create_opt_receivers: '  --receivers <ids>            DingTalk notification receiver userIds, comma-separated',
     create_opt_title: '  --title <text>                Notification title, supports #{fieldId-ComponentType}#',
     create_opt_content: '  --content <text>              Notification content, supports #{fieldId-ComponentType}#',
@@ -395,9 +592,10 @@ module.exports = {
     create_opt_spec: '  --spec <file.json>            Use a structured flow spec for complex automation nodes (dataUpdate/route, etc.)',
     create_opt_data_form_uuid: '  --data-form-uuid <uuid>     Target form UUID for a get-single-data node',
     create_opt_data_condition: '  --data-condition <rule>     Get-data condition: targetField:label:triggerField[:component[:opCode[:valueType]]]',
-    create_opt_get_self: '  --get-self                    Insert a get-self node (pid equals trigger form instance ID)',
+    create_opt_trigger_condition: '  --trigger-condition <rule>    Điều kiện: field:label:opCode:value[:component[:valueType]]; trường bên phải: processVar, hằng số: literal',
+    create_opt_get_self: '  --get-self                    Insert a get-self node (process runtime uses pid, designer uses proc_inst_id; ordinary forms use form_inst_id on both sides)',
     create_opt_get_self_field: '  --get-self-field <field>     Override the trigger-side system field, default __masterdata_form_inst_id',
-    create_opt_get_self_query_field: '  --get-self-query-field <f>  Override the query-side system field, default pid',
+    create_opt_get_self_query_field: '  --get-self-query-field <f>  Override the query-side system field (process: pid runtime / proc_inst_id designer; ordinary: form_inst_id)',
     create_opt_add_data_form_uuid: '  --add-data-form-uuid <uuid> Target form UUID for an add-data node',
     create_opt_add_data_assignment: '  --add-data-assignment <rule> Add-data assignment: targetField:valueType:value',
     create_opt_initiate_approval_form_uuid: '  --initiate-approval-form-uuid <uuid> Target process-form UUID for an initiate-approval node',
@@ -405,12 +603,19 @@ module.exports = {
     create_opt_initiate_approval_assignment: '  --initiate-approval-assignment <rule> Initiate-approval assignment: targetField:valueType:value',
     create_opt_connector_mode: '  --connector-mode <mode>       Connector mode; use 5 for HTTP connectors',
     create_opt_connection_id: '  --connection-id <id>          HTTP connector auth connection ID',
+    create_opt_connector_system_token_app: '  --connector-system-token-app <appType>  Bind systemToken server-side for a Yida OpenAPI action',
     create_opt_connector_display_name: '  --connector-display-name <name> Connector display name',
     create_opt_publish: '  --publish                     Publish after saving',
     create_examples_title: 'Examples:',
     create_example1: '  openyida integration create APP_XXX FORM-XXX "New record notice" --receivers user123 --publish',
     create_example2: '  openyida integration create APP_XXX FORM-XXX "Get self then notify" --get-self --publish',
     create_missing_args: 'Missing required arguments.',
+    create_replace_required: 'Using --process-code fully replaces the existing flow. Pass --replace explicitly. Safe editing is not currently available; integration update only reports capability status.',
+    create_source_form_fetch_failed: 'Could not read the data-source form metadata; remote write stopped: {0}',
+    create_source_form_not_found: 'Could not find data-source form {0} in navigation; remote write stopped.',
+    create_source_form_type_unknown: 'Navigation did not return a verifiable data-source form type; remote write stopped.',
+    create_source_form_type_invalid: 'Navigation returned unsupported data-source form type "{0}"; remote write stopped.',
+    create_source_form_type_mismatch: 'Explicit formType={0} conflicts with navigation metadata {1}; remote write stopped.',
     create_flow_name_too_long: 'Logic-flow names cannot exceed {0} characters (received {1}).',
     create_invalid_events: 'No valid trigger event was recognized.',
     create_no_receivers: 'No notification receiver or user field specified; no message node will be generated.',
@@ -418,7 +623,7 @@ module.exports = {
     create_app_type: 'App ID: {0}',
     create_form_uuid: 'Trigger form: {0}',
     create_flow_name: 'Flow name: {0}',
-    create_mode_update: 'Mode: update existing logic flow',
+    create_mode_update: 'Mode: full replacement of existing logic flow (not a safe update)',
     create_mode_new: 'Mode: create new logic flow',
     create_process_code: 'Logic flow ID: {0}',
     create_events: 'Trigger events: {0}',
@@ -428,7 +633,7 @@ module.exports = {
     create_notify_content: 'Notification content: {0}',
     create_data_form: 'Get-data form: {0}',
     create_data_conditions: 'Get-data condition count: {0}',
-    create_get_self_summary: 'Get-self guardrail: {0} equals field {1}',
+    create_get_self_summary: 'Get-self guardrail: runtime query field {0} equals field {1}; process-form designer maps it to proc_inst_id, while ordinary forms keep the same field',
     create_op_mode_publish: 'Mode: save and publish',
     create_op_mode_draft: 'Mode: save draft only',
     create_step: '[{0}/{1}] {2}',
@@ -450,7 +655,41 @@ module.exports = {
     create_published_ok: 'Logic flow published',
     create_done_published: 'Integration automation created and published',
     create_done_draft: 'Integration automation draft saved',
-    create_draft_hint: 'You can confirm the config in Yida designer and publish manually.'
+    create_draft_hint: 'You can confirm the config in Yida designer and publish manually.',
+    update_usage: 'Usage: openyida integration update <appType> <formUuid> <processCode> --spec <desired-spec.json> [--publish]',
+    update_missing_args: 'Missing required arguments: appType, formUuid, processCode, and --spec are required.',
+    update_capability_blocked: 'Safe integration update is unavailable: full platform processJson + viewJson readback is not proven. No authentication or remote write was attempted.',
+    publish_readback_unverified: 'The publish response succeeded, but the final state could not be read back exactly: {0}',
+    readback_exact_match_failed: 'The logic flow could not be read back by exact processCode after the write: {0}',
+    readback_status_mismatch: 'The final logic-flow status did not match: expected {0}, received {1}',
+    readback_detail_failed: 'Logic-flow detail readback failed: {0}',
+    readback_detail_empty: 'Logic-flow detail readback was empty: {0}',
+    readback_detail_identity_mismatch: 'Logic-flow detail identity did not match the target: {0}',
+    readback_assignments_mismatch: 'The AddData assignments in the logic-flow detail did not match the saved definition.',
+    detail_api_failed: 'Failed to read logic-flow detail: {0}',
+    list_pagination_limit: 'The integration flow list exceeded the safe pagination limit.',
+    form_list_pagination_limit: 'The form integration flow list exceeded the safe pagination limit.',
+    connector_schema_file_unverified: 'Caller-provided --connector-inputs is no longer trusted; connector schema must come from read-only platform discovery or a fixed proven preset.',
+    connector_not_found: 'Connector not found through read-only discovery: {0}',
+    connector_schema_discovery_failed: 'Read-only connector schema discovery failed: {0}',
+    connector_schema_missing: 'The read-only connector detail did not contain a verifiable operations schema.',
+    connector_action_not_found: 'Connector action not found by exact read-only discovery: {0}',
+    connector_action_schema_missing: 'The connector action does not contain a verifiable inputs/outputs schema.',
+    connector_input_unknown: 'Connector input was not found in the verified schema: {0}',
+    connector_input_ambiguous: 'Connector input exists in multiple parameter groups; use its full path: {0}',
+    connector_assignment_duplicate: 'Multiple connector assignments target the same input: {0}',
+    connector_assignment_value_required: 'Connector input assignment cannot be empty: {0}',
+    connector_required_input_missing: 'Required connector input has no assignment: {0}',
+    readback_connector_assignments_mismatch: 'Connector input assignments in the integration readback differ from the published content.',
+    connector_schema_unverified: 'Connector action schema is unverified: {0}::{1}',
+    runtime_case_unknown: 'Unknown integration runtime case: {0}',
+    runtime_adapter_missing: 'Integration runtime adapter is not configured.',
+    runtime_preflight_not_read_only: 'Integration runtime preflight was not read-only with zero writes: {0}',
+    runtime_ownership_unverified: 'Integration runtime ownership is unverified: {0}',
+    runtime_trigger_rejected: 'Integration runtime trigger was not accepted: {0}',
+    runtime_contract_failed: 'Integration runtime contract failed: {0}',
+    runtime_cleanup_failed: 'Integration runtime cleanup failed: {0}',
+    runtime_primary_cleanup_failed: 'Integration runtime execution and cleanup both failed: {0}',
   },
   env: {
     title: '  openyida env - Phát hiện môi trường công cụ AI',
@@ -499,6 +738,13 @@ module.exports = {
     playwright_install1: '   npm install -g playwright',
     playwright_install2: '   npx playwright install chromium',
     browser_opening: '\n🔐 Opening browser for OAuth login...',
+    oauth_success_title: 'Đăng nhập thành công',
+    oauth_success_message: 'Đăng nhập đã hoàn tất. Hãy quay lại cửa sổ trước để tiếp tục.',
+    oauth_closing: 'Đang tự động đóng cửa sổ này…',
+    oauth_manual_close: 'Không thể tự động đóng cửa sổ này. Hãy đóng thủ công rồi quay lại cửa sổ trước để tiếp tục.',
+    oauth_failure_title: 'Chưa hoàn tất đăng nhập',
+    oauth_invalid_state: 'Không thể xác minh yêu cầu đăng nhập. Hãy quay lại terminal và thử lại.',
+    oauth_missing_code: 'Không nhận được thông tin ủy quyền. Hãy quay lại terminal và thử lại.',
     login_url_label: '  Login URL: {0}',
     waiting_login: '  Waiting for login (up to 10 minutes)...',
     login_timeout: '  ⏰ Login timed out (10 minutes). Please try again.',
@@ -567,15 +813,16 @@ module.exports = {
     unknown: 'unknown'
   },
   create_app: {
+    update_only_option: '{0} chỉ dùng để cập nhật. Hãy tạo ứng dụng trước rồi dùng openyida update-app <appType>.',
     title: '  create-app - Công cụ tạo ứng dụng Yida',
-    usage: 'Cách dùng: openyida create-app "<tên ứng dụng>" hoặc openyida create-app --name "<tên ứng dụng>" [--desc "..."] [--theme deepBlue]',
-    example: 'Ví dụ: openyida create-app --name "Ứng dụng của tôi" --desc "Mô tả ứng dụng" --theme deepBlue',
+    usage: 'Cách dùng: openyida create-app "<tên ứng dụng>" hoặc openyida create-app --name "<tên ứng dụng>" [--desc "..."]',
+    example: 'Ví dụ: openyida create-app --name "Ứng dụng của tôi" --desc "Mô tả ứng dụng"',
     available_icons: '\nAvailable icons:',
     icons_list: '  xian-xinwen, xian-zhengfu, xian-yingyong, xian-xueshimao, xian-qiye,\n' +
       '  xian-danju, xian-shichang, xian-jingli, xian-falv, xian-baogao,\n' +
-      '  huoche, xian-shenbao, xian-diqiu, xian-qiche, xian-feiji,\n' +
+      '  huoche, shenbao, xian-diqiu, xian-qiche, xian-feiji,\n' +
       '  xian-diannao, xian-gongzuozheng, xian-gouwuche, xian-xinyongka,\n' +
-      '  xian-huodong, xian-jiangbei, xian-liucheng, xian-chaxun, xian-daka',
+      '  xian-huodong, xian-jiangbei, xian-liucheng, chaxun, daka',
     available_colors: '\nAvailable colors:',
     colors_list: '  #0089FF #00B853 #FFA200 #FF7357 #5C72FF\n  #85C700 #FFC505 #FF6B7A #8F66FF #14A9FF',
     app_name: '\n  Tên ứng dụng: {0}',
@@ -600,7 +847,7 @@ module.exports = {
   },
   create_page: {
     title: '  create-page - Công cụ tạo trang tùy chỉnh Yida',
-    usage: 'Cách dùng: openyida create-page <appType> <tên trang> [--mode dashboard] [--hide-nav]',
+    usage: 'Cách dùng: openyida create-page <appType> <tên trang> [--mode dashboard] [--hide-nav] [--locale zh_CN|en_US|ja_JP] [--open|--no-open]',
     example: 'Ví dụ: openyida create-page APP_XXX "Dashboard" --mode dashboard',
     app_id: '\n  ID ứng dụng:  {0}',
     page_name: '  Tên trang:    {0}',
@@ -610,6 +857,7 @@ module.exports = {
     step_dashboard_config: '\n🖥️  Step 3: Configure hidden navigation',
     dashboard_config_ok: '  ✅ Navigation hidden by explicit request, chromeless custom URL enabled',
     dashboard_config_failed: '  ⚠️  Hidden navigation config failed: {0}',
+    navigation_unverified: 'Trang đã được tạo nhưng việc đọc lại chưa xác nhận thanh điều hướng đã ẩn. Hãy sửa và kiểm tra cấu hình của pageId được trả về; không tạo trang khác.',
     err_mode_invalid: 'Unsupported page mode: {0}',
     mode_hint: 'Available modes: default, dashboard. Navigation is visible by default; pass --hide-nav or --render-nav false to hide it.',
     page_id_label: '  pageId: {0}',
@@ -657,6 +905,9 @@ module.exports = {
     no_login: '  ❌ Unable to get valid login credentials'
   },
   create_form: {
+    create_readback_mismatch: 'The created form does not contain all requested fields. Recover this existing form ID; do not create another form.',
+    divider_type_invalid: 'Kiểu đường phân cách không được hỗ trợ: {0}. Giá trị được hỗ trợ: {1}',
+    batch_invalid: 'Lô biểu mẫu không hợp lệ; kiểm tra chi tiết lỗi',
     create_title: '  yida-create-form-page - Yida Form Page Creation Tool',
     update_title: '  yida-create-form-page - Yida Form Page Update Tool',
     app_id: '\n  ID ứng dụng:  {0}',
@@ -688,8 +939,6 @@ module.exports = {
     version_label: '  Current version: {0}',
     save_schema_failed: '\n❌ Failed to save Schema: {0}',
     save_failed: '\n❌ Failed to save Schema: {0}',
-    step_update_config: '\n⚙️  Step {0}: Update form config',
-    sending_config: '  Sending updateFormConfig request...',
     step_get_schema: '\n📄 Step {0}: Get current form Schema',
     sending_get_schema: '  Sending getFormSchema request...',
     sending_get: '  Sending getFormSchema request...',
@@ -713,12 +962,7 @@ module.exports = {
     update_success: '  ✅ Form updated successfully!',
     form_uuid_label: '  formUuid: {0}',
     url_label: '  URL: {0}',
-    config_updated_0: '  Config updated: MINI_RESOURCE = 0',
-    config_updated: '  Config updated: MINI_RESOURCE = 0',
     changes_applied: '  Changes applied: {0}',
-    config_failed: '  ⚠️  Config update failed: {0}',
-    schema_ok_config_failed: '  Schema saved, but config update failed',
-    schema_saved_config_failed: '  Schema saved, but config update failed',
     create_post_failure_retry_advice: 'Do not repeat create directly. First run openyida list-forms {0} --keyword "{1}" to check for an existing same-title form; if this run already created a blank/existing form, prefer create-form update or a future --resume-form-uuid flow.',
     error: '\n❌ Lỗi tạo biểu mẫu: {0}',
     usage_create: 'Usage: openyida create-form create <appType> <formTitle> <fieldsJsonFile>',
@@ -728,6 +972,14 @@ module.exports = {
     usage_label: 'Usage:',
     usage_create_short: '  create: openyida create-form create <appType> <formTitle> <fieldsJsonFile>',
     usage_update_short: '  update: openyida create-form update <appType> <formUuid> <changesJsonOrFile>',
+    resume_readback_failed: 'Unable to read the target form before resume.',
+    resume_ownership_unverified: 'The target form does not belong to the requested app; resume stopped.',
+    resume_identity_mismatch: 'The target form identity does not match the readback; resume stopped.',
+    resume_schema_invalid: 'The target form schema is unavailable.',
+    resume_container_invalid: 'The target form container is unavailable.',
+    resume_field_conflict: 'Existing fields conflict with the requested definition; resume stopped.',
+    resume_field_resolution_failed: 'Resume field resolution failed.',
+    resume_readback_mismatch: 'Resume readback did not confirm all requested fields.',
     example_label: '\nExamples:',
     fields_file_not_found: '  ❌ Fields definition file not found: ',
     fields_format_invalid: 'Invalid fields definition format',
@@ -740,6 +992,12 @@ module.exports = {
     patch_must_not_be_empty: 'Patch array must not be empty',
     patch_invalid_shape: 'Patch must be an array, {operations: []}, or a single operation object',
     patch_parse_failed: 'Failed to parse patch JSON: ',
+    action_event_conflict: 'Field "{0}" event {1} is already bound to action "{2}"; silent replacement is blocked. Set replaceExisting=true only after confirming replacement.',
+    action_source_export_missing: 'The action source does not export the requested function "{0}".',
+    action_source_missing: 'Action function "{0}" was not found. Provide source/sourceFile or define it in the action module first.',
+    action_binding_incomplete: 'The form action function, action registry entry, and field event binding are incomplete. The Schema was not saved.',
+    action_readback_failed: 'The form action save was accepted, but readback failed: {0}',
+    action_readback_mismatch: 'The form action save was accepted, but the remote function, action registry entry, or field event binding did not match.',
     rule_file_not_found: 'Rule file not found: ',
     rule_array_empty: 'Rule array must not be empty',
     rules_array_empty: 'The rules array must not be empty',
@@ -803,11 +1061,23 @@ module.exports = {
     failed: '  ❌ Tạo thất bại: {0}'
   },
   common: {
+    auth_profile_required: 'Có thông tin xác thực đã lưu cho nhiều tổ chức. Chạy openyida auth profiles, rồi openyida auth profile switch <auth_profile> để chọn tổ chức cho dự án này.',
+    auth_profile_not_found: 'Không tìm thấy thông tin xác thực của tổ chức được yêu cầu. Chạy openyida auth profiles để kiểm tra các tổ chức đã lưu và chọn hồ sơ phù hợp.',
+    auth_identity_changed: 'Authentication identity changed during preflight; no write was issued.',
     http_status: '  HTTP status: {0}',
     http_response: '  HTTP response: {0}',
     response_body: '  Response body: {0}',
     response_detail: '  Response detail: {0}',
     response_not_json: 'response is not JSON',
+    code_bundle_download_failed: 'Tải CodeBundle thất bại: {0} ({1})',
+    code_bundle_forbidden: 'Xác minh quyền hoặc truy cập OSS bị từ chối',
+    code_bundle_not_found: 'Tệp không tồn tại hoặc đã bị xóa',
+    code_bundle_http_error: 'HTTP {0}',
+    code_bundle_html_response: 'Đã nhận trang lỗi HTML; môi trường hoặc tuyến có thể không chính xác',
+    code_bundle_json_response: 'Dịch vụ trả về phản hồi lỗi JSON: {0}',
+    code_bundle_unexpected_content_type: 'Content-Type phản hồi không mong đợi: {0}',
+    code_bundle_invalid_utf8: 'Phản hồi không phải văn bản UTF-8 hợp lệ',
+    code_bundle_integrity_failed: 'Xác minh tính toàn vẹn của CodeBundle {0} thất bại ({1})',
     login_expired: '  Login session expired: {0}',
     csrf_expired: '  CSRF token expired: {0}',
     csrf_refreshed: '  csrf_token refreshed',
@@ -851,13 +1121,20 @@ module.exports = {
   },
   import_example2: '      openyida import ./yida-export.json "Quality Traceability System (Production)"',
   exec_failed: '\n❌ Execution failed: {0}',
-  auth_usage: 'Usage: openyida auth <status|login|refresh|logout|profiles|profile switch>',
+  auth_usage: 'Usage: openyida auth <status|login|refresh|logout|profiles|profile switch|qwenwork user-info> [--json]',
   auth_example: 'Examples:\n  openyida auth status                         # View login status\n  openyida auth profiles                       # List existing login profiles\n  openyida auth profile switch <auth_profile>  # Switch current project to an existing profile\n  openyida auth login                          # Add a profile when the target does not exist\n  openyida auth refresh                        # Refresh login session\n  openyida auth logout                         # Unbind current project auth\n  openyida auth logout --profile <auth_profile> # Delete a shared profile explicitly',
   org_usage: 'Usage: openyida org <list|switch> [--json] [--corp-id <corpId>]',
   org_example: 'Examples:\n' +
     '  openyida org list --json                    # List accessible organizations\n' +
     '  openyida org switch --corp-id dingXXX       # Switch by OAuth re-login to the specified organization',
   title: '  openyida import - Yida App Import Tool',
+  save_permission: {
+    package_uuid_create_conflict: '--package-uuid không thể dùng cùng --create',
+    package_uuid_not_found: 'Không tìm thấy nhóm có packageUuid={0}; đã dừng mà không ghi',
+    before_unknown: 'Không thể đọc đầy đủ trạng thái trước khi ghi; đã dừng: {0}',
+    verify_failed: 'Kết quả đọc lại chính xác khác sau khi ghi quyền (packageUuid={0})',
+    verify_unknown: 'Kết quả ghi quyền chưa xác định (packageUuid={0}); hãy truy vấn chính xác trước khi thử lại',
+  },
   get_page_config: {
     usage: 'Cách dùng: openyida get-page-config <appType> <formUuid>',
     example: 'Example: openyida get-page-config APP_XXX FORM-XXX',
@@ -880,13 +1157,14 @@ module.exports = {
     usage: 'Cách dùng: openyida save-share-config <appType> <formUuid> <openUrl> <isOpen> [openAuth]',
     example: 'Example: openyida save-share-config "APP_XXX" "FORM-XXX" "/o/xxx" "y" "n"',
     is_open_hint: '  isOpen: y=enable public access, n=disable public access',
-    open_auth_hint: '  openAuth: y=require auth, n=no auth required (default)',
+    open_auth_hint: '  openAuth: y=cần xác thực, n=không cần; bỏ qua để giữ toàn bộ cấu hình hiện tại',
     title: '  save-share-config - Công cụ lưu cấu hình truy cập công khai Yida',
     app_id: '\n  ID ứng dụng:  {0}',
     form_uuid: '  UUID biểu mẫu: {0}',
     open_url: '  URL công khai: {0}',
     is_open: '  Truy cập công khai: {0}',
     open_auth: '  Yêu cầu xác thực: {0}',
+    open_auth_preserve: 'giữ giá trị hiện tại',
     step_validate: '\n📋 Step 0: Xác thực tham số',
     validate_ok: '  ✅ Xác thực thành công',
     validate_failed: '  ❌ Xác thực thất bại: {0}',
@@ -904,6 +1182,15 @@ module.exports = {
     err_open_url_empty: 'Đường dẫn openUrl không được để trống: {0}'
   },
   update_app: {
+    name_not_persisted: 'Tên ứng dụng đã lưu không khớp với tên yêu cầu. Hãy kiểm tra tên hiện tại trước khi thử lại; không tạo ứng dụng khác.',
+    legacy_style_confirm_required: 'Application CSS is discouraged for legacy or unverified themes. Review CSS scope and ask the human to confirm injection into this exact application (navigation, forms and visit pages may be affected). Only then pass --confirm-legacy-app-style. Otherwise use page-scoped styles.',
+    disable_theme_conflict: '--disable-custom-theme only disables CSS and cannot be combined with other application updates.',
+    custom_theme_config_invalid: 'customThemeStyle is missing, malformed, or lacks a nonempty cssUrl. No disable request was submitted; inspect the latest app configuration.',
+    custom_theme_disabled: 'Custom theme CSS is disabled and resource settings are retained; runtime page verification remains pending.',
+    theme_preset_conflict: 'Không thể kết hợp colour có sẵn với CSS hoặc themeColor. Dùng --colour custom hoặc bỏ --colour.',
+    custom_theme_color_required: 'colour=custom cần tệp giao diện hoặc themeColor hợp lệ. Dùng --theme-file hoặc --theme-color.',
+    theme_not_persisted: 'Không thể xác nhận cài đặt giao diện sau khi lưu. Kiểm tra themeVerification và thử lại bằng update-app <appType> --theme-file <css>; không tạo lại ứng dụng.',
+    navigation_not_persisted: "Không thể đọc lại cài đặt điều hướng hoặc kết quả khác với yêu cầu. Xem giá trị mong đợi, giá trị thực tế và lỗi trong navigationVerification, rồi kiểm tra cài đặt hiện tại của ứng dụng.",
     usage: 'Usage: openyida update-app <appType> [--name "New Name"] [--desc "Description"] [--layout slide|ver] [--theme deepBlue]',
     example: 'Example: openyida update-app APP_XXX --name "New App Name" --layout ver --theme deepBlue',
     options: 'Options:\n' +
@@ -941,6 +1228,7 @@ module.exports = {
     offline_success: 'Đã tắt ứng dụng',
   },
   create_process: {
+    invalid_argument: "Thiếu hoặc sai đối số {0}. Hãy sửa theo cú pháp bên dưới.",
     title: 'Yida Process Form Creation',
     app_id: 'App ID',
     mode: 'Mode',
@@ -969,16 +1257,23 @@ module.exports = {
     manual_hint: 'Please configure the process manually in Yida admin. Form UUID: {0}',
     configuring_process: 'Configuring and publishing process',
     configure_failed: 'Failed to configure process',
+    preserve_existing_form: "Biểu mẫu gốc đã tồn tại. Dùng formUuid để kiểm tra trạng thái và nguyên nhân lỗi ở chế độ chỉ đọc, đồng thời giữ nguyên biểu mẫu. Không bỏ --formUuid, tạo lại biểu mẫu hoặc tạo biểu mẫu thay thế cùng tên để khôi phục. Không thử ghi lại khi noWriteRetry=true.",
     retry_hint: 'Process configuration failed, but the form was created. Fix the process definition and retry with this command:',
     fields_not_found: 'Fields definition file not found',
     process_def_not_found: 'Process definition file not found',
     done: 'Process form creation completed',
     url: 'URL',
-    usage: 'Usage: openyida create-process <appType> <formTitle> <fieldsJsonFile> <processDefinitionFile>',
-    usage2: '       openyida create-process <appType> --formUuid <formUuid> <processDefinitionFile>',
+    usage: 'Usage: openyida create-process <appType> <formTitle> <fieldsJsonFile> <processDefinitionFile> [--replace]',
+    usage2: '       openyida create-process <appType> --formUuid <formUuid> <processDefinitionFile> [--replace]',
     example: 'Example: openyida create-process "APP_XXX" "Order Form" .cache/openyida/process/fields.json .cache/openyida/process/process-definition.json',
     example2: '         openyida create-process "APP_XXX" --formUuid FORM-YYY .cache/openyida/process/process-definition.json'
   },
+  configure_process: {
+    replace_required: 'Đã có quy trình được xuất bản hoặc bản nháp đã lưu. Thay thế toàn bộ cần chỉ định rõ --replace; chưa có ghi từ xa nào được gửi.',
+    ownership_unverified: 'Không thể chứng minh processCode thuộc biểu mẫu này. Chưa có ghi từ xa nào được gửi.',
+    published_unverified: 'Yêu cầu xuất bản đã thành công nhưng chưa thể xác minh đầy đủ chế độ xem PUBLISHED chính xác. Hãy đọc lại trạng thái nền tảng trước khi thử lại.',
+  },
+
   update_form_config: {
     usage: 'Cách dùng: openyida update-form-config <appType> <formUuid> <isRenderNav> <title>',
     example: 'Example: openyida update-form-config "APP_XXX" "FORM_XXX" "keep" "My Page"',
@@ -1050,11 +1345,11 @@ module.exports = {
     no_package_hint2: '   npm install -g openyida',
     no_ai_tool: '\n' +
       '❌ No active AI tool environment detected\n' +
-      '   Supported tools: Wukong, Codex, OpenCode, Claude Code, Aone Copilot, Cursor, Qoder\n' +
+      '   Supported tools: Codex, OpenCode, Claude Code, Cursor, Qoder\n' +
       '\n' +
       '   Current detection results:',
     no_active_tool: '\n❌ Không phát hiện môi trường công cụ AI nào đang hoạt động',
-    supported_tools: '   Công cụ hỗ trợ: Wukong, Codex, OpenCode, Claude Code, Aone Copilot, Cursor, Qoder',
+    supported_tools: '   Công cụ hỗ trợ: Codex, OpenCode, Claude Code, Cursor, Qoder',
     current_result: '\n   Kết quả phát hiện hiện tại:',
     force_hint: '\n   Để buộc sao chép vào thư mục hiện tại:\n   openyida copy --force',
     force_cmd: '   openyida copy --force',
@@ -1075,12 +1370,10 @@ module.exports = {
     symlinks_created: '   Liên kết tượng trưng đã tạo: {0}',
     result_symlink: '   {0} → {1} (liên kết tượng trưng)',
     result_copy: '   {0} → {1} ({2} tệp)',
-    wukong_skills_cleanup: '\n🗑️  Môi trường Wukong: Đang dọn dẹp liên kết tượng trưng yida-skills/...',
-    wukong_skills_cleaned: 'đã dọn dẹp',
-    wukong_skills_not_found: '    ℹ️  Không tìm thấy liên kết tượng trưng hoặc thư mục yida-skills/: {0}',
     remove_failed: '    ❌ Xóa thất bại: {0} ({1})',
     symlink_fallback_copy: '    ⚠️  Tạo liên kết tượng trưng Windows thất bại (cần quyền admin), sử dụng sao chép thư mục: {0}',
-    symlink_failed: '    ❌ Tạo liên kết tượng trưng thất bại: {0} ({1})'
+    symlink_failed: '    ❌ Tạo liên kết tượng trưng thất bại: {0} ({1})',
+    source_destination_overlap: 'Đã dừng sao chép vì thư mục nguồn và đích chồng lấn. Nguồn: {0}; đích: {1}'
   },
   check_update: {
     new_version: '\n🎉 Phiên bản mới có sẵn: {0} → {1}',
@@ -1135,6 +1428,20 @@ module.exports = {
     failed: 'Page lint check failed'
   },
   publish: {
+    canvas_path_missing_app_type: 'Dòng {0}: đích điều hướng thiếu appType. Dùng canvas-navigation và ID đã xác minh để tạo /{appType}/{pageType}/{formUuid}, không dùng riêng /custom/.',
+    canvas_theme_fixed_brand_allowed: 'Giữ màu thương hiệu cố định ở dòng {0} ({1}); giá trị này không theo chủ đề ứng dụng.',
+    canvas_theme_fixed_brand_relaxed: 'Dòng {0}: ConfigProvider mã hóa cứng màu tương tác thương hiệu ({1}). Việc xuất bản không còn bị chặn theo mặc định và tiếp tục như hiện trạng, nhưng màu này sẽ không theo chủ đề ứng dụng. Thêm --fix-theme để tự động di chuyển, hoặc di chuyển thủ công sang canvas-theme; dùng --strict-theme để thất bại cứng trong CI.',
+    theme_canvas_only: 'Tùy chọn chủ đề chỉ dành cho Canvas; dùng .canvas.jsx/.canvas.tsx hoặc --canvas.',
+    fix_theme_source_changed: 'Mã nguồn đã đổi trước khi lưu di chuyển giao diện. Chưa ghi tệp; hãy kiểm tra lại mã nguồn hiện tại.',
+    fix_theme_applied: 'Đã áp dụng di chuyển chủ đề và ghi lại vào nguồn: {0}',
+    canvas_theme_fixed_brand: 'Dòng {0}: ConfigProvider cố định màu thương hiệu. Dùng canvas-theme với màu đã phân giải từ chủ đề; chỉ dùng CSS var trực tiếp trong kiểu DOM.',
+    canvas_navigation_local_platform: 'Dòng {0}: các chế độ xem nội bộ bị lọc qua menu nền tảng. Dùng mode=local hoặc trạng thái nội bộ; gắn trang thật với formUuid/navUuid và kiểm tra quyền đã khai báo.',
+    canvas_navigation_document_flex: 'Dòng {0}: document dùng flex với cơ sở bằng 0. Cập nhật canvas-nav-content: chiều cao tự nhiên và khối cho document, flex có chiều cao cố định cho workspace.',
+    canvas_theme_not_assembled: 'Dấu chủ đề ở dòng {0} chưa được xử lý. Chạy build-canvas-theme.js rồi biên dịch/xuất bản tệp đầu ra riêng. Trang đã tích hợp Provider không cần dấu này.',
+    canvas_theme_provider_missing: 'Trang gần dòng {0} chưa được bọc bằng bộ cung cấp giao diện. Hãy trả về <CanvasThemeProvider><PageContent /></CanvasThemeProvider> từ YidaComp.',
+    canvas_theme_root_hook: 'Giao diện được đọc trước khi bộ cung cấp hoạt động gần dòng {0}. Chuyển useCanvasThemeContext vào PageContent và hiển thị nó bên trong CanvasThemeProvider.',
+    canvas_theme_context_scope: 'CanvasThemeContext được khai báo trong hàm gần dòng {0}. Hãy khai báo ngữ cảnh và bộ cung cấp ở cấp mô-đun.',
+    canvas_inline_css_invalid: 'CSS gần dòng {0} có dấu ngoặc, chuỗi hoặc chú thích chưa đóng hoặc không khớp. Hãy sửa trước khi xuất bản.',
     title: '  yida-publish - Công cụ xuất bản trang Yida',
     platform: '  Nền tảng: {0}',
     base_url: '\n  Platform: {0}',
@@ -1172,13 +1479,21 @@ module.exports = {
     lint_emoji_forbidden: 'Found emoji "{0}". OpenYida generated artifacts must not use emoji in UI copy, source comments, file paths, or code constants; use plain text, SVG, or icon components instead.',
     lint_searchformdata_http_post: 'Gọi trực tiếp searchFormDatas.json phải dùng GET + tham số query (đặt formUuid/appType trong query URL). Dùng POST với formUuid trong body sẽ gây lỗi «参数校验失败formUuid» và dashboard/danh sách hiển thị toàn số 0',
     lint_searchformdata_http_pagenumber: 'searchFormDatas.json phân trang bằng currentPage (không phải pageNumber); dùng pageNumber sẽ hỏng phân trang',
+    lint_searchformdata_bridge_unwrap: 'Yida searchFormDatas trả về các dòng trong payload.data và tổng số trong payload.totalCount. Không chỉ đọc payload.data.data; hãy chuẩn hóa mảng và dùng currentPage để phân trang. Xem yida-canvas-data-binding.',
     lint_searchformdata_http_unwrap: 'Phản hồi trình duyệt của searchFormDatas.json lồng danh sách trong content.data ({ content: { data: [...] } }); chỉ đọc json.data sẽ ra 0 dòng — hãy giải nén qua (json.content && json.content.data)',
+    lint_searchformdata_dynamic_order_metadata: 'searchFormDatas.dynamicOrder không được dùng trường siêu dữ liệu bản ghi {0}; hãy dùng ID trường nghiệp vụ thực do get-schema trả về. Nếu không có trường ngày nghiệp vụ có thể sắp xếp, hãy xóa dynamicOrder và chỉ sắp xếp trang đã tải theo row.createTime để hiển thị',
     lint_setstate_non_timestamp: 'this.setState ghi một trường không phải timestamp. Trạng thái nghiệp vụ của trang tùy chỉnh nên nằm trong _customState và được cập nhật qua forceUpdate()/setCustomState(); this.setState chỉ nên chứa trường hợp đồng timestamp',
     lint_self_binding_missing: 'renderJsx dùng this mà không khai báo var self = this;. Thêm var self = this; ở đầu renderJsx và dùng self trong closure/callback để tránh mất this',
     lint_echarts_dom_ready: 'echarts.init chưa được bọc trong setTimeout; container có thể chưa mount nên biểu đồ có thể không render. Dùng setTimeout(function(){ /* echarts.init */ }, 300)',
+    lint_resize_observer_cleanup: 'ResizeObserver thiếu dọn dẹp disconnect()/unobserve(). Hãy giải phóng khi unmount.',
+    lint_responsive_viewport_only: 'Bố cục chỉ đổi theo viewport nên sidebar, drawer hoặc iframe hẹp có thể không hạ cấp. Dùng @container hoặc ResizeObserver có dọn dẹp. Thêm openyida-responsive-viewport-ok nếu đây là chủ ý.',
+    lint_responsive_fixed_width: 'Chiều rộng cố định %spx có thể tràn trong container hẹp. Dùng max-width, minmax(0, 1fr) hoặc cuộn cục bộ. Với canvas cố định, thêm openyida-responsive-fixed-width-ok.',
+    lint_responsive_page_scale: 'Phát hiện scale/zoom toàn trang. Hãy sắp xếp lại nội dung và giữ chữ cùng vùng bấm dễ dùng. Với trực quan cục bộ, thêm openyida-responsive-scale-ok.',
     lint_yida_api_catch: 'Lệnh gọi API this.utils.yida chưa phát hiện .catch(); hãy thêm xử lý lỗi và toast cho người dùng',
     lint_echarts_legacy_map_china: 'ECharts 5 không còn hỗ trợ echarts/map/js/china.js. Hãy tải DataV GeoJSON và gọi echarts.registerMap("china", geoJson) thay thế',
     lint_echarts_rich_label_formatter: 'Template rich text trả về từ ECharts label.formatter không ổn định trong trang tùy chỉnh Yida; nên dùng chuỗi formatter đơn giản hoặc text nhãn tính sẵn',
+    lint_system_token_frontend_forbidden: 'Trang tùy chỉnh không được đọc hoặc truyền systemToken. Hãy dùng tự động hóa tích hợp Yida để liên kết ở phía máy chủ.',
+    lint_connector_runtime_name_required: 'Custom pages must invoke connectors with connectorName (Http_*); numeric connectorId is only for CLI management.',
     lint_const_let: 'Sử dụng khai báo const/let, khuyến nghị đổi thành var (tương thích môi trường Yida)',
     lint_computed_property: 'Sử dụng tên thuộc tính tính toán ES6 { [key]: value }, không được hỗ trợ bởi engine JS Yida, gây lỗi im lặng. Hãy dùng var obj = {}; obj[key] = value;',
     lint_pad_method: 'Sử dụng String.{0}(), không được hỗ trợ bởi engine JS Yida, gây gián đoạn im lặng callback Promise. Hãy dùng toán tử ba ngôi: x < 10 ? "0" + x : "" + x',
@@ -1220,6 +1535,9 @@ module.exports = {
     canvas_compiling: '  🎨 Đang biên dịch mã nguồn trang tùy chỉnh cục bộ...',
     canvas_compile_done: '  ✅ Đã biên dịch trang tùy chỉnh!',
     canvas_compile_failed: '  ❌ Biên dịch trang tùy chỉnh thất bại: {0}',
+    canvas_icon_export_unavailable: 'Dòng {2}: thư viện biểu tượng runtime Yida {0} không xuất {1}. Chọn biểu tượng được hỗ trợ và biên dịch lại. Gợi ý thay thế: {3}.',
+    canvas_unbound_identifiers: 'Mã nguồn Code Canvas chứa định danh chưa được khai báo: {0}. Hãy bổ sung import hoặc khai báo hàm, Ref, trạng thái hay biến cục bộ trong cùng tệp và dùng cùng một tên cho mọi tham chiếu. Nếu runtime không chuẩn cung cấp định danh, hãy truy cập rõ ràng qua window.<name> hoặc parentWindow.<name> và kiểm tra sự tồn tại trước.',
+    canvas_instance_api_unavailable: 'Thành phần Code Canvas không thể dùng các API phiên bản JSX của nền tảng sau: {0}. Hãy dùng React hooks, props hoặc cầu nối dữ liệu window.__OPENYIDA_YIDA_API__.',
     step_login: '\n🔑 Step 2: Đọc thông tin đăng nhập',
     step_publish: '\n📤 Step 3: Xuất bản schema\n',
     resend_save_csrf: '  🔄 Resending saveFormSchema request (csrf_token refreshed)...',
@@ -1231,18 +1549,8 @@ module.exports = {
     schema_success: '  ✅ Schema published successfully!',
     form_uuid_label: '  formUuid: {0}',
     version_label: '  version:  {0}',
-    step_config: '\n⚙️  Step 4: Cập nhật cấu hình biểu mẫu\n',
-    sending_config: '  Sending updateFormConfig request...',
-    resend_config_csrf: '  🔄 Resending updateFormConfig request (csrf_token refreshed)...',
-    resend_config: '  🔄 Resending updateFormConfig request after re-login...',
-    config_csrf_retry: '  🔄 Resending updateFormConfig request (csrf_token refreshed)...',
-    config_relogin_retry: '  🔄 Resending updateFormConfig request after re-login...',
     success: '  ✅ Xuất bản thành công!',
     publish_success: '  ✅ Published successfully!',
-    config_updated: '  Config updated: MINI_RESOURCE = 8',
-    config_failed: '  ⚠️  Cập nhật cấu hình thất bại: {0}',
-    schema_ok_config_failed: 'Schema published, but config update failed',
-    schema_published_config_failed: '  Schema published, but config update failed',
     step_health_check: '\n🩺 Step 5: Publish readback check\n',
     health_check_ok: '  ✅ Publish readback check passed: {0}',
     health_check_failed: '  ⚠️  Publish readback check failed: {0} {1}',
@@ -1253,7 +1561,7 @@ module.exports = {
     error: '\n❌ Publish error: {0}',
     source_not_found: '❌ Không tìm thấy tệp nguồn: {0}',
     source_path_hint: '💡 Hãy thử đường dẫn tệp nguồn này: {0}',
-    usage: 'Cách dùng: openyida publish <tệpNguồn> <appType> <formUuid> [--health-check] [--canvas] [--auto-nav-order]',
+    usage: 'Cách dùng: openyida publish <tệpNguồn> <appType> <formUuid> [--health-check] [--force] [--canvas] [--compat] [--skip-lint] [--auto-nav-order] [--open|--no-open] [--json]',
     example: 'Ví dụ: openyida publish pages/src/xxx.js APP_XXX FORM-XXX --health-check --auto-nav-order'
   },
   qr_login: {
@@ -1298,6 +1606,10 @@ module.exports = {
     stdin_closed: 'Luồng đầu vào đã đóng, không thể chọn tổ chức'
   },
   check_prd_completeness: {
+    application_theme_mismatch: 'Chủ đề ứng dụng không khớp với chủ đề đã chọn cho dự án.',
+    application_theme_not_checked: 'Không thể xác minh cấu hình chủ đề ứng dụng; chưa xác nhận chủ đề đã được áp dụng.',
+    frontend_navigation_not_checked: 'Chưa xác minh việc ẩn trang giao diện trong menu quản trị: {0}',
+    frontend_navigation_visible: 'Trang giao diện vẫn xuất hiện trong menu quản trị trên máy tính hoặc di động: {0}',
     usage: 'Usage: openyida check-prd-completeness <prd.md> --app-type <appType> [--build-manifest <file>] [--json]',
     example: 'Example: openyida check-prd-completeness prd/order-management/prd.md --app-type APP_XXX --build-manifest prd/order-management/build-manifest.json --json',
     prd_not_found: 'PRD file not found: {0}',
@@ -1311,7 +1623,7 @@ module.exports = {
     install_success: '  ✅ Cài đặt hoàn tất! {0} Công cụ phát triển AI Yida đã sẵn sàng.',
     update_success: '  ✅ Cập nhật hoàn tất! {0} OpenYida đã được nâng cấp lên phiên bản mới nhất.',
     ai_mode_title: '  🚀 Chế độ hội thoại AI',
-    ai_mode_desc: '  Trong Codex / Claude Code / Aone Copilot / Cursor, hãy trò chuyện trực tiếp:',
+    ai_mode_desc: '  Trong Codex / Claude Code / Cursor, hãy trò chuyện trực tiếp:',
     prompt1: '  📋  "Tạo cho tôi hệ thống quản lý chấm công với Yida"',
     prompt2: '  💰  "Xây dựng ứng dụng tính lương cá nhân"',
     prompt3: '  🏢  "Tạo hệ thống CRM quản lý khách hàng"',
@@ -1691,6 +2003,7 @@ module.exports = {
     disabled: 'AI approval prompts disabled',
     unknown_subcommand: 'Unknown ai-form-setting subcommand: {0}'
   },
+  report_runtime: require('../../lib/report/i18n-messages').vi,
   safe_json: {
     hint_unquoted_key: 'A key looks unquoted (JSON requires all keys wrapped in double quotes, e.g. {"name":1})',
     hint_single_quote: `Single quotes were likely used (JSON only allows double quotes ", not single quotes ')`,
@@ -1706,7 +2019,7 @@ module.exports = {
   },
   codex_login: {
     title: '  openyida login {0} - {1} Login Mode',
-    not_codex: 'Current environment is not detected as Codex / Qoder / Wukong; returning an in-app browser login handoff only.',
+    not_codex: 'Current environment is not detected as Codex / Qoder; returning an in-app browser login handoff only.',
     no_playwright: '{0} mode does not require Playwright or a separate Chromium install.',
     using_browser: '{0} in-app Browser is only suitable for unauthenticated page previews; use openyida login for CLI auth.',
     browser_handoff_hint: '{0} in-app Browser is not used for CLI auth. Use openyida login.',
@@ -1737,8 +2050,6 @@ module.exports = {
     schema_empty_msg: 'Schema is empty',
     save_schema_failed: '    ❌ Failed to save Schema: {0}',
     schema_saved: '    ✅ Schema saved',
-    config_failed: '    ⚠️  Config update failed (Schema saved): {0}',
-    config_updated: '    ✅ Form config updated',
     step_write_report: '\n📄 Step 5: Write migration report',
     report_written: '  ✅ Migration report written: {0}',
     done: '  ✅ Migration complete!',
@@ -1778,4 +2089,430 @@ module.exports = {
     failed: '  ❌ Nhập thất bại: {0}',
     error: '\n❌ Lỗi nhập ứng dụng: {0}'
   }
+};
+
+// Safety-critical verification and publish lint messages.
+Object.assign(module.exports.app_permission || (module.exports.app_permission = {}), {
+  verify_failed: 'Lỗi xác minh lưu của quản trị viên ứng dụng',
+});
+
+module.exports.permission_scope = {
+  roles_summary: 'Roles: {0}',
+  options_help: '--owner-field restricts records to those whose top-level member field contains the current user; --roles selects ordinary Yida roles; --field-access is repeatable. Initial custom field access requires --field-default and shorthand updates require --package-uuid. --dry-run previews without writes.',
+  invalid: 'Invalid permission options: {0}. Shorthand updates require --package-uuid; do not mix member scopes or field defaults.',
+  owner_invalid: '--owner-field must identify a real top-level EmployeeField in the target form, not a creator alias, text or subtable field.',
+  field_default_required: 'Initial --field-access requires --field-default view|edit|hidden|encrypt for all other fields; form-dependent behavior cannot be inferred.',
+  overlap_notice: 'Other permission groups or overlapping roles may grant broader access. Saving this group does not verify effective row isolation or field access for all users.',
+  matrix_notice: 'Native matrices use the OA enhancement entitlement package. Available does not prove purchase; unavailable requires an administrator to check or enable entitlement. Business APIs remain authoritative.',
+  matrix_unavailable: 'Matrix usage is unavailable for this app. Ask an administrator to check or enable the OA enhancement entitlement package before retrying. No writes performed.',
+  matrix_unknown: 'Matrix availability could not be established. Resolve the returned account-access or API error first. No writes performed.',
+};
+
+
+Object.assign(module.exports.corp_manager || (module.exports.corp_manager = {}), {
+  address_book_verify_failed: 'Xác minh lưu thư mục địa chỉ thất bại: mong đợi={0}, thực tế={1}',
+  admin_verify_failed: 'Xác minh lưu quản trị viên thất bại: {0} không có trong danh sách {1}',
+  sub_admin_scope_verify_failed: 'Xác minh phạm vi phụ quản trị viên thất bại: mong đợi={0}, thực tế={1}',
+  admin_remove_verify_failed: 'Xác minh xóa quản trị viên thất bại: {0} vẫn còn trong danh sách {1}',
+});
+
+Object.assign(module.exports.save_permission || (module.exports.save_permission = {}), {
+  confirm_member_replace_usage: 'Thay thế thành viên hợp nhất cũng yêu cầu --confirm-member-replace',
+  data_object_required: 'Quyền dữ liệu phải là một đối tượng JSON',
+  data_rule_required: 'Quy tắc quyền dữ liệu không được để trống',
+  data_rule_type_required: 'Mỗi mục quy tắc quyền dữ liệu phải bao gồm trường type',
+  data_rule_value_invalid: 'Giá trị của quy tắc quyền dữ liệu {0} phải là y/n hoặc boolean',
+  data_enabled_required: 'Quyền dữ liệu phải bật ít nhất một khoảng dữ liệu',
+  custom_department_ids_required: 'CUSTOM_DEPARTMENT yêu cầu customDepartmentData.departmentIds không rỗng',
+  formula_data_required: 'FORMULA yêu cầu formulaData không rỗng',
+  data_range_required: 'Quyền dữ liệu phải có dataRange hoặc rule không rỗng',
+  action_enabled_required: 'Quyền hành động phải chứa ít nhất một bộ thao tác được đặt thành true',
+  action_value_boolean: 'Quyền hành động {0} phải là boolean',
+  field_range_invalid: 'Trường quyền dữ liệu fieldRange chỉ hỗ trợ FORM hoặc CUSTOM',
+  field_status_required: 'Quyền trường tùy chỉnh yêu cầu mảng fieldStatus không rỗng',
+  field_status_item_required: 'Mỗi mục fieldStatus phải bao gồm label, fieldName, componentName và value',
+  field_status_value_invalid: 'Giá trị quyền trường không hợp lệ: {0}; các giá trị hợp lệ: {1}',
+  json_object_required: '{0} phải là một đối tượng JSON',
+  parse_failed: 'Không thể giải mã {0}: {1}',
+  role_conflict: 'Các tham số quyền xác định các vai trò không nhất quán: {0}',
+  matrix_role_only: '--matrix chỉ có thể cập nhật nhóm quyền role=MATRIX',
+  all_members_role_only: '--all-members chỉ có thể cập nhật nhóm quyền role=DEFAULT',
+  target_role_invalid: 'Vai trò không hợp lệ: {0}; giá trị hợp lệ: {1}',
+  unnamed_package: 'Không đặt tên',
+  missing_package_uuid: 'Không có UUID',
+  target_no_match: 'Không có nhóm quyền phù hợp với vai trò={0}; hủy bỏ để ngăn cập nhật không mong muốn (không ghi dữ liệu). Các nhóm quyền hiện tại:\n{2}',
+  target_ambiguous: 'Vai trò={0} khớp {1} nhóm quyền; hủy bỏ để ngăn cập nhật không mong muốn.\n{2}',
+  unknown_operate_keys: 'Nhóm quyền hiện tại chứa các khóa thao tác mà CLI chưa biết, do đó action-permission không thể thay đổi: {0}. Các chiều khác vẫn có thể được thay đổi và các khóa chưa biết sẽ được giữ nguyên.',
+  matrix_role_value_required: 'MATRIX roleData.roleValue phải là một mảng không rỗng',
+  matrix_data_required: 'Khi sử dụng MATRIX, quy tắc quyền dữ liệu phải bao gồm MATRIX',
+  data_matrix_member_required: 'Khi quyền dữ liệu bao gồm MATRIX, thành viên phải chọn ma trận quyền hợp lệ',
+  members_all_conflict: '--members và --all-members là loại trừ lẫn nhau',
+  invalid_arguments: 'Kiểm tra tham số thất bại: {0}',
+  query_limit: 'Lên đến giới hạn hiện tại của truy vấn nhóm quyền (20 mục), do đó không thể chứng minh tính duy nhất toàn cục. Hủy bỏ với không ghi dữ liệu.\n{0}',
+  unique_target: '  ✅ Mục tiêu độc nhất: {0}',
+  member_before: '  Thành viên trước: {0}',
+  member_after: '  Thành viên sau:  {0}',
+  member_removed: '  Vai trò thành viên cần xóa: {0}',
+  member_replace_confirm: 'Thay thế thành viên sẽ xóa các vai trò hợp chất hiện có. Hãy xem xét trước/sau và thêm --confirm-member-replace. Các mục sắp bị mất: {0}',
+});
+
+Object.assign(module.exports.save_share_config || (module.exports.save_share_config = {}), {
+  err_page_url_prefix: 'openUrl phải bắt đầu bằng /o/ hoặc /s/, giá trị hiện tại: {0}',
+  verify_failed: 'Kiểm tra sau lưu thất bại: {0}',
+  current_state_incomplete: 'Lưu bị hủy: cấu hình truy cập công khai hiện tại thiếu openPageAuthConfig, do đó không thể chứng minh bảo tồn an toàn',
+});
+
+Object.assign(module.exports.publish || (module.exports.publish = {}), {
+  lint_jsx_text_identifier: 'JSX copy không thể viết dưới dạng {{0}}; nó được xử lý như biến và gây ra lỗi {0} is not defined. Hãy sử dụng văn bản thường {0} hoặc chuỗi có dấu ngoặc đơn {\'{0}\'} thay vào đó.',
+  lint_form_open_container: 'Biểu mẫu gửi/chi tiết phải dùng mẫu ngăn kéo đầy đủ: openyida sample openyida-page-template form-open-container. Tích hợp CanvasDrawer, FormOpenContainer và useYidaFormOpen, gọi openForm và hiển thị formOpenContainer. Máy tính dùng ngăn kéo iframe, di động do mẫu xử lý; không thay bằng liên kết hoặc hộp thoại tự viết.',
+  lint_form_detail_link: 'Trang chi tiết form Yida phải sử dụng một formInstId thực tế: hãy đọc row.formInstId trước, và tắt hoặc cảnh báo khi id instance bị thiếu thay vì mở liên kết formDetail với formInstId rỗng.',
+  lint_searchformdata_http_path: 'Một cuộc gọi trực tiếp searchFormDatas.json bắt buộc phải sử dụng /dingtalk/web/<appType>/v1/form/searchFormDatas.json; /query/form/searchFormDatas.json không phải là điểm cuối dữ liệu form hợp lệ',
+  lint_searchformdata_http_query_params: 'Cuộc gọi URL tham số truy vấn trực tiếp searchFormDatas.json thiếu các tham số bắt buộc: {0}. Hãy sử dụng URLSearchParams với appType, formUuid, currentPage, pageSize và searchFieldJson',
+  lint_searchformdata_http_csrf: 'Một cuộc gọi trực tiếp searchFormDatas.json phải đặt token CSRF thời gian chạy vào cả _csrf_token trong truy vấn URL và global_csrf_token trong tiêu đề yêu cầu',
+  lint_searchformdata_http_credentials: 'Một cuộc gọi trực tiếp searchFormDatas.json phải thiết lập credentials: "include" để trình duyệt gửi cookie đăng nhập cùng nguồn gốc',
+  lint_canvas_yida_api_bridge_missing: 'Đọc dữ liệu form YidaCodeCanvas bắt buộc phải tiêu thụ window.__OPENYIDA_YIDA_API__ trước (lớp publish tiêm cầu nối this.utils.yida từ didMount bên ngoài); không mặc định đến fetch searchFormDatas nội bộ viết tay',
+});
+
+Object.assign(module.exports.query_data || (module.exports.query_data = {}), {
+  approver_query_help: 'Người phê duyệt hiện tại: --current-approver <userId> [--count]. Đọc mọi trang có quyền xem và đếm các phiên bản không trùng lặp. Truy vấn chưa hoàn tất hoặc thiếu quyền sẽ báo lỗi.',
+  approver_option_invalid: 'Tùy chọn truy vấn người phê duyệt hiện tại không hợp lệ: {0}. Dùng userId chính xác và đọc các phiên bản RUNNING từ trang 1.',
+  approver_incomplete: 'Không thể hoàn tất thống kê theo người phê duyệt hiện tại. Chưa trả về tổng đầy đủ; hãy kiểm tra lỗi, quyền và phạm vi phân trang.',
+  approver_response_invalid: 'Không xác minh được cấu trúc phản hồi API quy trình nên không thể xác định số lượng theo người phê duyệt hiện tại.',
+  approver_scope_note: 'Chỉ đếm các phiên bản mà máy chủ cho phép người đang đăng nhập xem; điều này không có nghĩa là có quyền xem toàn bộ dữ liệu ứng dụng.',
+  command_unsupported: 'Lệnh dữ liệu không được hỗ trợ: {0} {1}. Chạy openyida commands --json để xem năng lực thực tế.',
+  delete_confirmation_required: 'Trước khi xóa bản ghi biểu mẫu, hãy đọc mục tiêu, hiển thị tóm tắt cho người dùng và chỉ thêm --confirm sau khi được xác nhận rõ ràng. Chưa thực hiện xóa.',
+  delete_preflight_failed: 'Không thể đọc bản ghi biểu mẫu {0} để kiểm tra trước khi xóa. Chưa thực hiện xóa.',
+  delete_process_unsupported: 'Phiên bản này chưa hỗ trợ xóa phiên bản quy trình. Hãy dừng và báo cáo thiếu hụt năng lực; không dùng script hoặc API riêng.',
+  delete_readback_mismatch: 'Yêu cầu xóa đã được chấp nhận nhưng bản ghi {0} vẫn tồn tại khi đọc lại. Kết quả chưa được xác minh; không tự động thử xóa lại.',
+  delete_result_unknown: 'Không xác định được kết quả xóa bản ghi {0}. Chỉ kiểm tra bằng thao tác đọc và không tự động thử xóa lại.',
+  delete_target_mismatch: 'Bản ghi biểu mẫu {0} không thuộc biểu mẫu đích {1}. Thao tác đã dừng trước khi xóa.',
+  delete_target_unverified: 'Không thể xác minh danh tính và biểu mẫu sở hữu của bản ghi {0}. Thao tác đã dừng trước khi xóa.',
+  field_reference_unknown: 'Tham chiếu trường {0} không phải fieldId thực hoặc bí danh thành phần trong biểu mẫu đích. Thao tác đã dừng trước khi ghi.',
+  form_mode_unverified: 'Không thể xác minh loại của biểu mẫu {0}. Việc tạo đã dừng trước khi ghi dữ liệu.',
+  resource_required: 'data query thiếu loại tài nguyên form. Lệnh đề xuất: {0}',
+});
+
+Object.assign(module.exports.common || (module.exports.common = {}), {
+  non_idempotent_result_unknown: 'Xác thực đã thay đổi trong lúc gửi yêu cầu tạo; chưa xác định được kết quả. Hãy kiểm tra trạng thái đích trước khi thử lại.',
+});
+
+Object.assign(module.exports.permission_common || (module.exports.permission_common = {}), {
+  unsupported_argument: 'Tham số không được hỗ trợ: {0}',
+});
+
+Object.assign(module.exports.permission_list || (module.exports.permission_list = {}), {
+  query_failed: 'Không thể truy vấn nhóm quyền',
+  query_success: '  ✅ Truy vấn quyền thành công: {0} nhóm',
+  query_success_message: 'Truy vấn quyền thành công',
+  invalid_structure: 'Truy vấn nhóm quyền trả về cấu trúc danh sách không nhận dạng được',
+  duplicate_uuid: 'Kết quả phân trang nhóm quyền lặp lại packageUuid={0}',
+  pagination_limit: 'Truy vấn nhóm quyền đã đạt giới hạn phân trang an toàn ({0} trang); không thể chứng minh kết quả đầy đủ',
+});
+
+Object.assign(module.exports.save_permission || (module.exports.save_permission = {}), {
+  write_accepted_readback: '    ✅ Yêu cầu ghi đã thành công; bắt đầu đọc lại chính xác',
+  saved_message: 'Đã lưu cấu hình quyền',
+});
+Object.assign(module.exports.process_errors || (module.exports.process_errors = {}), {
+  platform_view_json_invalid: 'Nội dung getProcessById phải là JSON hợp lệ: {0}',
+  platform_view_request_failed: 'getProcessById không trả về phản hồi thành công.',
+  platform_view_content_invalid: 'Nội dung getProcessById phải được phân giải thành một đối tượng.',
+  platform_view_schema_missing: 'Chế độ xem nền tảng phải chứa schema CanvasEngine.',
+  platform_view_nodes_missing: 'schema.children của chế độ xem nền tảng phải là một mảng.',
+  multi_approval_mode_invalid: 'Chế độ phê duyệt nhiều người phải là all, or hoặc oneByOne: {0}',
+  form_mode_operation_failed: 'Thao tác chế độ biểu mẫu thất bại.',
+});
+
+Object.assign(module.exports.process_diagnostics || (module.exports.process_diagnostics = {}), {
+  preflight_form_mode: 'Hãy kiểm tra appType, formUuid và liên kết quy trình trước khi thử lại.',
+  authorize_replacement: 'Hiển thị toàn bộ tóm tắt thay thế và nhận xác nhận rõ ràng trước khi truyền --replace.',
+  verify_published_view: 'Có thể việc phát hành đã thành công. Chỉ đọc lại phiên bản PUBLISHED chính xác và chế độ xem nền tảng trước khi thử ghi thêm.',
+  unknown_result: 'Không xác định được kết quả ghi. Chỉ dùng kiểm tra trạng thái chỉ đọc hoặc xác minh thủ công; không trực tiếp thử ghi lại.',
+});
+
+Object.assign(module.exports.create_process || (module.exports.create_process = {}), {
+  login_required: 'Không tìm thấy phiên đăng nhập Yida hợp lệ. Hãy chạy openyida login trước.',
+});
+module.exports.connector_test = {
+  usage: 'Usage: openyida connector test --connector-id <id> --action <actionId> [structured JSON options] [--account-id <id>] [--ignore-defaults] [--json]',
+  ignore_defaults_system_token_warning: 'Các giá trị tham số mặc định đã lưu bị bỏ qua qua --ignore-defaults (chúng chứa systemToken khác rỗng và không được dùng trong lần chạy này); hãy dọn dẹp giá trị mặc định của hành động trong trình thiết kế trước khi dùng cho sản xuất.',
+  invalid_json: '{0} is not valid JSON: {1}', json_object_required: '{0} must be a JSON object',
+  unknown_flat_param: 'Parameter {0} is not in the action schema; use structured JSON options', ambiguous_flat_param: 'Parameter {0} belongs to multiple locations; use structured JSON options',
+  auth_account_required: 'This connector requires an owned auth account passed with --account-id', auth_account_not_owned: 'Account {0} does not belong to this connector',
+  arguments_required: '--connector-id and --action are required', connector_not_found: 'Connector ID not found: {0}', operations_invalid: 'Connector operations are not valid JSON', action_not_found: 'Action not found: {0}',
+  success: '✅ Test succeeded', status_label: 'HTTP status:', headers_label: 'Response headers:', content_label: 'Response body:',
+};
+
+Object.assign(module.exports.query_data || (module.exports.query_data = {}), {
+  association_derived_field_read_only: 'Derived association-form query field {0} is read-only and cannot be saved or updated. Write the source association field without the _id suffix.',
+  association_value_invalid: 'The write value for association-form field {0} is invalid. Use an array of objects where every item includes appType, formUuid, formType, instanceId, and title.',
+  instance_target_mismatch: 'Instance {0} does not belong to expected business resource {1}. The operation stopped before mutation.',
+  instance_target_unverified: 'Could not verify the business resource ownership of instance {0}. The operation stopped before mutation.',
+  target_expectation_invalid: '--expect-form-type must be {0}. The operation stopped before mutation.',
+  target_identity_mismatch: 'Target resource {0} does not match the expected name or type. The operation stopped before mutation.',
+  target_identity_unverified: 'Could not read the name and type of target resource {0}. The operation stopped before mutation.',
+});
+
+const connectorSafetyMessages = require('../../lib/core/locales/en');
+module.exports.connector_contract = connectorSafetyMessages.connector_contract;
+module.exports.connector_auth = connectorSafetyMessages.connector_auth;
+module.exports.connector_api = connectorSafetyMessages.connector_api;
+module.exports.connector_e2e = connectorSafetyMessages.connector_e2e;
+module.exports.connector_action_update = connectorSafetyMessages.connector_action_update;
+module.exports.connector_update_action = connectorSafetyMessages.connector_update_action;
+module.exports.connector_action_e2e = connectorSafetyMessages.connector_action_e2e;
+module.exports.help.cmd_connector_update_action = connectorSafetyMessages.help.cmd_connector_update_action;
+module.exports.agent = connectorSafetyMessages.agent;
+module.exports.help.cmd_agent = connectorSafetyMessages.help.cmd_agent;
+
+Object.assign(module.exports.process_errors || (module.exports.process_errors = {}), {
+  action_config_invalid: 'Cấu hình thao tác phê duyệt không hợp lệ cho nút {0}: {1}',
+});
+
+module.exports.cli_argument = { invalid: 'Tham số không hợp lệ hoặc thiếu giá trị: {0}. Xem hướng dẫn lệnh.' };
+
+module.exports.sample_options = {
+  'theme_help': 'app-theme: --output là tệp CSS; --design-file đọc thiết kế hoàn chỉnh. Bỏ qua thiết kế sẽ đặt lại CSS. Khai báo giá trị giao diện trong thiết kế.',
+  'style_help': 'application-style: bắt buộc --style-id, hỗ trợ mọi giao diện trong danh mục; --output là thư mục chứa ba tệp. Tệp đã tồn tại sẽ gây lỗi.'
+};
+
+module.exports.upgrade_app_theme = require('../../lib/core/locales/en').upgrade_app_theme;
+module.exports.help.cmd_upgrade_app_theme = require('../../lib/core/locales/en').help.cmd_upgrade_app_theme;
+
+module.exports.app_theme = require('../../lib/core/locales/en').app_theme;
+module.exports.help.cmd_app_theme_snapshot = require('../../lib/core/locales/en').help.cmd_app_theme_snapshot;
+module.exports.help.cmd_app_theme_restore = require('../../lib/core/locales/en').help.cmd_app_theme_restore;
+
+Object.assign(module.exports.process_tasks || (module.exports.process_tasks = {}), {
+  arguments_invalid: 'Tham số không hợp lệ: query cần appType và --process-inst-id; transfer còn cần --form-uuid, --to-user-id, --expect-form-name và --expect-form-type process. taskId phải là số nguyên dương; không hỗ trợ tùy chọn không xác định.',
+  query_failed: 'Truy vấn tác vụ thất bại; chưa thực hiện chuyển giao.',
+  response_invalid: 'Không thể xác minh cấu trúc phản hồi, ID tác vụ hoặc tác vụ thuộc quy trình.',
+  not_running: 'Tác vụ được chỉ định không đang chạy trong quy trình đích, hoặc không có tác vụ đang chạy; chưa chuyển giao.',
+  ambiguous: 'Có nhiều tác vụ đang chạy. Truy vấn danh sách và chỉ định --task-id; chưa chuyển giao.',
+  rejected: 'Nền tảng từ chối chuyển giao của quản trị viên. Kiểm tra quyền và trạng thái.',
+  result_unknown: 'Chưa rõ kết quả chuyển giao. Đọc tác vụ bằng nextStep; không tự động thử chuyển giao lại.',
+  unverified: 'Yêu cầu chuyển giao đã được chấp nhận nhưng chưa xác minh được người nhận khi đọc lại. Dùng nextStep; không tự động thử lại.',
+});
+module.exports.data_manage_style = {
+  'usage': 'openyida data-manage-style guide [--json]\nopenyida data-manage-style list [--json]\nopenyida data-manage-style generate --app APP_ID --form FORM-ID --style <id> --base-css <snapshot/theme.css> --output <new.css> [--focus balanced|actions] [--field-id <actualId>]... [--emphasize-field <actualId>]... [--tag-field <selectFieldId>]... [--follow-shell] [--json]',
+  'data_style_invalid': 'Tham số kiểu không hợp lệ. Dùng ID thực và kiểu trong danh mục.',
+  'data_style_base': 'Cung cấp CSS ứng dụng hiện có với màu chính, tối đa 20 MB.',
+  'data_style_marker': 'Dấu kiểu bị hỏng hoặc trùng lặp. Kiểm tra tệp gốc.',
+  'data_style_output': 'Đầu ra phải là tệp CSS mới, không ghi đè tệp hiện có.',
+  'generated': 'Đã tạo kiểu: {0}. Chưa xuất bản; hãy sao lưu, xuất bản và kiểm tra trang thực tế.'
+};
+module.exports.help.cmd_data_manage_style_list = 'Liệt kê ví dụ kiểu giao diện quản lý dữ liệu tùy chọn';
+module.exports.help.cmd_data_manage_style_generate = 'Tạo CSS từ ví dụ tùy chọn (chỉ cục bộ)';
+
+module.exports.help.cmd_data_manage_style_guide = 'Xem hướng cải tiến UI, token và CSS cho quản lý dữ liệu';
+
+// Process fields and submission permission packages.
+Object.assign(module.exports.permission_common || (module.exports.permission_common = {}), {
+  "package_type_invalid": "Use FORM_PACKAGE_VIEW or FORM_PACKAGE_START for --package-type.",
+  "start_scope_invalid": "START supports submission members, fields and OPERATE_CREATE only; configure record data ranges and matrices separately."
+});
+Object.assign(module.exports.process_errors || (module.exports.process_errors = {}), {
+  "field_permissions_invalid": "Field permissions contain invalid or duplicate field IDs or behaviors.",
+  "field_source_failed": "Could not read the form fields. Check the process binding and schema response.",
+  "fields_empty": "The bound form has no readable fields. Check its saved schema.",
+  "designer_fields_missing": "The process designer cannot load all bound form fields. Check its schema and process binding before publishing.",
+  "field_not_found": "A process permission references a field missing from the bound form.",
+  "fields_verified": "Field IDs were checked; browser behavior and runtime permissions remain unverified."
+});
+Object.assign(module.exports.help || (module.exports.help = {}), {
+  "cmd_process_fields": "Check process designer field loading and subtable field paths"
+});
+module.exports.cli.process_usage += '\n  fields <appType> <formUuid> [--json]  Inspect process designer field loading';
+
+// Batch data nodes.
+Object.assign(module.exports.integration, {
+  batch_invalid: 'Invalid batch configuration. Check source, quantity and fields using details.reason.',
+  message_roles_invalid: 'Message roles require a non-empty role ID and NORMAL message type.',
+  message_roles_readback_mismatch: 'Persisted message roles differ from the submitted recipients.',
+  batch_retrieve_name: 'Get multiple records',
+  batch_readback_mismatch: 'Persisted batch node type, source or quantity differs from the submitted configuration.',
+  create_opt_spec: '  --spec <file.json>            Configure batch retrieve/create, updates and branches with a structured spec',
+});
+
+module.exports.formula_v2 = {
+  trigger_formula: 'Use fixed values or fields in event trigger conditions. Put formula checks in a branch after the trigger.',
+  branch_choose: 'Choose conditions or expression for a branch.',
+  branch_formula: 'Use expression for formula-based branch conditions.',
+  expression_required: 'Enter a non-empty formula expression.',
+  failed: 'Invalid formula configuration: {0}',
+  syntax_invalid: 'Invalid or unsupported formula syntax: {0}',
+  bare_identifier: 'Unbound name {0}. Read the field ID from the form and use #{}.',
+  reference_context: 'Use form field references here; node paths are unsupported: {0}',
+  field_missing: 'Field not found in the form: {0}',
+  argument_type: 'Argument {1} of {0} requires {2}.',
+  function_unknown: 'Formula function {0} is not in the selected list. Query metadata and copy an available formula function name exactly.',
+  function_case: 'Copy the formula function name exactly, including case: {0}',
+  context_unknown: 'Availability of {0} in this context is unknown.',
+  function_context: '{0} is not in the function list for {1}.',
+  argument_count: '{0} requires {1} to {2} arguments; received {3}.',
+  same_type: 'These arguments of {0} must use the same type.',
+  operator_invalid: 'Operator {0} is unsupported here. Use GT, GE, LT, LE, EQ or NE for comparisons.',
+  target_type: 'Formula result {0} does not match target field {1}.',
+  target_unknown: 'Unknown target field type: {0}',
+  schema_missing: 'Load the form schema to check field existence and types.',
+  local_pass: 'Local checks passed; platform execution is not verified.',
+  test_blocked: 'Formula was not executed: {0}. Testing accepts only known non-writing functions.',
+  expect_failed: 'Actual result differs from the expected result.',
+  usage: 'Usage: formula types APP [--component NumberField]; formula functions APP [--name IF]; formula inspect APP FORM [--field ID]; formula test APP FORM <formula|file> --data-file file [--expect JSON]. Use formula check for local checks.',
+};
+Object.assign(module.exports.help, {
+  cmd_formula_check: 'Check formula syntax, fields, arguments and types',
+  cmd_formula_functions: 'Read Yida formula functions and signatures',
+  cmd_formula_types: 'Tra cứu kiểu giá trị của thành phần công thức',
+  cmd_formula_inspect: 'Inspect configured form field formulas',
+  cmd_formula_test: 'Evaluate a non-writing formula in Yida and compare its result',
+});
+
+Object.assign(module.exports.formula_v2, {
+  "config_text": "Cung cấp công thức không rỗng. Để khôi phục nhập thủ công, đặt valueType thành custom và formula thành chuỗi rỗng.",
+  "config_conflict": "formula và complexValue.formula khác nhau. Đặt chúng giống nhau hoặc chỉ cung cấp formula để CLI đồng bộ.",
+  "config_mode": "Dùng valueType: formula hoặc bỏ valueType khi đặt công thức. Để nhập thủ công, dùng valueType: custom và formula: \"\".",
+  "config_cycle": "Phát hiện tham chiếu vòng: {0}. Sắp xếp phụ thuộc từ đầu vào đến kết quả, tránh tự tham chiếu trực tiếp hoặc gián tiếp.",
+  "reference_details_unknown": "Chưa xác minh định nghĩa đầy đủ và kiểu của trường hoặc trường con {0}.",
+  "contract_not_supported": "Trình kiểm tra này chưa hỗ trợ cú pháp và cách thực thi của {0}; hãy dùng trình xác thực của cấu hình đích.",
+  "consumer_required": "{0} cần bước tiền xử lý và ngữ cảnh dữ liệu của cấu hình đích. Hãy kiểm tra tại giao diện tương ứng.",
+  "contracts_help": "Định dạng: field-value, validation-rule, business-action và node-expression. dataset-expression và javascript chưa có bộ kiểm tra. Một định dạng có thể dùng trong nhiều trình thiết kế. Chi tiết: --json."
+});
+Object.assign(module.exports.help, {"cmd_formula_contracts": "Xem định dạng công thức và phạm vi kiểm tra"});
+
+Object.assign(module.exports.formula_v2, {"parallel_formula": "Dùng conditions/rules hoặc all:true cho nhánh song song; expression hiện chỉ được hỗ trợ cho nhánh route."});
+
+Object.assign(module.exports.formula_v2, {"conversion_empty":"Chuyển đổi sang trường đích tạo ra giá trị rỗng. Với ngày, dùng TIMESTAMP(công thức ngày) và kiểm tra giá trị gốc cùng kiểu dữ liệu.","result_missing":"Yêu cầu đã hoàn tất nhưng thiếu giá trị trường đích. Trường ngày thường cần TIMESTAMP(công thức ngày).","conversion_partial":"Giá trị chỉ được chuyển một phần thành số hoặc không hữu hạn. Hãy trả về số đầy đủ hoặc mili giây.","target_branches":"Một số kiểu kết quả {0} không phù hợp với {1}. Hãy thử từng nhánh.","date_timestamp":"Đối tượng ngày khác với giá trị lưu. Thường dùng TIMESTAMP(công thức ngày) để trả về mili giây.","numeric_result_text":"Kết quả có thể là văn bản. Dùng --field thử từng nhánh để phát hiện chuyển đổi rỗng hoặc chỉ một phần."});
+
+module.exports.feedback_report = {
+  body: {
+    summary: 'Mục tiêu của bạn',
+    actual: 'Điều đã xảy ra',
+    expected: 'Kết quả mong đợi',
+    incident: 'Môi trường khi xảy ra vấn đề',
+    command: 'Thao tác liên quan',
+    steps: 'Cách tái hiện',
+    impact: 'Ảnh hưởng',
+    evidence: 'Bằng chứng quan sát được',
+    attempts: 'Các cách đã thử và kết quả',
+    cause: 'Nguyên nhân và mức độ chắc chắn',
+    cause_evidence: 'Căn cứ đánh giá',
+    next: 'Kiểm tra tiếp theo',
+    screenshots: 'Ảnh chụp màn hình',
+    review_image: 'Kiểm tra ảnh trước khi chia sẻ',
+    limitations: 'Phạm vi chưa kiểm chứng',
+    generator: 'Môi trường tạo báo cáo (không phải môi trường xảy ra vấn đề)',
+    unknown: 'Không rõ / chưa xác minh',
+    draft: 'Bản nháp cục bộ, chưa gửi. Kiểm tra văn bản và ảnh để loại bỏ dữ liệu khách hàng, thông tin đăng nhập và thông tin nội bộ trước khi chia sẻ.',
+  },
+  comparison: 'Test pass/fail requires a command, actual result and evidence.',
+  screenshots: 'Choose at most five PNG/JPEG/WebP screenshots of at most 10 MiB each.',
+  text: 'Feedback text fields must be strings of at most 12000 characters.',
+  list: 'Feedback lists must contain at most 40 text items.',
+  object: 'Feedback input must be a JSON object.',
+  required: 'Feedback input requires title and actual.',
+  count: 'occurrenceCount must be a positive integer when known.',
+  cause: 'cause must be an object.',
+  confirmed: 'A confirmed cause requires a summary and evidence.',
+  usage: 'Usage: openyida feedback report --input <summary.json> --output-dir <new-directory>',
+  duplicate: 'Duplicate feedback report option.',
+  options: 'Both --input and --output-dir are required.',
+  file: 'Feedback input must be a JSON file of at most 1 MiB.',
+  json: 'Feedback input is not valid JSON.',
+  help: 'report prepares local review drafts without login, a source checkout or network submission.',
+  login_hint: 'Ask your AI to prepare local feedback with yida-feedback; no GitHub account or source checkout is required.',
+};
+
+module.exports.task_center = {
+  'invalid_spec': 'Invalid task center configuration: {0}',
+  'confirmation_required': 'Custom task pages require an explicit user request or an affirmative ask_human choice. Record customPage.source (explicit-user-request or ask_human) and confirmed=true for this application.',
+  'page_title': 'Task center',
+  'kind_todo': 'To do',
+  'kind_created': 'Created by me',
+  'kind_done': 'Processed by me',
+  'kind_cc': 'Copied to me',
+  'time_todo': 'Arrived at',
+  'time_created': 'Submitted at',
+  'time_done': 'Processed at',
+  'time_cc': 'Copied at',
+  'status_running': 'In progress',
+  'status_completed': 'Completed',
+  'status_terminated': 'Terminated',
+  'status_agree': 'Agreed',
+  'status_disagree': 'Rejected',
+  'title': 'Title',
+  'originator': 'Initiator',
+  'status': 'Process status',
+  'result': 'Task result',
+  'action': 'Action',
+  'handle': 'Handle',
+  'view': 'View',
+  'detail': 'Details',
+  'untitled': 'Untitled',
+  'search': 'Search title',
+  'refresh': 'Refresh',
+  'retry': 'Retry',
+  'empty': 'No matching tasks',
+  'unavailable': 'Task data is unavailable',
+  'previous': 'Previous',
+  'next': 'Next',
+  'total': 'Matching total',
+  'totalUnknown': 'Total unavailable',
+  'apiUnavailable': 'Your tasks are temporarily unavailable. Please sign in again or contact the application administrator.',
+  'loginRequired': 'Sign in to view your tasks.',
+  'invalidResponse': 'Task data could not be verified. Please retry.',
+  'requestFailed': 'Tasks could not be loaded. Please retry.',
+  'missingDetail': 'Required details are missing; this item cannot be opened.',
+  'stale': 'Showing the last successful result; it may not match the current filters.',
+  'updated': 'Updated',
+  'unknown': 'Unknown',
+  'progress': 'Approval progress',
+  'instanceRequired': 'Provide the linked process instance to view its progress',
+  'processResult': 'Final process result',
+  'submittedAt': 'Initiated at',
+  'processFinishedAt': 'Process ended at',
+  'progressUnknown': 'Current step information is unavailable',
+  'taskResult': 'Selected task result',
+  'historyUnavailable': 'Approval history could not be fully loaded. Process details are retained; please retry.',
+  'noHistory': 'No approval operations',
+  'summary': 'Summary',
+  'status_error': 'Error',
+  'status_unknown': 'Unknown',
+  'filter_originators': 'Initiator',
+  'filter_processCodes': 'Process or form',
+  'filter_instanceStatus': 'Process status',
+  'filter_instanceCreateFrom': 'Initiated from',
+  'filter_instanceCreateTo': 'Initiated to',
+  'filter_taskCreateFrom': 'Arrived from',
+  'filter_taskCreateTo': 'Arrived to',
+  'filter_taskFinishFrom': 'Processed from',
+  'filter_taskFinishTo': 'Processed to',
+  'filter_carbonCreateFrom': 'Copied from',
+  'filter_carbonCreateTo': 'Copied to'
+};
+
+module.exports.feedback_github = {
+  setup_inspect_installation: 'Chưa xác minh kết quả cài đặt. Kiểm tra gh --version, trình quản lý gói hoặc mở lại terminal trước khi quyết định thử lại; giữ bản nháp.',
+  setup_check_execution: 'Không thể chạy gh. Kiểm tra quyền thực thi hoặc môi trường máy; không tự cài lại hay đổi tài khoản.',
+  setup_confirm_install: 'Có thể cài GitHub CLI. Giải thích kế hoạch và xin đồng ý trước khi chạy openyida feedback github setup --install --confirm --json; vẫn có thể dùng web.',
+  setup_manual_install: 'Không có cách cài tự động khả dụng. Dùng hướng dẫn chính thức, trình kết nối sẵn có hoặc web; giữ bản nháp.',
+  setup_ready: 'Đã xác minh GitHub CLI và tài khoản hiện tại. Tiếp tục bản nháp; xác nhận nội dung công khai và quyền cần thiết trước khi gửi.',
+  setup_browser_login: 'GitHub CLI đã sẵn sàng và cần đăng nhập. Sau khi được đồng ý, hướng dẫn cấp quyền qua trình duyệt rồi kiểm tra lại bằng setup --json.',
+  setup_check_account: 'GitHub CLI khả dụng nhưng tài khoản chưa được xác minh. Kiểm tra mạng, quyền hoặc giới hạn; không suy ra thiếu tài khoản hay yêu cầu cài lại.',
+  setup_consent: 'Chỉ dùng --install --confirm sau khi đồng ý cài GitHub CLI và phụ thuộc cần thiết vào vị trí mặc định của trình quản lý gói. Windows chấp nhận thỏa thuận nguồn và phần mềm WinGet, có thể cần người dùng duyệt quyền hệ thống. Không tự cài trình quản lý, nâng quyền hay đăng nhập.',
+  setup_privacy: 'Cài đặt không có nghĩa là đồng ý công khai. Người dùng cấp quyền trong trình duyệt; không yêu cầu mật khẩu, mã hay Token. Nếu gh không lưu thông tin xác thực an toàn, dùng web hoặc trình kết nối an toàn. Không đưa chẩn đoán tài khoản và công cụ vào báo cáo.',
+  usage: 'Usage: openyida feedback github setup [--install --confirm] [--json]; openyida feedback github <status|star|fork> [--confirm] [--json]',
+  confirmation: 'Star or Fork requires the user to explicitly choose that action before --confirm. Neither is required to submit an Issue.',
+  failed: 'The GitHub action could not be verified. Inspect its status before retrying; this does not block Issue submission.',
+};
+
+module.exports.process_dynamic_actors = { invalid: "Cấu hình người xử lý không hợp lệ. Kiểm tra details.reason, phạm vi chọn và trường thành viên thực tế." };
+
+module.exports.permission_guidance = {
+  platform_access_link: 'Yêu cầu quyền sử dụng YiDA',
+  create_app_link: 'Yêu cầu quyền tạo ứng dụng YiDA',
+  platform_access: 'Tài khoản hiện tại chưa được cấp quyền sử dụng YiDA trong tổ chức này.',
+  create_app: 'Tài khoản hiện tại không có quyền tạo ứng dụng trong tổ chức này.',
+  unknown: 'Không có quyền; chưa xác định được loại quyền. Hãy liên hệ quản trị viên và tạm dừng thao tác này.',
+  next_step: 'Mở trang yêu cầu cấp quyền: [{0}]({1}). Sau khi xử lý, xác nhận tổ chức và quyền hiện tại rồi mới tiếp tục.',
 };

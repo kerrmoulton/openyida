@@ -50,6 +50,8 @@ coverage/
 !.claude/skills
 .qoder/*
 !.qoder/skills
+# 千问办公本地配置和安装的技能副本
+.qwenwork/
 
 mydocs/
 
@@ -85,3 +87,9 @@ project/prd/demo-*/*.local.js
 project/tmp/
 /tmp/
 /examples/
+
+# Local verification report
+/docs/verification/form-empty-query-20261013.md
+
+# Local plugin development plan
+/docs/plans/2026-10-26-plugin-lifecycle.md

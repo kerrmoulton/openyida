@@ -37,9 +37,9 @@ test('rejects the original IF/ISEMPTY mistake including nested calls', () => {
 test('keeps generic/unprofiled formula behavior, recognizes mixed-case builders', () => {
   expect(analyzeFormula('IF(ISEMPTY(#{textField_a}),"",#{textField_a})').ok).toBe(true);
   expect(analyzeFormula('IF(TRUE(),1,0)', { componentName: 'NumberField' }).ok).toBe(true);
-  expect(analyzeFormula('DirectorBuilder(GetArrayItem(#{employeeField_a},1),1)').diagnostics).toEqual([]);
+  expect(analyzeFormula('DirectorBuilder(GetArrayItem(#{employeeField_a},1),1)').diagnostics).toEqual([expect.objectContaining({ code: 'schema_missing' })]);
   expect(analyzeFormula('DIRECTORBUILDER("",1)', { componentName: 'EmployeeField' }).ok).toBe(false);
-  expect(analyzeFormula('directorbuilder("",1)').ok).toBe(true);
+  expect(analyzeFormula('directorbuilder("",1)').ok).toBe(false);
 });
 
 test('ignores function-shaped text in literals and field refs', () => {

@@ -17,11 +17,19 @@ jest.mock('../lib/core/utils', () => ({
 }));
 
 jest.mock('../lib/app/services/form-mode-service', () => ({
-  getProcessCodeFromFormBinding: jest.fn(),
+  readFormMode: jest.fn(),
+}));
+
+jest.mock('../lib/app/form-navigation', () => ({
+  fetchFormPageList: jest.fn(),
 }));
 
 const utils = require('../lib/core/utils');
 const formModeService = require('../lib/app/services/form-mode-service');
+const formNavigation = require('../lib/app/form-navigation');
+
+const FORM_EXPECTATIONS = ['--expect-form-name', '目标表单', '--expect-form-type', 'receipt'];
+const PROCESS_EXPECTATIONS = ['--expect-form-name', '目标流程', '--expect-form-type', 'process'];
 
 const mockAuthData = {
   base_url: 'https://www.aliwork.com',
@@ -30,6 +38,124 @@ const mockAuthData = {
   corp_id: 'corp-1',
   user_id: 'user-1',
 };
+
+describe('administrator process tasks and transfer', () => {
+  const transferArgs = ['transfer', 'task', 'APP_XXX', '--process-inst-id', 'PROC-1',
+    '--form-uuid', 'FORM-XXX', '--to-user-id', '00042', '--remark', 'Transfer', ...PROCESS_EXPECTATIONS];
+  const makeTask = (overrides = {}) => ({ id: 101, processInstanceId: 'PROC-1',
+    actualActionerId: '00001', status: 'RUNNING', activityCode: 'node-A', taskGroupId: 201, ...overrides });
+  let log;
+
+  beforeEach(() => {
+    utils.httpGet.mockReset();
+    utils.httpPost.mockReset();
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    formNavigation.fetchFormPageList.mockResolvedValue([{
+      formUuid: 'FORM-XXX', formName: '目标流程', formType: 'process',
+    }]);
+    log = jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => { log.mockRestore(); });
+
+  function setupTransfer(after = [makeTask({ actualActionerId: '00042' })]) {
+    utils.httpGet.mockResolvedValueOnce({ success: true,
+      content: { processInstanceId: 'PROC-1', formUuid: 'FORM-XXX' } })
+      .mockResolvedValueOnce({ success: true, content: [makeTask()] })
+      .mockResolvedValueOnce({ success: true, content: after });
+    utils.httpPost.mockResolvedValue({ success: true, content: null });
+  }
+
+  test('new task query uses the exact administrator endpoint and returns taskId', async () => {
+    utils.httpGet.mockResolvedValue({ success: true, content: [makeTask()] });
+    await run(['query', 'process-tasks', 'APP_XXX', '--process-inst-id', 'PROC-1', '--json']);
+    expect(utils.httpGet).toHaveBeenCalledWith('https://www.aliwork.com',
+      '/dingtalk/web/APP_XXX/query/formProcInstData/getInstTaskDatas.json',
+      expect.objectContaining({ _api: 'DataManage.getInstTasks', procInstId: 'PROC-1' }));
+    expect(getLoggedJson(log).content[0].taskId).toBe('101');
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test('existing process list endpoint remains unchanged', async () => {
+    utils.httpGet.mockResolvedValue({ success: true, content: { data: [] } });
+    await run(['query', 'process', 'APP_XXX', 'FORM-XXX']);
+    expect(utils.httpGet.mock.calls[0][1]).toBe('/dingtalk/web/APP_XXX/v1/process/getInstances.json');
+  });
+
+  test.each([
+    ['query', 'process-tasks', 'APP_XXX'],
+    ['query', 'process-tasks', 'APP_XXX', '--process-inst-id'],
+    ['query', 'process-tasks', 'APP_XXX', '--process-inst-id', 'PROC;other'],
+    [...transferArgs, '--task-id', '201-invalid'],
+    [...transferArgs, '--by-manager', 'false'],
+    [...transferArgs, '--task-id', '101', '--task-id', '102'],
+    [...transferArgs, '--to-user-id', 'OTHER'],
+    transferArgs.filter(value => value !== '00042'),
+    [...transferArgs.filter(value => value !== 'Transfer'), '--json'],
+    transferArgs.map(value => value === 'Transfer' ? '' : value),
+  ].map(args => [args]))('new command invalid arguments fail before authentication %j', async args => {
+    await expect(run(args)).rejects.toMatchObject({ code: 'DATA_INVALID_ARGUMENTS' });
+    expect(utils.loadAuthData).not.toHaveBeenCalled();
+    expect(utils.httpGet).not.toHaveBeenCalled();
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test('transfer validates resource and instance then posts once and verifies readback', async () => {
+    setupTransfer();
+    await run(transferArgs);
+    expect(formNavigation.fetchFormPageList).toHaveBeenCalled();
+    expect(utils.httpGet.mock.calls[0][1]).toBe('/dingtalk/web/APP_XXX/v1/process/getInstanceById.json');
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
+    expect(utils.httpPost.mock.calls[0][1]).toContain('/query/instance/redirectTask.json?_api=DataManage.redirectTask');
+    const body = new URLSearchParams(utils.httpPost.mock.calls[0][2]);
+    expect(body.get('taskId')).toBe('101');
+    expect(body.get('nowActionerId')).toBe('00042');
+    expect(body.get('byManager')).toBe('true');
+    // Only the instance query and the two task reads use auto-login, never the write.
+    expect(utils.requestWithAutoLogin).toHaveBeenCalledTimes(3);
+    expect(getLoggedJson(log)).toMatchObject({ transferred: true, readbackVerified: true });
+  });
+
+  test('transfer without --remark posts the default note and still verifies readback', async () => {
+    setupTransfer();
+    await run(transferArgs.filter(value => value !== '--remark' && value !== 'Transfer'));
+    expect(new URLSearchParams(utils.httpPost.mock.calls[0][2]).get('remark')).toBe('转交');
+    expect(getLoggedJson(log)).toMatchObject({ transferred: true, readbackVerified: true });
+  });
+
+  test('resource name mismatch prevents task lookup and submission', async () => {
+    formNavigation.fetchFormPageList.mockResolvedValue([{
+      formUuid: 'FORM-XXX', formName: 'Other', formType: 'process',
+    }]);
+    await expect(run(transferArgs)).rejects.toMatchObject({ code: 'DATA_TARGET_IDENTITY_MISMATCH' });
+    expect(utils.httpPost).not.toHaveBeenCalled();
+    expect(utils.httpGet).not.toHaveBeenCalled();
+  });
+
+  test('foreign instance prevents task lookup and submission', async () => {
+    utils.httpGet.mockResolvedValue({ success: true,
+      content: { processInstanceId: 'PROC-1', formUuid: 'FORM-OTHER' } });
+    await expect(run(transferArgs)).rejects.toMatchObject({ code: 'DATA_INSTANCE_TARGET_MISMATCH' });
+    expect(utils.httpPost).not.toHaveBeenCalled();
+    expect(utils.httpGet).toHaveBeenCalledTimes(1);
+  });
+
+  test('ended process is rejected even if a stale task query might report RUNNING', async () => {
+    utils.httpGet.mockResolvedValue({ success: true, content: {
+      processInstanceId: 'PROC-1', formUuid: 'FORM-XXX', instanceStatus: 'COMPLETED',
+    } });
+    await expect(run(transferArgs)).rejects.toMatchObject({ code: 'DATA_PROCESS_TASK_NOT_RUNNING' });
+    expect(utils.httpPost).not.toHaveBeenCalled();
+    expect(utils.httpGet).toHaveBeenCalledTimes(1);
+  });
+
+  test('unverified readback throws without printing success', async () => {
+    setupTransfer([]);
+    await expect(run(transferArgs)).rejects.toMatchObject({ code: 'DATA_PROCESS_TRANSFER_UNVERIFIED' });
+    expect(log).not.toHaveBeenCalled();
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
+  });
+});
 
 async function expectCliError(promise, message, exitCode = 1) {
   let error;
@@ -44,6 +170,12 @@ async function expectCliError(promise, message, exitCode = 1) {
   if (message) {
     expect(error.message).toContain(message);
   }
+  return error;
+}
+
+function getLoggedJson(mockLog) {
+  const lastCall = mockLog.mock.calls[mockLog.mock.calls.length - 1];
+  return JSON.parse(lastCall[0]);
 }
 
 function buildAliasSchema() {
@@ -96,7 +228,12 @@ beforeEach(() => {
   // 默认已登录
   utils.loadAuthData.mockReturnValue(mockAuthData);
   // 默认按普通表单处理（非流程表单）
-  formModeService.getProcessCodeFromFormBinding.mockResolvedValue(null);
+  formModeService.readFormMode.mockResolvedValue({ mode: 'receipt' });
+  formNavigation.fetchFormPageList.mockResolvedValue([{
+    formUuid: 'FORM-XXX',
+    formName: '目标表单',
+    formType: 'receipt',
+  }]);
 });
 
 // ── 参数校验 ──────────────────────────────────────────────────────────
@@ -107,11 +244,42 @@ describe('run() 参数校验', () => {
   });
 
   test('参数为空数组时打印错误并以 exit code 1 退出', async () => {
-    await expectCliError(run([]), '缺少必填参数');
+    const error = await expectCliError(run([]), '缺少必填参数');
+    expect(error.usage).toContain('--dynamic-order');
+    expect(error.usage).toContain('does not guarantee a stable result order');
   });
 
   test('未知 action/resource 组合时打印错误并退出', async () => {
-    await expectCliError(run(['unknown', 'resource']), '暂未实现的命令');
+    const error = await expectCliError(run(['unknown', 'resource']));
+    expect(error.code).toBe('DATA_COMMAND_UNSUPPORTED');
+  });
+
+  test.each(['FORM_XXX', 'FORM-XXX'])(
+    'query 漏写 form 且 formUuid 为 %s 时在认证和网络前给出精确纠错',
+    async formUuid => {
+      utils.loadAuthData.mockReturnValue(null);
+
+      const error = await expectCliError(
+        run(['query', 'APP_XXX', formUuid]),
+        `openyida data query form APP_XXX ${formUuid}`
+      );
+
+      expect(error.code).toBe('DATA_RESOURCE_REQUIRED');
+      expect(utils.loadAuthData).not.toHaveBeenCalled();
+      expect(utils.triggerLogin).not.toHaveBeenCalled();
+      expect(utils.requestWithAutoLogin).not.toHaveBeenCalled();
+      expect(utils.httpGet).not.toHaveBeenCalled();
+      expect(utils.httpPost).not.toHaveBeenCalled();
+    }
+  );
+
+  test('显式未知资源不触发漏写 form 纠错', async () => {
+    const error = await expectCliError(
+      run(['query', 'unknown-resource', 'APP_XXX', 'FORM_XXX'])
+    );
+
+    expect(error.code).toBe('DATA_COMMAND_UNSUPPORTED');
+    expect(error.message).not.toContain('openyida data query form');
   });
 });
 
@@ -136,6 +304,25 @@ describe('run() 未登录场景', () => {
 // ── query form 场景 ───────────────────────────────────────────────────
 
 describe('run() query form', () => {
+  const guide = fs.readFileSync(path.join(__dirname, '../yida-skills/references/query-condition-guide.md'), 'utf8');
+  const guideConditions = [...guide.matchAll(/```json\n([\s\S]*?)\n```/g)]
+    .map(match => JSON.parse(match[1]))
+    .filter(conditions => conditions.every(condition => ['TEXT', 'DOUBLE', 'STRING', 'ARRAY'].includes(condition.type)));
+
+  test.each(guideConditions.map((conditions, index) => [index + 1, conditions]))('preserves query guide example %s and server pagination in the API request', async (index, conditions) => {
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    utils.httpGet.mockResolvedValueOnce({ success: true, content: { totalCount: 0, data: [] } });
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await run(['query', 'form', 'APP_XXX', 'FORM-XXX', '--page', '2', '--size', '7', '--search-json', JSON.stringify(conditions)]);
+      const [, endpoint, params] = utils.httpGet.mock.calls[0];
+      expect(endpoint).toBe('/dingtalk/web/APP_XXX/v1/form/searchFormDatas.json');
+      expect(params).toMatchObject({ currentPage: '2', pageSize: '7' });
+      expect(JSON.parse(params.searchFieldJson)).toEqual(conditions);
+    } finally {
+      log.mockRestore();
+    }
+  });
   test('查询成功时输出 JSON 结果', async () => {
     utils.requestWithAutoLogin.mockResolvedValue({
       success: true,
@@ -189,11 +376,17 @@ describe('run() query form', () => {
     const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
     const mockError = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    await run(['query', 'form', 'APP_XXX', 'FORM-XXX', '--size', '999']);
-    expect(utils.requestWithAutoLogin).toHaveBeenCalledTimes(1);
-
-    mockLog.mockRestore();
-    mockError.mockRestore();
+    const mockWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await run(['query', 'form', 'APP_XXX', 'FORM-XXX', '--size', '999']);
+      expect(utils.requestWithAutoLogin).toHaveBeenCalledTimes(1);
+      expect(mockWarn).toHaveBeenCalledTimes(1);
+      expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('已自动将 999 截断为 100'));
+    } finally {
+      mockWarn.mockRestore();
+      mockLog.mockRestore();
+      mockError.mockRestore();
+    }
   });
 
   test('传入 --search-json 参数时正常执行', async () => {
@@ -264,6 +457,45 @@ describe('run() query form', () => {
       run(['query', 'form', 'APP_XXX', 'FORM-XXX', '--search-json', 'not-json']),
       'JSON'
     );
+  });
+
+  test('查询解析区间端点与子表父字段别名，并保留空值及零值', async () => {
+    const schema = buildAliasSchema();
+    const page = schema.content.pages[0];
+    page.componentAlias.items.push({ fieldId: 'cascadeDateField_period', alias: 'period' });
+    page.componentsTree[0].children[0].children.push({
+      componentName: 'CascadeDateField', props: { fieldId: 'cascadeDateField_period' },
+    });
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    utils.httpGet.mockResolvedValueOnce(schema).mockResolvedValueOnce({ success: true, content: { totalCount: 0, data: [] } });
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const conditions = [
+        { key: 'period.start', componentName: 'DateField', type: 'DOUBLE', operator: 'is', value: '' },
+        { key: 'period.end', componentName: 'DateField', type: 'DOUBLE', operator: 'is_not', value: '' },
+        { key: 'amount', parentId: 'items', operator: 'eq', value: 0 },
+      ];
+      await run(['query', 'form', 'APP_XXX', 'FORM-XXX', '--search-json', JSON.stringify(conditions), '--resolve-aliases']);
+      expect(JSON.parse(utils.httpGet.mock.calls[1][2].searchFieldJson)).toEqual([
+        { ...conditions[0], key: 'cascadeDateField_period.start' },
+        { ...conditions[1], key: 'cascadeDateField_period.end' },
+        { ...conditions[2], key: 'numberField_amount', parentId: 'tableField_items' },
+      ]);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  test('查询端点解析保留普通字段的点号与字面值', async () => {
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    utils.httpGet.mockResolvedValueOnce(buildAliasSchema()).mockResolvedValueOnce({ success: true, content: { totalCount: 0, data: [] } });
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await run(['query', 'form', 'APP_XXX', 'FORM-XXX', '--search-json', '[{"key":"phone.start","value":"items"}]', '--resolve-aliases']);
+      expect(JSON.parse(utils.httpGet.mock.calls[1][2].searchFieldJson)).toEqual([{ key: 'phone.start', value: 'items' }]);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   test('传入 --search-file 时读取文件作为查询条件', async () => {
@@ -347,6 +579,70 @@ describe('run() query form', () => {
 
     mockLog.mockRestore();
     mockError.mockRestore();
+  });
+
+  test('dynamicOrder 使用真实 fieldId 时先校验 Schema 再查询', async () => {
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    utils.httpGet
+      .mockResolvedValueOnce(buildAliasSchema())
+      .mockResolvedValueOnce({
+        success: true,
+        content: { totalCount: 0, data: [] },
+      });
+
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const mockError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await run(['query', 'form', 'APP_XXX', 'FORM-XXX', '--dynamic-order', '{"textField_phone":"-"}']);
+
+    expect(utils.httpGet).toHaveBeenCalledTimes(2);
+    expect(utils.httpGet.mock.calls[1][2]).toMatchObject({
+      dynamicOrder: '{"textField_phone":"-"}',
+    });
+
+    mockLog.mockRestore();
+    mockError.mockRestore();
+  });
+
+  test('dynamicOrder 未知字段在查询接口前阻断', async () => {
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    utils.httpGet.mockResolvedValueOnce(buildAliasSchema());
+
+    const error = await expectCliError(run([
+      'query',
+      'form',
+      'APP_XXX',
+      'FORM-XXX',
+      '--dynamic-order',
+      '{"gmtCreate":"-"}',
+    ]));
+
+    expect(error.code).toBe('DATA_FIELD_REFERENCE_UNKNOWN');
+    expect(error.details).toMatchObject({
+      fieldRef: 'gmtCreate',
+      retrySafe: true,
+      sideEffectState: 'none',
+      nextStep: 'openyida get-schema APP_XXX FORM-XXX --field-map-json',
+    });
+    expect(utils.httpGet).toHaveBeenCalledTimes(1);
+  });
+
+  test('dynamicOrder 不带 --resolve-aliases 时不接受字段别名', async () => {
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    utils.httpGet.mockResolvedValueOnce(buildAliasSchema());
+
+    const error = await expectCliError(run([
+      'query',
+      'form',
+      'APP_XXX',
+      'FORM-XXX',
+      '--dynamic-order',
+      '{"phone":"+"}',
+    ]));
+
+    expect(error.code).toBe('DATA_FIELD_REFERENCE_UNKNOWN');
+    expect(error.details.fieldRef).toBe('phone');
+    expect(utils.httpGet).toHaveBeenCalledTimes(1);
   });
 
   test('同时传入 --search-json 和 --search-file 时打印错误并退出', async () => {
@@ -437,21 +733,113 @@ describe('run() get form', () => {
 // ── create form 场景 ──────────────────────────────────────────────────
 
 describe('run() create form', () => {
-  test('创建成功时输出 JSON 结果', async () => {
-    utils.requestWithAutoLogin.mockResolvedValue({
+  test('关联表单完整五字段按真实写入契约提交并补全空 subTitle', async () => {
+    utils.httpPost.mockResolvedValue({ success: true, content: 'FINST-NEW' });
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    await run([
+      'create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', JSON.stringify({
+        associationFormField_store: [{
+          appType: 'APP_SOURCE',
+          formUuid: 'FORM-SOURCE',
+          formType: 'receipt',
+          instanceId: 'FINST-SOURCE',
+          title: '杭州门店',
+        }],
+      }), ...FORM_EXPECTATIONS,
+    ]);
+
+    const postBody = decodeURIComponent(utils.httpPost.mock.calls[0][2]);
+    expect(postBody).toContain('formDataJson={"associationFormField_store":[{"appType":"APP_SOURCE","formUuid":"FORM-SOURCE","formType":"receipt","instanceId":"FINST-SOURCE","title":"杭州门店","subTitle":""}]}');
+    mockLog.mockRestore();
+  });
+
+  test.each([
+    ['缺少 formType', [{ appType: 'APP_SOURCE', formUuid: 'FORM-SOURCE', instanceId: 'FINST-SOURCE', title: '杭州门店' }]],
+    ['缺少 title', [{ appType: 'APP_SOURCE', formUuid: 'FORM-SOURCE', formType: 'receipt', instanceId: 'FINST-SOURCE' }]],
+    ['不是数组', { appType: 'APP_SOURCE', formUuid: 'FORM-SOURCE', formType: 'receipt', instanceId: 'FINST-SOURCE', title: '杭州门店' }],
+  ])('关联表单%s时在 POST 前 fail closed', async (_label, associationValue) => {
+    const error = await expectCliError(run([
+      'create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', JSON.stringify({
+        associationFormField_store: associationValue,
+      }), ...FORM_EXPECTATIONS,
+    ]));
+
+    expect(error.code).toBe('DATA_ASSOCIATION_FORM_VALUE_INVALID');
+    expect(error.details).toMatchObject({
+      fieldId: 'associationFormField_store',
+      sideEffectState: 'none',
+    });
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test('查询派生的关联表单 _id 字段禁止用于写入', async () => {
+    const error = await expectCliError(run([
+      'create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', JSON.stringify({
+        associationFormField_store_id: '[{"instanceId":"FINST-SOURCE"}]',
+      }), ...FORM_EXPECTATIONS,
+    ]));
+
+    expect(error.code).toBe('DATA_ASSOCIATION_FORM_DERIVED_FIELD_READ_ONLY');
+    expect(error.details).toMatchObject({
+      fieldId: 'associationFormField_store_id',
+      sideEffectState: 'none',
+    });
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test('receipt 创建成功时输出根层 formInstId 和已验证资源，同时深度保留 content', async () => {
+    const content = {
+      formInstId: 'INST-NEW',
+      formData: { textField_1: 'hello' },
+      metadata: { nested: { preserved: true } },
+    };
+    utils.httpPost.mockResolvedValue({
       success: true,
-      content: { formInstId: 'INST-NEW' },
+      content,
     });
 
     const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
     const mockError = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    await run(['create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}']);
-    expect(utils.requestWithAutoLogin).toHaveBeenCalledTimes(1);
-    expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('"success": true'));
+    await run(['create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}', ...FORM_EXPECTATIONS]);
+    expect(utils.requestWithAutoLogin).not.toHaveBeenCalled();
+    expect(getLoggedJson(mockLog)).toEqual({
+      success: true,
+      content,
+      formInstId: 'INST-NEW',
+      resource: { type: 'formInstance', id: 'INST-NEW' },
+      idVerified: true,
+    });
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
+    expect(utils.httpPost.mock.calls[0][1]).toBe('/dingtalk/web/APP_XXX/v1/form/saveFormData.json');
 
     mockLog.mockRestore();
     mockError.mockRestore();
+  });
+
+  test.each([
+    ['receipt', { mode: 'receipt' }, 'formInstId', 'formInstance', 'FINST-SCALAR'],
+  ])('%s 创建成功且平台 content 直接返回 ID 时输出稳定根层契约', async (
+    _label,
+    mode,
+    idKey,
+    resourceType,
+    platformId
+  ) => {
+    formModeService.readFormMode.mockResolvedValue(mode);
+    utils.httpPost.mockResolvedValue({ success: true, content: platformId });
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    await run(['create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}', ...FORM_EXPECTATIONS]);
+
+    const output = getLoggedJson(mockLog);
+    mockLog.mockRestore();
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
+    expect(output.content).toBe(platformId);
+    expect(output[idKey]).toBe(platformId);
+    expect(output.resource).toEqual({ type: resourceType, id: platformId });
+    expect(output.idVerified).toBe(true);
   });
 
   test('传入 --data-file 时读取文件作为创建数据', async () => {
@@ -469,7 +857,7 @@ describe('run() create form', () => {
     const mockError = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     try {
-      await run(['create', 'form', 'APP_XXX', 'FORM-XXX', '--data-file', dataPath]);
+      await run(['create', 'form', 'APP_XXX', 'FORM-XXX', '--data-file', dataPath, ...FORM_EXPECTATIONS]);
       expect(utils.httpPost).toHaveBeenCalledTimes(1);
       expect(utils.httpPost.mock.calls[0][1]).toBe('/dingtalk/web/APP_XXX/v1/form/saveFormData.json');
       expect(decodeURIComponent(utils.httpPost.mock.calls[0][2])).toContain('formDataJson={"textField_1":"from-file"}');
@@ -500,6 +888,7 @@ describe('run() create form', () => {
       '--data-json',
       '{"phone":"123","items":[{"amount":8}]}',
       '--resolve-aliases',
+      ...FORM_EXPECTATIONS,
     ]);
 
     expect(utils.httpGet).toHaveBeenCalledTimes(1);
@@ -511,68 +900,577 @@ describe('run() create form', () => {
     mockError.mockRestore();
   });
 
-  test('目标表单是流程表单时自动使用 startInstance.json 发起流程', async () => {
-    formModeService.getProcessCodeFromFormBinding.mockResolvedValue('PROC-XXX');
+  test('--resolve-aliases 接受字段摘要白名单外但 Schema 中真实存在的字段', async () => {
     utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    const schema = buildAliasSchema();
+    schema.content.pages[0].componentAlias.items.push({
+      fieldId: 'legacyField_value',
+      alias: 'legacyValue',
+    });
+    schema.content.pages[0].componentsTree[0].children[0].children.push({
+      componentName: 'LegacyBusinessField',
+      props: { fieldId: 'legacyField_value' },
+    });
+    utils.httpGet.mockResolvedValueOnce(schema);
     utils.httpPost.mockResolvedValue({
       success: true,
-      content: { processInstanceId: 'PROC-INST-NEW' },
+      content: { formInstId: 'INST-LEGACY' },
     });
 
     const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
-    const mockWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const mockError = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    await run(['create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}']);
-
-    expect(formModeService.getProcessCodeFromFormBinding).toHaveBeenCalledWith(
-      expect.objectContaining({ corpId: 'corp-1' }),
+    await run([
+      'create',
+      'form',
       'APP_XXX',
-      'FORM-XXX'
-    );
+      'FORM-XXX',
+      '--data-json',
+      '{"legacyValue":"kept"}',
+      '--resolve-aliases',
+      ...FORM_EXPECTATIONS,
+    ]);
+
     expect(utils.httpPost).toHaveBeenCalledTimes(1);
-    expect(utils.httpPost.mock.calls[0][1]).toBe('/dingtalk/web/APP_XXX/v1/process/startInstance.json');
-    const postBody = decodeURIComponent(utils.httpPost.mock.calls[0][2]);
-    expect(postBody).toContain('processCode=PROC-XXX');
-    expect(postBody).toContain('formDataJson={"textField_1":"hello"}');
-    expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('"success": true'));
+    expect(decodeURIComponent(utils.httpPost.mock.calls[0][2]))
+      .toContain('formDataJson={"legacyField_value":"kept"}');
 
     mockLog.mockRestore();
-    mockWarn.mockRestore();
+    mockError.mockRestore();
   });
 
-  test('流程表单绑定查询失败时回退到 saveFormData.json 并告警', async () => {
-    formModeService.getProcessCodeFromFormBinding.mockRejectedValue(new Error('binding timeout'));
+  test('--resolve-aliases 接受 componentsTree 第二根节点中的真实字段', async () => {
     utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    const schema = buildAliasSchema();
+    schema.content.pages[0].componentAlias.items.push({
+      fieldId: 'textField_secondary',
+      alias: 'secondaryValue',
+    });
+    schema.content.pages[0].componentsTree.push({
+      componentName: 'TextField',
+      props: { fieldId: 'textField_secondary' },
+    });
+    utils.httpGet.mockResolvedValueOnce(schema);
     utils.httpPost.mockResolvedValue({
       success: true,
-      content: { formInstId: 'INST-FALLBACK' },
+      content: { formInstId: 'INST-SECONDARY' },
     });
 
     const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
-    const mockWarn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const mockError = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    await run(['create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}']);
+    await run([
+      'create',
+      'form',
+      'APP_XXX',
+      'FORM-XXX',
+      '--data-json',
+      '{"secondaryValue":"kept"}',
+      '--resolve-aliases',
+      ...FORM_EXPECTATIONS,
+    ]);
 
     expect(utils.httpPost).toHaveBeenCalledTimes(1);
-    expect(utils.httpPost.mock.calls[0][1]).toBe('/dingtalk/web/APP_XXX/v1/form/saveFormData.json');
-    expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('无法判断表单 FORM-XXX 是否为流程表单'));
-    expect(mockLog).toHaveBeenCalledWith(expect.stringContaining('"success": true'));
+    expect(decodeURIComponent(utils.httpPost.mock.calls[0][2]))
+      .toContain('formDataJson={"textField_secondary":"kept"}');
 
     mockLog.mockRestore();
-    mockWarn.mockRestore();
+    mockError.mockRestore();
+  });
+
+  test('--resolve-aliases 遇到显示标签或未知字段时在写入前阻断', async () => {
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    utils.httpGet.mockResolvedValueOnce(buildAliasSchema());
+
+    const error = await expectCliError(run([
+      'create',
+      'form',
+      'APP_XXX',
+      'FORM-XXX',
+      '--data-json',
+      '{"E2E Text":"value"}',
+      '--resolve-aliases',
+      ...FORM_EXPECTATIONS,
+    ]));
+
+    expect(error.code).toBe('DATA_FIELD_REFERENCE_UNKNOWN');
+    expect(error.details).toMatchObject({
+      fieldRef: 'E2E Text',
+      retryable: false,
+      retrySafe: true,
+      sideEffectState: 'none',
+      nextStep: 'openyida get-schema APP_XXX FORM-XXX --field-map-json',
+    });
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test('create form 命中流程表时在写入前阻断', async () => {
+    formModeService.readFormMode.mockResolvedValue({ mode: 'process', processCode: 'PROC-XXX' });
+    const error = await expectCliError(run([
+      'create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}', ...FORM_EXPECTATIONS,
+    ]));
+
+    expect(error.code).toBe('DATA_TARGET_IDENTITY_MISMATCH');
+    expect(error.details).toMatchObject({
+      sideEffectState: 'none',
+      nextStep: 'use_data_create_process',
+    });
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['readFormMode 抛错', () => formModeService.readFormMode.mockRejectedValue(new Error('binding timeout')), 'FORM_MODE_READ_FAILED'],
+    ['readFormMode 返回空值', () => formModeService.readFormMode.mockResolvedValue(null), 'FORM_MODE_RESULT_INVALID'],
+    ['readFormMode 返回 receipt/processCode 冲突', () => formModeService.readFormMode.mockResolvedValue({ mode: 'receipt', processCode: 'PROC-CONFLICT' }), 'FORM_MODE_RESULT_INVALID'],
+    ['readFormMode 返回 process 但缺少 processCode', () => formModeService.readFormMode.mockResolvedValue({ mode: 'process' }), 'FORM_MODE_RESULT_INVALID'],
+  ])('%s 时 fail-closed 且远端写入为 0', async (_label, arrangeMode, expectedCauseCode) => {
+    arrangeMode();
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+
+    const error = await expectCliError(
+      run(['create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}', ...FORM_EXPECTATIONS])
+    );
+
+    expect(error.code).toBe('DATA_FORM_MODE_UNVERIFIED');
+    expect(error.details).toEqual({ causeCode: expectedCauseCode });
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['receipt', { mode: 'receipt' }],
+  ])('%s 创建成功但平台未返回 ID 时不猜测或重试', async (_label, mode) => {
+    formModeService.readFormMode.mockResolvedValue(mode);
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    const content = { accepted: true, nested: { instanceId: 'DO-NOT-GUESS' } };
+    utils.httpPost.mockResolvedValue({ success: true, content });
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    await run(['create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}', ...FORM_EXPECTATIONS]);
+
+    const output = getLoggedJson(mockLog);
+    mockLog.mockRestore();
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
+    expect(output.content).toEqual(content);
+    expect(output.resource).toBeNull();
+    expect(output.idVerified).toBe(false);
+    expect(output).not.toHaveProperty('formInstId');
+    expect(output).not.toHaveProperty('processInstanceId');
+  });
+
+  test.each([
+    ['receipt', { mode: 'receipt' }, '/dingtalk/web/APP_XXX/v1/form/saveFormData.json'],
+  ])('%s 写失败时使用 one-shot 边界且不重试', async (_label, mode, expectedPath) => {
+    formModeService.readFormMode.mockResolvedValue(mode);
+    utils.requestWithAutoLogin.mockRejectedValue(new Error('auto-login replay must not run'));
+    utils.httpPost.mockRejectedValue(new Error('write failed'));
+
+    await expect(
+      run(['create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}', ...FORM_EXPECTATIONS])
+    ).rejects.toThrow('write failed');
+
+    expect(utils.requestWithAutoLogin).not.toHaveBeenCalled();
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
+    expect(utils.httpPost.mock.calls[0][1]).toBe(expectedPath);
+  });
+
+  test('root/content ID 冲突时保留 content 但不验证或猜测资源 ID', async () => {
+    const result = {
+      success: true,
+      formInstId: 'INST-ROOT',
+      content: {
+        formInstId: 'INST-CONTENT',
+        nested: { preserved: true },
+      },
+    };
+    utils.requestWithAutoLogin.mockResolvedValue(result);
+    utils.httpPost.mockResolvedValue(result);
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    await run(['create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}', ...FORM_EXPECTATIONS]);
+
+    const output = getLoggedJson(mockLog);
+    mockLog.mockRestore();
+    expect(utils.requestWithAutoLogin).not.toHaveBeenCalled();
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
+    expect(output.content).toEqual(result.content);
+    expect(output.resource).toBeNull();
+    expect(output.idVerified).toBe(false);
   });
 
   test('缺少 --data-json 时打印错误并退出', async () => {
-    await expectCliError(run(['create', 'form', 'APP_XXX', 'FORM-XXX']), '缺少必填参数');
+    await expectCliError(run(['create', 'form', 'APP_XXX', 'FORM-XXX', ...FORM_EXPECTATIONS]), '缺少必填参数');
+  });
+
+  test('缺少目标身份期望时在认证和网络前停止', async () => {
+    utils.loadAuthData.mockReturnValue(null);
+    const error = await expectCliError(run([
+      'create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}',
+    ]));
+    expect(error.code).toBe('DATA_INVALID_ARGUMENTS');
+    expect(utils.loadAuthData).not.toHaveBeenCalled();
+    expect(formNavigation.fetchFormPageList).not.toHaveBeenCalled();
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test('formUuid 与期望名称不一致时在写入前停止', async () => {
+    formNavigation.fetchFormPageList.mockResolvedValue([
+      { formUuid: 'FORM-XXX', formName: '目标表单', formType: 'receipt' },
+      { formUuid: 'FORM-RENEW', formName: '续签跟踪', formType: 'receipt' },
+    ]);
+    const error = await expectCliError(run([
+      'create', 'form', 'APP_XXX', 'FORM-XXX', '--data-json', '{"textField_1":"hello"}',
+      '--expect-form-name', '续签跟踪', '--expect-form-type', 'receipt',
+    ]));
+    expect(error.code).toBe('DATA_TARGET_IDENTITY_MISMATCH');
+    expect(error.details).toMatchObject({
+      expected: { formName: '续签跟踪', formType: 'receipt' },
+      observed: { formName: '目标表单', formType: 'receipt' },
+      nameCandidates: [{ formUuid: 'FORM-RENEW', formName: '续签跟踪', formType: 'receipt' }],
+      sideEffectState: 'none',
+    });
+    expect(utils.httpPost).not.toHaveBeenCalled();
   });
 });
 
 describe('run() update form alias resolution', () => {
   test('--resolve-aliases 缺少 --form-uuid 时提示错误', async () => {
     await expectCliError(
-      run(['update', 'form', 'APP_XXX', '--inst-id', 'INST-001', '--data-json', '{"phone":"123"}', '--resolve-aliases']),
-      '--resolve-aliases 需要提供 formUuid'
+      run(['update', 'form', 'APP_XXX', '--inst-id', 'INST-001', '--data-json', '{"phone":"123"}', '--resolve-aliases', ...FORM_EXPECTATIONS]),
+      '--form-uuid 是写前目标身份校验的必填参数'
     );
+  });
+
+  test('update form 对不完整关联表单值同样在 POST 前 fail closed', async () => {
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    utils.httpGet.mockResolvedValue({
+      success: true,
+      content: { formInstId: 'INST-001', modelUuid: 'FORM-XXX' },
+    });
+
+    const error = await expectCliError(run([
+      'update', 'form', 'APP_XXX', '--inst-id', 'INST-001', '--form-uuid', 'FORM-XXX',
+      '--data-json', JSON.stringify({
+        associationFormField_store: [{
+          appType: 'APP_SOURCE',
+          formUuid: 'FORM-SOURCE',
+          instanceId: 'FINST-SOURCE',
+        }],
+      }), ...FORM_EXPECTATIONS,
+    ]));
+
+    expect(error.code).toBe('DATA_ASSOCIATION_FORM_VALUE_INVALID');
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+});
+
+describe('run() create process', () => {
+  test('目标名称、类型和 processCode 一致时才发起流程', async () => {
+    formNavigation.fetchFormPageList.mockResolvedValue([{
+      formUuid: 'FORM-XXX', formName: '目标流程', formType: 'process',
+    }]);
+    formModeService.readFormMode.mockResolvedValue({ mode: 'process', processCode: 'PROC-XXX' });
+    utils.httpPost.mockResolvedValue({ success: true, content: { processInstanceId: 'PROC-INST-1' } });
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    await run([
+      'create', 'process', 'APP_XXX', 'FORM-XXX', '--process-code', 'PROC-XXX',
+      '--data-json', '{"textField_1":"hello"}', ...PROCESS_EXPECTATIONS,
+    ]);
+
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
+    expect(utils.httpPost.mock.calls[0][1]).toBe('/dingtalk/web/APP_XXX/v1/process/startInstance.json');
+    expect(getLoggedJson(mockLog)).toMatchObject({
+      processInstanceId: 'PROC-INST-1',
+      idVerified: true,
+    });
+    mockLog.mockRestore();
+  });
+
+  test('processCode 与表单绑定不一致时不发起流程', async () => {
+    formNavigation.fetchFormPageList.mockResolvedValue([{
+      formUuid: 'FORM-XXX', formName: '目标流程', formType: 'process',
+    }]);
+    formModeService.readFormMode.mockResolvedValue({ mode: 'process', processCode: 'PROC-ACTUAL' });
+
+    const error = await expectCliError(run([
+      'create', 'process', 'APP_XXX', 'FORM-XXX', '--process-code', 'PROC-WRONG',
+      '--data-json', '{"textField_1":"hello"}', ...PROCESS_EXPECTATIONS,
+    ]));
+
+    expect(error.code).toBe('DATA_TARGET_IDENTITY_MISMATCH');
+    expect(error.details.sideEffectState).toBe('none');
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test('关联表单值不完整时在启动流程前 fail closed', async () => {
+    formNavigation.fetchFormPageList.mockResolvedValue([{
+      formUuid: 'FORM-XXX', formName: '目标流程', formType: 'process',
+    }]);
+    formModeService.readFormMode.mockResolvedValue({ mode: 'process', processCode: 'PROC-XXX' });
+
+    const error = await expectCliError(run([
+      'create', 'process', 'APP_XXX', 'FORM-XXX', '--process-code', 'PROC-XXX',
+      '--data-json', JSON.stringify({
+        associationFormField_store: [{
+          appType: 'APP-SOURCE',
+          formUuid: 'FORM-SOURCE',
+          instanceId: 'FINST-SOURCE',
+        }],
+      }), ...PROCESS_EXPECTATIONS,
+    ]));
+
+    expect(error.code).toBe('DATA_ASSOCIATION_FORM_VALUE_INVALID');
+    expect(error.details.sideEffectState).toBe('none');
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['update', [
+      'update', 'process', 'APP_XXX', '--process-inst-id', 'PROC-INST-1',
+      '--form-uuid', 'FORM-XXX',
+    ]],
+    ['execute', [
+      'execute', 'task', 'APP_XXX', '--task-id', 'TASK-1',
+      '--process-inst-id', 'PROC-INST-1', '--form-uuid', 'FORM-XXX',
+      '--out-result', 'AGREE', '--remark', '同意',
+    ]],
+  ])('%s 流程写入同样执行关联字段契约校验', async (_action, args) => {
+    formNavigation.fetchFormPageList.mockResolvedValue([{
+      formUuid: 'FORM-XXX', formName: '目标流程', formType: 'process',
+    }]);
+    utils.httpGet.mockResolvedValue({
+      success: true,
+      content: { processInstanceId: 'PROC-INST-1', formUuid: 'FORM-XXX' },
+    });
+
+    const error = await expectCliError(run([
+      ...args,
+      '--data-json', JSON.stringify({
+        associationFormField_store: [{
+          appType: 'APP-SOURCE',
+          formUuid: 'FORM-SOURCE',
+          instanceId: 'FINST-SOURCE',
+        }],
+      }),
+      ...PROCESS_EXPECTATIONS,
+    ]));
+
+    expect(error.code).toBe('DATA_ASSOCIATION_FORM_VALUE_INVALID');
+    expect(error.details.sideEffectState).toBe('none');
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+});
+
+describe('run() delete form', () => {
+  const deleteArgs = [
+    'delete',
+    'form',
+    'APP_XXX',
+    'FORM-XXX',
+    '--inst-id',
+    'FINST-001',
+    ...FORM_EXPECTATIONS,
+    '--confirm',
+    '--json',
+  ];
+
+  function mockReadRequests(...responses) {
+    utils.requestWithAutoLogin.mockImplementation((fn, session) => fn(session));
+    responses.forEach(response => utils.httpGet.mockResolvedValueOnce(response));
+  }
+
+  test('缺少 --confirm 时在认证和网络前停止', async () => {
+    utils.loadAuthData.mockReturnValue(null);
+
+    const error = await expectCliError(
+      run(deleteArgs.filter(arg => arg !== '--confirm'))
+    );
+
+    expect(error.code).toBe('DATA_DELETE_CONFIRMATION_REQUIRED');
+    expect(error.details).toMatchObject({
+      sideEffectState: 'none',
+      target: {
+        appType: 'APP_XXX',
+        formUuid: 'FORM-XXX',
+        formInstId: 'FINST-001',
+      },
+    });
+    expect(utils.loadAuthData).not.toHaveBeenCalled();
+    expect(utils.httpGet).not.toHaveBeenCalled();
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test('删除目标名称与 formUuid 不一致时不读取实例也不发送 POST', async () => {
+    formNavigation.fetchFormPageList.mockResolvedValue([
+      { formUuid: 'FORM-XXX', formName: '合同审批', formType: 'process' },
+      { formUuid: 'FORM-RENEW', formName: '续签跟踪', formType: 'receipt' },
+    ]);
+
+    const error = await expectCliError(run([
+      'delete', 'form', 'APP_XXX', 'FORM-XXX', '--inst-id', 'FINST-001',
+      '--expect-form-name', '续签跟踪', '--expect-form-type', 'receipt', '--confirm', '--json',
+    ]));
+
+    expect(error.code).toBe('DATA_TARGET_IDENTITY_MISMATCH');
+    expect(error.details).toMatchObject({
+      expected: { formUuid: 'FORM-XXX', formName: '续签跟踪', formType: 'receipt' },
+      observed: { formUuid: 'FORM-XXX', formName: '合同审批', formType: 'process' },
+      nameCandidates: [{ formUuid: 'FORM-RENEW', formName: '续签跟踪', formType: 'receipt' }],
+      sideEffectState: 'none',
+    });
+    expect(utils.httpGet).not.toHaveBeenCalled();
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test('delete process 在认证和网络前返回稳定不支持错误', async () => {
+    utils.loadAuthData.mockReturnValue(null);
+
+    const error = await expectCliError(
+      run(['delete', 'process', 'APP_XXX', '--process-inst-id', 'PROC-001', '--confirm', '--json'])
+    );
+
+    expect(error.code).toBe('DATA_PROCESS_DELETE_UNSUPPORTED');
+    expect(error.details).toMatchObject({
+      retryable: false,
+      sideEffectState: 'none',
+      nextStep: 'stop_and_report_unsupported',
+    });
+    expect(utils.loadAuthData).not.toHaveBeenCalled();
+    expect(utils.httpGet).not.toHaveBeenCalled();
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test('精确预检、one-shot 删除并回读不存在后输出稳定结果', async () => {
+    mockReadRequests(
+      {
+        success: true,
+        content: {
+          formInstId: 'FINST-001',
+          modelUuid: 'FORM-XXX',
+          title: '待删除记录',
+          gmtModified: 1788105600000,
+        },
+      },
+      { success: true, content: null }
+    );
+    utils.httpPost.mockResolvedValue({ success: true, content: true });
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    await run(deleteArgs);
+
+    expect(utils.httpGet).toHaveBeenCalledTimes(2);
+    expect(utils.httpGet.mock.calls[0][1]).toBe('/dingtalk/web/APP_XXX/v1/form/getFormDataById.json');
+    expect(utils.httpGet.mock.calls[0][2]).toMatchObject({ formInstId: 'FINST-001' });
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
+    expect(utils.httpPost.mock.calls[0][1]).toBe('/dingtalk/web/APP_XXX/query/formdata/deleteFormData.json');
+    expect(utils.httpPost.mock.calls[0][2]).toContain('formInstId=FINST-001');
+    expect(getLoggedJson(mockLog)).toMatchObject({
+      success: true,
+      deleted: true,
+      alreadyAbsent: false,
+      mutationPerformed: true,
+      mutationAccepted: true,
+      readbackVerified: true,
+      retryable: false,
+      sideEffectState: 'committed',
+      status: 'DELETED',
+      target: {
+        type: 'formInstance',
+        appType: 'APP_XXX',
+        formUuid: 'FORM-XXX',
+        formInstId: 'FINST-001',
+      },
+      summary: {
+        title: '待删除记录',
+        gmtModified: 1788105600000,
+      },
+    });
+
+    mockLog.mockRestore();
+  });
+
+  test('重复删除已不存在目标时不再次发送 POST', async () => {
+    mockReadRequests({ success: true, content: null });
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    await run(deleteArgs);
+
+    expect(utils.httpGet).toHaveBeenCalledTimes(1);
+    expect(utils.httpPost).not.toHaveBeenCalled();
+    expect(getLoggedJson(mockLog)).toMatchObject({
+      success: true,
+      deleted: true,
+      alreadyAbsent: true,
+      mutationPerformed: false,
+      readbackVerified: true,
+      sideEffectState: 'none',
+      status: 'ALREADY_ABSENT',
+    });
+
+    mockLog.mockRestore();
+  });
+
+  test('实例不属于目标 formUuid 时 fail closed 且不发送 POST', async () => {
+    mockReadRequests({
+      success: true,
+      content: {
+        formInstId: 'FINST-001',
+        modelUuid: 'FORM-OTHER',
+      },
+    });
+
+    const error = await expectCliError(run(deleteArgs));
+
+    expect(error.code).toBe('DATA_DELETE_TARGET_MISMATCH');
+    expect(error.details).toMatchObject({
+      observed: { formInstId: 'FINST-001', formUuid: 'FORM-OTHER' },
+      sideEffectState: 'none',
+    });
+    expect(utils.httpPost).not.toHaveBeenCalled();
+  });
+
+  test('删除响应失败时结果为 unknown 且不自动重试 POST', async () => {
+    mockReadRequests({
+      success: true,
+      content: { formInstId: 'FINST-001', modelUuid: 'FORM-XXX' },
+    });
+    utils.httpPost.mockResolvedValue({ success: false, errorCode: 'REMOTE_ERROR' });
+
+    const error = await expectCliError(run(deleteArgs));
+
+    expect(error.code).toBe('DATA_DELETE_RESULT_UNKNOWN');
+    expect(error.details).toMatchObject({
+      mutationAccepted: false,
+      readbackVerified: false,
+      retrySafe: false,
+      sideEffectState: 'unknown',
+      nextStep: expect.stringContaining('data get form APP_XXX'),
+    });
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
+    expect(utils.httpGet).toHaveBeenCalledTimes(1);
+  });
+
+  test('删除成功响应后回读仍存在时返回语义失败且不重试 POST', async () => {
+    const record = { formInstId: 'FINST-001', modelUuid: 'FORM-XXX' };
+    mockReadRequests(
+      { success: true, content: record },
+      { success: true, content: record }
+    );
+    utils.httpPost.mockResolvedValue({ success: true, content: true });
+
+    const error = await expectCliError(run(deleteArgs));
+
+    expect(error.code).toBe('DATA_DELETE_READBACK_MISMATCH');
+    expect(error.details).toMatchObject({
+      deleted: false,
+      mutationAccepted: true,
+      readbackVerified: false,
+      status: 'SEMANTIC_FAILURE',
+      retrySafe: false,
+      sideEffectState: 'unknown',
+    });
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
+    expect(utils.httpGet).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -614,6 +1512,58 @@ describe('run() query subform alias resolution', () => {
 // ── query tasks 场景 ──────────────────────────────────────────────────
 
 describe('run() query tasks', () => {
+  test('显式应用查询固定范围并透传真实服务端筛选', async () => {
+    utils.httpGet.mockResolvedValue({ success: true, content: { totalCount: 4, currentPage: 2, values: [
+      { appType: 'APP_XXX', processInstanceId: 'instance-a', taskId: 'task-a', title: '申请' },
+    ] } });
+    utils.requestWithAutoLogin.mockImplementation((request, auth) => request(auth));
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await run(['query', 'tasks', 'APP_XXX', '--type', 'todo', '--transport', 'app-query', '--normalized', '--page', '2', '--size', '8',
+      '--originators', '["person-a"]', '--process-codes', '["process-a"]', '--instance-create-from', '1792195200000', '--task-create-to', '1792281599999']);
+    expect(utils.httpGet.mock.calls[0][1]).toBe('/query/task/getTodoTasksInCorp.json');
+    expect(JSON.parse(utils.httpGet.mock.calls[0][2].query)).toEqual({ appKeys: ['APP_XXX'], page: 2, limit: 8,
+      originators: ['person-a'], processCodes: ['process-a'], instanceCreateFrom: 1792195200000, taskCreateTo: 1792281599999 });
+    expect(getLoggedJson(log).content).toMatchObject({ total: 4, page: 2, pageSize: 8, items: [{ appType: 'APP_XXX', kind: 'todo' }] });
+    log.mockRestore();
+  });
+
+  test.each([
+    ['--app-keys', '["APP_OTHER"]'], ['--user-id', 'other'], ['--query', '{}'],
+    ['--data-type', 'finst'], ['--task-finish-from', '1792195200000'], ['--transport', 'automatic'],
+  ])('应用高级查询不接受范围身份覆盖或不支持字段 %j', async (...flags) => {
+    await expect(run(['query', 'tasks', 'APP_XXX', '--type', 'todo', '--transport', 'app-query', ...flags])).rejects.toHaveProperty('isCliError', true);
+    expect(utils.requestWithAutoLogin).not.toHaveBeenCalled();
+  });
+
+  test('高级查询原始输出也校验每行应用范围', async () => {
+    utils.httpGet.mockResolvedValue({ success: true, content: { values: [{ appType: 'APP_OTHER', taskId: 'other' }], totalCount: 1 } });
+    utils.requestWithAutoLogin.mockImplementation((request, auth) => request(auth));
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await expect(run(['query', 'tasks', 'APP_XXX', '--type', 'todo', '--transport', 'app-query'])).rejects.toHaveProperty('code', 'TASK_SCOPE_MISMATCH');
+    expect(log).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+
+  test('created 别名读取混合实例并输出统一分页和详情目标', async () => {
+    utils.httpGet.mockResolvedValue({ success: true, content: { totalCount: 21, currentPage: 2, data: [
+      { dataType: 'finst', formInstId: 'FINST_A', formUuid: 'FORM_A', title: '申请' },
+    ] } });
+    utils.requestWithAutoLogin.mockImplementation((request, auth) => request(auth));
+    const log = jest.spyOn(console, 'log').mockImplementation(() => {});
+    await run(['query', 'tasks', 'APP_XXX', '--type', 'created', '--normalized', '--page', '2', '--size', '20']);
+    expect(utils.httpGet.mock.calls[0][1]).toBe('/dingtalk/web/APP_XXX/v1/process/getMySubmitInApp.json');
+    expect(utils.httpGet.mock.calls[0][2]).toMatchObject({ currentPage: 2, pageSize: 20, appType: 'APP_XXX' });
+    expect(getLoggedJson(log).content).toMatchObject({ total: 21, page: 2, pageSize: 20, items: [{ kind: 'created', detailTarget: { type: 'detail', formInstId: 'FINST_A' } }] });
+    log.mockRestore();
+  });
+
+  test.each([
+    ['--process-codes', '["p"]'], ['--instance-status', 'RUNNING'], ['--size', '0'], ['--all'],
+  ])('不支持的筛选或分页不发送请求 %j', async (...flags) => {
+    await expect(run(['query', 'tasks', 'APP_XXX', '--type', 'todo', ...flags])).rejects.toHaveProperty('isCliError', true);
+    expect(utils.requestWithAutoLogin).not.toHaveBeenCalled();
+  });
+
   test('查询待办任务成功时输出结果', async () => {
     utils.requestWithAutoLogin.mockResolvedValue({
       success: true,

@@ -1,398 +1,221 @@
 # 输出：design.md
 
-> 本文件定义完整应用的 `prd/<项目名>/design.md` 输出格式。`design.md` 是应用级 UI 视觉设计系统，结构以本文件为准，并参考 `references/style-designs/_design-md-template.md` 的字段完整度：先记录设计风格选择依据和主题换肤结果，再写可复用视觉 DNA、token、布局、组件、状态和自检，最后在“实现适配”里写清宜搭运行时主题契约。PRD 只写主题色和风格摘要，完整 UI 设计以本文件为准。
+本文件是 Fast、Plan 和单页设计共同使用的唯一项目设计输出契约。Fast 手写项目 `design.md`，Plan 由 CLI 物化生成；两条流程保留各自编写方式，交付相同格式并使用同一校验。
 
-最终 `design.md` 的依据分四层：结构依据本文件和 `_design-md-template.md`；视觉 DNA、布局机制、组件机制和换肤规则依据选中的设计风格文件；业务内容、页面区块、数据来源和操作路径依据当前 PRD；主题 token 依据 Step 2 的主题色来源和所选风格的 `theme_adaptation`。
+业务对象、数据、流程、页面范围与操作由需求和 PRD 决定；主题选择按 [共享规则](../references/theme-selection.md) 执行。项目文件自包含，实现阶段读取 PRD 与 `design.md`，不再回到主题库推断规则。
 
-## design.md 输出格式
+## 内容职责
+
+| 内容 | 唯一存放位置 | 用途 |
+| --- | --- | --- |
+| 项目身份、主题交付、最终 token、素材与图标映射 | frontmatter | 供 CLI 确定性读取；正文解释用途，不重复维护取值 |
+| 页面、组件、状态的定位索引 | frontmatter | 只保存稳定 ID 与正文 anchor，不复制规则全文 |
+| 视觉系统、组件机制、特色配方、具体页面设计与验收 | 正文 | 供实现者阅读；每条完整规则只写一次 |
+| 候选、主题模板身份、生成过程、编写说明 | 内部选择记录或技能文档 | 不进入最终项目设计 |
+
+`version`、`design_id`、`yidaThemeDelivery` 不再是项目必填字段；版本格式由 `schemaVersion` 表示，主题交付统一放在 `themeProfile`。正文可以沿用“布局骨架、表面层次、形状、密度、呼吸节奏”等设计概念，不强制重复建立 `visualScaffold` 或几十个英文字段。
+
+## frontmatter 规范
+
+文档从 YAML frontmatter 开始，完整解析为对象。字符串统一使用正确转义的引号；项目名称、说明包含引号、冒号或换行时不能直接拼接。以 `#` 开头的 HEX 颜色必须加引号，否则 YAML 会将其当作注释；token 数值可写数值或字符串。旧文件的读取兼容不作为新输出格式。frontmatter 结束后先出现唯一 H1，再写下述五章。
+
+| 字段 | 必填与格式 |
+| --- | --- |
+| `schemaVersion` | 必填字符串 `"1.0"` |
+| `name` | 必填，当前项目名 |
+| `description` | 必填，当前项目视觉用途说明 |
+| `tokens.application-global` | 必填，保留 appearance、colors、typography、spacing、rounded、shadow 六组基础变量，具体变量名与默认值以 [基础变量契约](../templates/design-themes/basic-tokens.json) 为准 |
+| `tokens.custom-page` | 必填对象，保存项目扩展变量，可跨页面和组件共用；没有额外变量时允许空对象 |
+| `themeProfile` | 必填，字段见下一节 |
+| `sceneRecipes` | 必填对象，按场景记录真实页面的 `pageId` 与 `anchor`；没有自定义页时为 `{}` |
+| `components` | 必填对象，每项仅为 `{anchor: "#component-…"}`；只登记有具体正文规则的组件 |
+| `states` | 必填对象，每项仅为 `{anchor: "#state-…"}`；只登记有具体正文规则的状态 |
+| `assetStrategy` | 必填，保持单行 JSON；至少 `{ "pages": [] }`，实际页面按素材契约填写 |
+| `iconSystem` | 必填，`{library: "lucide-react", mappings: {}}`；library 仅为 `lucide-react` 或 `@ant-design/icons`，mappings 将实际业务语义映射到具体图标组件，无图标时为空对象 |
+| `buildPlanRevision` | 仅 Plan 可选，用于与当前计划版本对应；Fast 不补造计划版本 |
+
+`tokens` 中每个 `--token` 只占一行具体 CSS 值，可以带行尾注释。数值、颜色、变量引用均须能解析为有效单行值；不得遗留占位符、推导指令、同名冲突值或多行标量。字体与间距使用主题默认值，明确项目定制可以写入合法覆盖；`--color-white`、`--pod-table-cell-color` 沿用配对主题的表面取值，不强制改成卡片别名；Tooltip 固定值仍按公共契约保持。应用全局的七个品牌色阶为 1/2/3/5/6/9/10，不补造 4/7/8。分组只用于组织，CSS 变量使用叶子的完整原名；可引用同份主题中声明的项目变量，不能依赖只在页面选择器内定义的值。移动端品牌桥接由公共 CSS 模板保留，不能删改其变量名。
+
+### themeProfile
+
+`contentTone` 与 `navTheme` 的语义和组合规则统一见[主题明暗双轴](../references/application-style-library.md#主题明暗双轴)。
+
+| 字段 | 规则 |
+| --- | --- |
+| `name` | 项目自己的视觉方向名称，不写主题模板名称 |
+| `sourceThemeId` | 新项目保留目录中的主题 ID，独立设计为 `free-creative`；用于定位配对 CSS，历史无来源文件继续兼容 |
+| `themeColor` | 当前主色，使用 6 位 HEX，与 `--color-brand1-6` 的最终值一致 |
+| `themeColorSource` | 实际来源，如 `user-specified`、`application-theme` 或 `business-inferred`；不伪造模板默认品牌色 |
+| `contentTone` | `light` 或 `dark` |
+| `navTheme` | 从所选主题模板派生的导航明暗 `light` 或 `dark`；与页面画布明暗分开，不由 AI 默认填写；自由创意使用项目明确设计的导航明暗 |
+| `themeDelivery` | `app-custom-theme-file` 或 `current-app-theme` |
+| `themeFile` | 当前主题 CSS 的实际交付路径；继承当前应用且没有本地主题文件时为空字符串 |
+| 既有导航配置 | 保留 navigationType、layoutDirection、hideAppNav、logoSource 等已确认配置，不重新推断入口范围 |
+
+应用导航按 [四类导航契约](../../yida-prd/workflow/output-prd.md#导航类型与执行配置) 与 PRD 保持一致。全应用自绘导航才交接应用级隐藏；独立前台自绘菜单只影响该入口，后台保留平台导航。页面全屏不自动改变应用导航。`colorMode` 如有保留，表示宜搭配色模式，不代表页面明暗。
+
+## 正文构成
+
+使用共享主题现有的五章组织，不新增第二套固定模板。标题保持带编号的 H2，例如 `## 1. 风格摘要`，依次到 `## 5. 项目应用与调整规则`；不要省略编号或改成其他标题层级。内容按当前项目实例化：
+
+1. **风格摘要**：当前项目的视觉方向、用户任务、明确约束与需要保留的核心特征；简要说明已选配色和导航，不写候选比较。
+2. **页面视觉系统**：导航、应用框架、画布、表面、边界、排版、间距、形状和色彩角色，覆盖表单提交、编辑、记录详情与自定义页面。项目配色与导航的覆盖合并到对应规则中，不另起一组相互冲突的“默认”和“适配”说明。
+3. **基础组件表达**：当前项目组件的结构、变量消费与状态。每套规则正文只写一次，索引定位到该段。
+4. **特色表达配方**：保留真实内容可用的配方、启用条件和不适用时处理；不为套用配方新增业务模块。未启用配方可省略细节，不影响基础视觉语言。
+5. **项目应用与调整规则**：每个实际自定义页的具体设计与验收、必要项目差异和素材缺口；不保留“请填入下方”“生成时替换”等编写任务。
+
+主题中的模板维护要求、frontmatter 模板身份要求、占位符替换步骤、色值计算指令及模型编写提示不进入最终正文。第 2.2 节统一说明导航与框架的最终表面、状态、边界、形状、文字、间距和消费规则；导航差异 token（未声明项沿用平台绑定） 保存在 frontmatter。写法见 [导航与应用框架](../references/application-theme-consistency.md#导航与应用框架)。保留的是实例化结果与实现者仍需遵守的消费规则。选中项阴影与导航状态在同一节说明。
+
+按 [页面与导航连续性](../references/page-continuity.md) 逐页交接背景、滚动、切换/返回和异常状态；沉浸页导航叠加首屏，工作区导航占位，页内切换不创建应用导航。
+
+### 页面设计的八项要点
+
+每个实际自定义页只有一段完整设计，放在第 5 章并附显式 anchor；原生表单与流程沿用应用主题，不虚构自定义页面记录。八项逐行写成 `- 页面任务：具体内容` 或 `- **页面任务：** 具体内容`，依下表标签填写；值可以引用正文共享规则的 anchor，但关键标签不改成表格或自由标题，也不把冒号放到加粗范围之外。下表仅解释每项内容，不是产物的排版格式。
+
+| 要点 | 写到可实现的内容 |
+| --- | --- |
+| 页面任务 | 当前用户要完成什么；内容与操作沿用 PRD |
+| 首屏焦点 | 第一眼关注的对象、状态或行动，以及如何突出 |
+| 布局 | 区块顺序、主次、宽度/比例、列数、对齐和内容增长方式；真实存在时才规划侧栏或摘要 |
+| 表面与组件 | 各区块如何消费共享表面、边界、字体和组件规则；明确局部差异与特色配方位置 |
+| 主操作 | 主次动作的位置、入口与反馈，保留表单、详情及现有业务功能契约 |
+| 状态 | 当前页加载、空、错、无权限等实际反馈与恢复动作；公共状态用 anchor 引用，业务文案就近补充 |
+| 响应式 | 按 [共享布局规则](../references/responsive-layout.md) 写清宽屏、窄容器和触屏各展示什么、怎样操作、何时重排、保留哪些状态及选择依据；按需说明筛选换行、恢复自然高度和局部滚动 |
+| 验收 | 写出检查动作和预期结果，覆盖焦点、内容、布局、主题、交互、素材和状态；实际走通查找信息、执行操作、展开内容和返回页面的路径，分别记录待检查项与已执行证据 |
+
+页面外壳、焦点、主要内容、动作区、上下文与反馈这些设计含义都要覆盖；不要求创建同名 JSON/YAML 字段。尺寸和间距优先引用已定义 token，只有项目确实需要的数值差异才另外写明。不能仅写“按主题执行”，也不能把公共组件全文复制到每一页。
+
+按 [阅读无障碍门禁](../references/page-quality-gates.md#阅读无障碍门禁) 将排版与可访问名称写入共享组件规则，将放大重排、完整信息获取和阅读顺序写入逐页响应式与验收项。使用已有正文与 Plan 字段，不新增一份无障碍配置；验收标准与已执行结果分开，设计阶段不得写成已通过实际页面验证。
+
+Fast 在 design.md 逐页写清背景范围、导航首屏/滚动态、对齐宽度、实际滚动容器、入口行为、返回状态及未保存策略；Plan 写入已有 pageApplications 的 visualApplication、surface、states 后物化，不另问实现字段。
+
+## 稳定引用规则
+
+PRD 继续使用 `themeProfile`、`sceneRecipes.<sceneKey>`、`components.<componentName>` 和 `states.<stateName>` 这些 `designRefs`。引用先定位 frontmatter 索引，再进入对应正文；`themeProfile` 直接读取元数据。
+
+Fast 保留 PRD 的 Markdown 逐页块与 `pageSpecHandoff` 格式，display-page 显式填写共享的稳定 `pageId`；`check-design --prd` 按 `pageId`、`designFile` 和 `designRefs` 核对页面与引用。Plan 使用已有 JSON 交接记录；不要求 Fast 转换成 Plan PRD。
+
+- `sceneKey` 复用共享需求/计划的稳定场景 key，不翻译或重新命名。`sceneRecipes.<sceneKey>.pages[]` 每项仅保存 `pageId` 和 `anchor`，同一场景允许多个真实页面。
+- 页面使用 `#page-…`，组件使用 `#component-…`，状态使用 `#state-…`。正文相应位置显式写 `<a id="page-…"></a>` 等 HTML anchor；同一 anchor 唯一，索引值必须能够精确找到。
+- `components`、`states` 的 key 与 PRD 引用一致，目标 anchor 位于第 3 章基础组件表达内。只登记实际存在的规则；一个复合组件段落确实覆盖多类组件时可共享 anchor，不能因缺少规则就登记虚假引用。
+- 索引只保存定位信息，不保存 `rules`、页面布局或组件正文副本。一个共享段落可以服务多个页面，但每个页面仍有自己的具体应用段。
+
+锚点与八项要点的最小对照（校验只认这种空内容 HTML 锚点标签，Markdown 标题 `{#id}`、链接 `[文字](#id)` 都不算锚点）：
 
 ```markdown
----
-version: 1.0
-name: <应用或风格系统英文 slug>
-description: <内容中立的中文用途说明>
-design_id: <design-id>
-design_status: ready
-baseDesignSource: references/style-designs/<selected-style>.md
-styleDesignSelection:
-  inferredUserTask: <判断 / 处理 / 追踪 / 分析 / 展示 / 汇报>
-  inferredInformationTopology: <摘要优先 + 趋势承接 + 明细落地>
-  interactionFocus: <搜索筛选 / 待办处理 / 下钻详情 / 多入口跳转 / 趋势比较>
-  requiredVisualDNA:
-    - <dna-id>
-  selectedStyleDesign:
-    name: <style-name>
-    source: references/style-designs/<selected-style>.md
-    reason: <为什么该风格最适合当前业务>
-  rejectedStyleDesigns:
-    - <style-name>: <为什么不选>
-  selectionConfidence: <high / medium / low>
-scenes: [工作台, 列表, 详情, 看板]
-density: <high / medium / comfortable；业务工具页默认 high>
-layout: <preferred archetype or custom layout；工作台默认紧凑双栏/三栏，不用低密大卡墙>
-tone: <视觉气质关键词>
-tags: [<业务领域>, <角色>, <数据形态>]
-avoid: [<不适合场景>]
-themeProfile:
-  name: <平台预置 key 或自定义色盘名称>
-  themeScope: <app / page>
-  themeColorSource: <user-specified / application-theme / platform-preset-match / business-inferred / template-default>
-  themePresetKey: <命中平台预置时填写；自定义色盘留空>
-  shouldPassCreateAppTheme: <true 仅限平台预置；false 表示 create-app 不传 theme/colour>
-  globalThemeInjection: <style#yida-global-theme / customThemeStyle.tokens / none>
-  navTheme: light
-  colorMode: <宜搭配色模式，如 gradient；不表示暗黑>
-themeAdaptationResult:
-  inputThemeColor: <主题色 key 或色值>
-  strategy: replace_hue_preserve_visual_mechanism
-  replaced:
-    brand: <主色>
-    brand-strong: <深主色>
-    brand-soft: <浅主色>
-    focus-ring: <焦点色>
-  preservedVisualDNA:
-    - <dna-id>
-  preservedMechanisms:
-    - <画布 / 面板 / 布局 / 深色舞台 / 右侧栏等>
-yidaThemeRuntime:
-  globalThemeInjection: <style#yida-global-theme / customThemeStyle.tokens / none>
-  formRuntimeInjection: style#yida-global-theme
-  formDetailStyleInjection: style#yida-form-detail-style
-  themeConsistency: app, custom pages, normal forms, process forms, submission pages, and formDetail pages share the same themeProfile tokens
-  styleElementId: yida-global-theme
-  helperRef: yida-canvas-custom-page/references/theme-runtime-helpers.md
-  injectTargets: [currentDocument, sameOriginParentDocuments]
-  rootAttribute: data-yida-theme-root
-tokens:
-  --color-brand1-1: <明亮品牌浅色或浅 hover 色>
-  --color-brand1-2: <浅背景>
-  --color-brand1-3: <透明/浅边界>
-  --color-brand1-5: <主色 hover 档>
-  --color-brand1-6: <主色>
-  --color-brand1-7: <主色 active 档>
-  --color-brand1-9: <深主色>
-  --color-brand1-10: <深色或透明强调档>
-  --color-brand-1: <移动端品牌色 1>
-  --color-brand-2: <移动端品牌色 2>
-  --color-brand-3: <移动端品牌色 3>
-  --color-brand-4: <移动端品牌色 4>
-  --color-group: <图表和分组色板，逗号分隔>
-visual_dna:
-  - name: <可识别的设计记忆点名称>
-    confidence: observed
-    evidence: <参考或需求中可见的证据>
-    rule: <生成新 UI 时必须如何保留它>
-    implementation_hooks: [<布局/组件/token/CSS/图表钩子>]
-    failure_mode: <缺失该 DNA 时会出现的风格漂移>
-colors:
-  bg-outer: "#..."
-  surface: "#..."
-  surface-muted: "#..."
-  text-primary: "#..."
-  text-secondary: "#..."
-  border-subtle: "#..."
-  brand: "#..."
-backgroundLayer:
-  baseCanvas: <默认低饱和浅底或带装饰的近白画布；深色舞台仅用户明确要求暗色/大屏时使用；推荐避免无层次的纯空白画布>
-  primitives:
-    [softTintCanvas, topIrregularWash, radialGlowWash, flowLight, organicNoise]
-  topIrregularWash: <可选；不规则顶部色块、波浪或斜切背景，内容仍按规则栅格排布>
-  motionLayer: <none / subtle-flow-light；必须有 prefers-reduced-motion 静态降级>
-  contrastGuard: <前景文字和控件对比度要求>
-surfaceContrast:
-  rule: <页面背景与卡片背景必须有明显层次，不可相近或相同>
-  pairing: <white-bg-bordered-card / gray-bg-white-card / tinted-bg-white-card / gradient-bg-glass-card>
-  pageBackground: <浅色背景色或渐变>
-  cardBackground: <白色、浅色或玻璃 rgba>
-  cardBorder: <白色/浅色背景时必须写边框；浅灰/浅彩背景时可 none；玻璃卡片写半透明边框>
-  forbidden: <浅底白卡无边框、同色背景同色卡片、只靠弱阴影区分层级>
-iconSystem:
-  defaultLibrary: lucide-react
-  allowedLibraries: [lucide-react, "@ant-design/icons"]
-  style: <线性描边 / Outlined；同一页面保持一致>
-  strokeWidth: <默认 1.75 或 2>
-  sizes:
-    toolbar: 16
-    quickAction: 18
-    status: 16
-  actionIconMap:
-    <业务动作名>: <lucide-react 或 @ant-design/icons 的具体组件名>
-  statusIconMap:
-    <业务状态名>: <lucide-react 或 @ant-design/icons 的具体组件名>
-  navigationIconMap:
-    <导航项名>: <lucide-react 或 @ant-design/icons 的具体组件名>
-  emptyStateIconMap:
-    <空态类型>: <lucide-react 或 @ant-design/icons 的具体组件名>
-typography:
-  page-title:
-    fontFamily: "<字体栈>"
-    fontSize: <数字>
-    fontWeight: <数字>
-    lineHeight: <数字>
-    letterSpacing: 0
-spacing:
-  page-x: <默认 20-28>
-  page-y: <默认 20-28>
-  grid-gap: <默认 12-18；卡片和卡片的 gap 必须小于 20>
-  section-gap: <默认 14-18；用于跨区块呼吸和分组，不用于撑空白>
-  card-x: <默认 22-28；卡片 padding 必须大于 20>
-  card-y: <默认 22-28；卡片 padding 必须大于 20；列表/摘要类不是卡片时可更紧>
-  row-y: <默认 10-12>
-breathingRule:
-  rhythm: <首屏主区、列表区、右侧上下文和操作条之间的分组节奏>
-  sectionGap: <默认 14-18；卡片之间的 gap 必须小于 20>
-  innerPadding: <默认 22-28；卡片 padding 必须大于 20>
-  compression: <内容不足时压缩高度、转薄行或补业务上下文/下一步动作>
-rounded:
-  sm: <默认 10-12>
-  md: <默认 14-16>
-  card: <范围 0-32；业务卡片默认 20-24>
-  panel: <范围 0-32；主容器/抽屉/重点面板默认 22-32>
-  pill: 999
-components:
-  card:
-    backgroundColor: "{colors.surface}"
-    rounded: "{rounded.card}"
-    padding: "{spacing.card-y} {spacing.card-x}"
-  empty-state:
-    density: compact
-    maxHeight: <默认 88-120>
-  metric-strip:
-    height: <默认 64-88>
-inferred_modules:
-  quick_actions:
-    required_for: [工作台, 仪表盘, 管理后台, 运营首页]
-    confidence: inferred
-    rule: <基于整体视觉风格推断的快捷入口区域规则>
----
-
-# <应用名> design.md
-
-## 1. 总览
-
-用 2-4 个短段落说明可复用设计意图。保持内容中立，只说明气质、信息密度、主要用途和页面组织方式。
-
-## 2. 设计风格选择依据
-
-说明 `styleDesignSelection` 的推演过程：当前业务的用户任务、信息拓扑、交互重心、必需视觉 DNA、选中风格和排除风格。选择理由必须来自业务结构和视觉 DNA 命中，不得按行业、颜色或主观偏好直接套风格。
-
-## 3. 主题色与换肤结果
-
-说明 `themeProfile` 和 `themeAdaptationResult`：主题色来源、是否命中平台主题 key、是否允许传给 `create-app/update-app --theme`、如何替换所选风格的 `replace_tokens`、派生 `derive_tokens`、保留 `preserve_tokens` 和 `visual_dna.invariant`。必须明确“换 hue，不换 DNA；换 token，不换结构”。
-
-## 4. 适用场景
-
-列出适合和不适合使用该风格的场景。
-
-## 5. 视觉氛围
-
-说明运营工具感/表达型、克制/戏剧化、密度、留白、专业度等取向。
-
-默认业务工具页采用“圆润但高密”的现代 B 端气质：业务面板和重点容器默认 20px 以上大圆角，页面信息密度默认 high，留白用于分组和阅读，不用于撑页面面积。只有官网、品牌页、展示页或用户明确要求舒展时，才把 density 调到 medium / comfortable。
-
-## 6. 视觉 DNA / 设计母体
-
-从所选设计风格和当前业务结构中提取 2-5 个内容替换后仍必须保留的设计记忆点。每个 DNA 必须包含名称、证据、规则、实现钩子、失败表现和置信度；证据必须同时说明业务触发条件和风格来源。
-
-## 7. 色彩角色
-
-用表格列出 token、取值和用途，覆盖背景、表面、文字、边框、品牌色、状态色和图表序列。必须包含 `themeProfile` 和 `yidaThemeRuntime` 中声明的主题 token。
-
-| token               | 取值                        | 用途                                               |
-| ------------------- | --------------------------- | -------------------------------------------------- |
-| `--color-brand1-1`  | <明亮品牌浅色或浅 hover 色> | 列表 hover、菜单 hover、轻量背景，不直接当深色文字 |
-| `--color-brand1-2`  | <品牌浅底>                  | 弱强调背景、浅底提示、选中底色、标签浅底           |
-| `--color-brand1-3`  | <透明/浅边界>               | 选中边框、禁用/弱化品牌态、浅描边                  |
-| `--color-brand1-5`  | <主色 hover 档>             | 主按钮 hover、链接 hover、可点击强调 hover         |
-| `--color-brand1-6`  | <主色>                      | 主按钮、链接、选中态、重点标签、图表主序列         |
-| `--color-brand1-7`  | <主色 active 档>            | 按下态、active、pressed                            |
-| `--color-brand1-9`  | <深主色>                    | 强调文字、深底按钮、深色强调块                     |
-| `--color-brand1-10` | <深色或透明强调档>          | 深色 hover、强强调背景、深色主题补充               |
-| `--color-brand-1`   | <移动端品牌浅/透明档 1>     | 移动端壳层、移动端表单、旧版移动组件浅品牌态       |
-| `--color-brand-2`   | <移动端品牌浅/中档 2>       | 移动端 hover、轻量强调、移动端组件浅色面           |
-| `--color-brand-3`   | <移动端主品牌档 3>          | 移动端主操作、选中态、原生表单移动主色             |
-| `--color-brand-4`   | <移动端深品牌档 4>          | 移动端 active、深色强调、移动壳层深色态            |
-| `--color-group`     | <色组>                      | 图表、分类、状态序列                               |
-
-`--color-brand1-*` 是页面和 PC 端主要消费的品牌色阶；`--color-brand-*` 是移动端和部分原生表单/壳层桥接仍会消费的品牌色阶，必须保留，不能删掉、改名或替换成其他 token。
-
-## 8. 字体规则
-
-定义字体栈、字号体系、行高、字重和数字排版。不要使用 viewport width 缩放字体，默认 `letter-spacing: 0`。
-
-## 9. 布局原则
-
-说明页面壳、最大宽度、网格比例、间距、内容顺序和中性槽位关系。布局机制应来自所选风格的 `layout_stability`、`modules` 和当前 PRD 页面结构，不得凭空增加 PRD 未要求的图表、右侧栏、时间轴或深色舞台。
-
-工作台、门户首页、管理后台和运营首页必须写清紧凑状态摘要、任务/记录列表、右侧上下文、高频动作条和薄空态行动。首屏不能出现超宽但内容稀疏的 KPI 横框、孤立大空态卡或右侧大面积留白；空白区域必须用最近记录、动态、风险、负责人、下一步动作、配置提示或薄空态行动承接。
-
-## 10. 层级与深度
-
-说明深度来自平面表面、边框、阴影、色调层、毛玻璃、覆盖层或空间效果，并说明哪些地方不该使用阴影。
-
-### Background Layer Contract
-
-展示型页面、工作台、看板、门户、官网、登录页和空状态页推荐使用有层次的页面画布，而不是无氛围的纯空白背景。画布可以接近白色，但应通过淡渐变、细线装饰、星芒、高光、插图、顶部不规则色块或内容密度形成背景感。背景层写成可实现字段 `backgroundLayer`，优先选择 1-2 个背景 primitive：
-
-| primitive          | 适用场景                                   | 实现要求                                                                                             |
-| ------------------ | ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `softTintCanvas`   | 工作台、列表、管理后台                     | 使用低饱和高明度底色，例如暖灰、浅青、浅粉、浅蓝紫，也可以是带弱渐变的近白画布；前景内容保持规则栅格 |
-| `topIrregularWash` | 官网、品牌页、主页面首屏、登录页、空状态页 | 顶部或首屏使用不规则色块、波浪、斜切、有机边界或轻装饰曲线；内容不跟随背景扭曲                       |
-| `radialGlowWash`   | AI 产品、SaaS、驾驶舱、视觉化工作台        | 使用大面积柔和径向光或光洗，不使用离散装饰圆球、bokeh 或随机漂浮点                                   |
-| `flowLight`        | 科技感主视觉、数据看板、引导卡片           | 使用极慢速流光或光影位移动效；必须提供 `prefers-reduced-motion` 静态降级                             |
-| `organicNoise`     | 温暖亲和、生活方式、轻品牌页               | 叠加 0.02-0.06 透明度微噪点或细纹理，减少机械感，不影响阅读                                          |
-
-背景可以不规则，内容必须规则。所有主要内容仍使用明确网格、分栏、对齐和稳定间距，不能因为背景形状导致文字、按钮、图表或表格漂移。B 端页面的背景色保持低饱和、高明度；深色大屏可使用低亮度流动线条或光效纹理衬托数据，但正文对比度必须达标。若选择极简近白画布，必须用清晰内容结构、细线装饰、局部渐变或素材焦点证明页面不是未设计的空白底。
-
-### Surface Contrast Contract
-
-页面背景与卡片背景必须形成明显层次对比，不可相近或相同。默认背景色保持浅色调，确保整体视觉清爽，同时与卡片之间有清晰层次；必须在 `surfaceContrast` 中选择以下搭配之一：
-
-| pairing                  | 背景                         | 卡片                                                                 |
-| ------------------------ | ---------------------------- | -------------------------------------------------------------------- |
-| `white-bg-bordered-card` | 白色/浅色背景                | 卡片添加 `1px` 边框，边框色与背景形成可见分隔                        |
-| `gray-bg-white-card`     | 浅灰色背景，例如 `#F3F4F6`   | 白色无边框卡片，用背景色差形成层次                                   |
-| `tinted-bg-white-card`   | 浅彩色背景，例如浅蓝、浅暖灰 | 白色无边框卡片，必要时补极弱阴影                                     |
-| `gradient-bg-glass-card` | 渐变色背景                   | 玻璃感卡片，使用半透明表面、半透明边框、`backdrop-filter` 和柔和阴影 |
-
-禁止输出浅底白卡无边框、同色背景同色卡片、卡片和页面背景只差 1-2 个灰阶，或只靠弱阴影承担层次。若背景和卡片都接近白色，卡片必须有可见边框；若背景为浅灰或浅彩，卡片优先白色无边框；若背景为渐变，卡片必须按玻璃材质处理。
-
-## 11. 形状
-
-定义圆角尺度，以及每个尺度分别用于哪里。
-
-默认形状语言是圆润但不低密，并且布局要有呼吸感：卡片圆角范围 0-32px，业务卡片/面板默认 20-24px，主面板/抽屉/重点区域默认 22-32px，按钮和输入框 10-14px，标签/状态胶囊 999px。卡片 padding 必须大于 20px，卡片和卡片的 gap 必须小于 20px；圆角服务形状性格，不用空白卡撑版面。
-
-## 12. 组件样式
-
-覆盖顶部栏、按钮、图标按钮、卡片/面板、输入框/选择器、表格/列表、图表、标签/徽标、快捷入口、空状态、弹窗/浮层。相关组件要包含 default、hover、active、focus、disabled、loading、selected、error 等状态。图标规则写入 `iconSystem`：页面图标只使用 `lucide-react` 或 `@ant-design/icons`，默认使用 `lucide-react` named import；快捷入口、按钮、状态、导航和空态必须给出可实现的 `actionIconMap` / `statusIconMap` / `navigationIconMap` / `emptyStateIconMap`。emoji 不能改成 CSS 形状、字母占位、Unicode 符号或临时 SVG。
-
-组件默认密度和呼吸规则必须写到可实现数值：状态摘要 64-88px 高，动作条 40-56px 高，列表行 44-56px，高频按钮 36-40px，卡片 padding 默认 22-28px 且必须大于 20px，卡片和卡片的 gap 默认 12-18px 且必须小于 20px。空状态默认嵌在列表/面板内部，使用薄提示行、补录/刷新/新建动作和简短说明；不得用 160px 以上大白卡只显示“暂无数据”。
-
-## 13. 快捷入口区域
-
-工作台、仪表盘、管理后台或运营首页必须输出快捷入口区域规则。说明位置、容器、条目、数量、图标、文字、状态、响应式、与 DNA 的关系和禁止漂移。
-
-快捷入口的图标使用 `iconSystem` 中的具体组件名。常用映射示例：新增/创建用 `Plus`，搜索/查询用 `Search`，刷新用 `RefreshCw`，查看用 `Eye`，入库/上传用 `Upload`，出库/下载用 `Download`，供应商/组织用 `Building2`，告警用 `AlertCircle`，完成用 `Check`。
-
-## 14. 页面结构配方
-
-提供 2-4 个使用中性槽位的布局配方，例如 `primary_metrics`、`quick_actions`、`trend_panel`、`detail_table`、`status_note`。每个使用到自定义页面的场景都必须写 `visualScaffold`：
-
-- visualScaffold：<rootShell / prioritySurface / statusPrimitive / actionPrimitive / contentPrimitive / contextPrimitive / statePrimitive / responsiveRule / breathingRule>
-- surfaceMap：<每个区块的容器形态、背景、边框、阴影、毛玻璃或平面规则>
-- surfaceContrast：<页面背景与卡片背景的层次搭配；从 white-bg-bordered-card / gray-bg-white-card / tinted-bg-white-card / gradient-bg-glass-card 中选择>
-- densityRule：<页面边距、卡片 gap、状态摘要高度、列表行高、卡片 padding、空态高度和压缩空白规则>
-- breathingRule：<首屏分组节奏、跨区块间距、组内内距、贴边修正、内容不足时的压缩/补充策略>
-- roundedRule：<业务面板、主面板、控件、标签、抽屉和弹层的圆角数值>
-- componentRecipe：<每个关键组件的结构、密度、状态和 token 使用>
-
-## 15. 状态与交互
-
-列出 hover、active、focus、loading、empty、error、disabled、selected、mobile 和 reduced motion 规则。
-
-## 16. 响应式
-
-定义断点和布局折叠方式。说明文字适配、工具栏换行、表格横向滚动和触控目标尺寸。
-
-## 17. 可访问性
-
-要求对比度、focus 状态、纯图标控件标签、非纯颜色状态表达、键盘可访问和 reduced motion。
-
-## 18. 实现适配
-
-只包含相关适配，例如 CSS 变量、Ant Design ConfigProvider、Tailwind class 映射、Yida / YidaCodeCanvas 容器重置或 React 组件建议。宜搭主题必须写成可执行契约：
-
-### Yida Global Theme Runtime Contract
-
-| 项目         | 规则                                                                                                                                                                         |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 平台预置主题 | 只有 `themePresetKey` 命中平台预置 key 且 `shouldPassCreateAppTheme=true` 时，`create-app/update-app` 才传 `theme/colour`                                                    |
-| 自定义色盘   | `shouldPassCreateAppTheme=false`，创建应用时不传 `theme/colour`                                                                                                              |
-| 页面注入     | 自定义色盘、页面级沉浸页、应用导航隐藏后的自绘壳、页面级独立主题使用 `style#yida-global-theme`                                                                                                     |
-| 应用级换肤   | 需要全应用换肤时写 `customThemeStyle.tokens`，页面运行态统一注入 `style#yida-global-theme`                                                                                   |
-| 表单运行态   | 普通表单、流程表单、提交页和 formDetail 详情页必须消费同一套应用主题 token；表单 JS 固定注入 `style#yida-global-theme`                                                        |
-| 详情页样式   | formDetail 页面必须由同一个 `openyidaThemeDidMount` 条件注入 `style#yida-form-detail-style`，不得只完成页面主题而漏掉详情页样式                                                |
-| 主题一致性   | 自定义页面、普通表单、流程表单、提交页、formDetail 详情页和应用主题色必须一致；抽屉 iframe 打开表单时同步父页面当前主题 tokens                                                 |
-| 注入目标     | 当前窗口 `document` 和所有同源可访问父级窗口 `document`；跨域父级静默跳过                                                                                                    |
-| Helper       | YidaCodeCanvas 和平台 JSX 组件页面都复制 `yida-canvas-custom-page/references/theme-runtime-helpers.md`，使用其中的 `collectYidaThemeDocuments` 收集当前文档和同源父级文档，不要临场重写 |
-| 样式 ID      | 固定为 `yida-global-theme`，重复执行只更新同一个 style                                                                                                                       |
-| 根节点       | 页面根节点加 `data-yida-theme-root="true"`，让 token 在当前页和父级 iframe 壳层都能命中                                                                                      |
-
-### 自定义页面实现要求
-
-- 使用 `YidaCodeCanvas` 组件实现时，复制 `theme-runtime-helpers.md` 的 YidaCodeCanvas Helper。
-- 在根组件中调用 `useYidaGlobalTheme(CUSTOM_THEME_TOKENS)`。
-- `CUSTOM_THEME_TOKENS` 必须来自本 design.md 的 `tokens`，不能临场另配。
-- 根节点写 `<div data-yida-theme-root className="...">`。
-- `backgroundLayer` 必须落到根节点背景、`::before` 顶部不规则色块或大面积光洗、`::after` 流光/纹理层；内容层使用相对定位和更高 `z-index`，保证背景不盖住操作区。
-- `surfaceContrast` 必须落到页面根背景和卡片/面板样式：白色/浅色背景配有边框卡片，浅灰或浅彩背景配白色无边框卡片，渐变背景配玻璃感卡片。
-- `flowLight` 动效必须写 `@media (prefers-reduced-motion: reduce)` 停止动画。
-- 页面图标使用 `lucide-react` 或 `@ant-design/icons` 的标准 import，默认从 `lucide-react` named import 具体组件；源码按 `iconSystem.actionIconMap` / `statusIconMap` / `navigationIconMap` / `emptyStateIconMap` 渲染图标。CSS 只能控制图标容器样式，不能绘制或替代图标本体。
-
-### 平台 JSX 组件实现要求
-
-- 复制 `theme-runtime-helpers.md` 的 Ordinary JSX Helper。
-- 在 `didMount` 或等价初始化中调用 `installYidaGlobalTheme(CUSTOM_THEME_TOKENS, window)`。
-- 平台 JSX 组件页面发布后落到平台 `Jsx` 组件，不支持 `import/require`。
-- 平台 JSX 组件页面的图标来源仍只允许 `lucide-react` 或 `@ant-design/icons`，默认 `lucide-react`；但加载方式不是 import，而是已验证运行时脚本/global。emoji 报错时按 `iconSystem` 映射到这两类图标来源，不退成 CSS 图形、字母占位、Unicode 符号、iconfont 或临时 SVG。
-- 使用 ES5 写法，避免平台 JSX 组件编译链不支持的语法；若当前平台 JSX 组件运行环境无法稳定加载图标库，必须去掉非必要图标或改用已验证资源，不能绕过图标规范。
-
-## 19. 必须包含
-
-列出硬性正向要求。每个视觉 DNA 都必须作为明确必选规则出现。必须包含 `styleDesignSelection`、`themeAdaptationResult` 和 `baseDesignSource`。若 `globalThemeInjection` 不是 `none`，必须包含 `style#yida-global-theme` / `customThemeStyle.tokens` 的落地规则。
-
-## 20. 禁止项
-
-列出硬性负向约束，覆盖会抹掉每个 DNA 的错误做法。必须包含：不得按行业或颜色直接套风格；不得为了还原风格凭空创造 PRD 未要求的模块；自定义主题名或任意色值不得传给 `create-app --theme`；不得只向当前页面 `document.head` 注入主题而漏掉同源父级 iframe。
-
-## 21. 错误 vs 正确
-
-用短对照保护视觉 DNA、快捷入口风格继承和主题运行时契约。
-
-| 错误                                 | 正确                                                                   |
-| ------------------------------------ | ---------------------------------------------------------------------- |
-| 看到绿色业务就选 `teal-rail`         | 先推演用户任务、信息拓扑和 requiredVisualDNA，再选风格；绿色只用于换肤 |
-| 为了套时间轴风格新增不存在的阶段模块 | PRD 没有阶段/里程碑时排除时间轴风格                                    |
-| 自定义色盘仍传 `--theme myBrand`     | 不传应用 theme，在页面复制 helper 注入 `style#yida-global-theme`       |
-| 只在当前 iframe 写 style             | 同步当前文档和同源父级窗口文档                                         |
-| PRD 里复制完整视觉规则               | PRD 只写摘要，完整 UI 规则写 design.md                                 |
-
-## 22. Agent 使用提示
-
-提供一段简洁提示词，明确告诉 AI 如何使用该 design.md。必须说明选中 style-design 只是设计风格来源，最终事实源是当前项目 `design.md`；视觉 DNA 在内容替换后也要保留；实现自定义色盘时必须读取 `yida-canvas-custom-page/references/theme-runtime-helpers.md` 并复制对应 helper。
-
-## 23. 交付自检清单
-
-- [ ] `baseDesignSource` 已写选中的 `references/style-designs/<style>.md`，或在所有内置风格不适用时说明 `generated-from-business-context` 原因。
-- [ ] `styleDesignSelection` 已说明用户任务、信息拓扑、requiredVisualDNA、选中风格、排除风格和置信度。
-- [ ] 设计风格选择依据来自业务结构和视觉 DNA 命中，不是行业、颜色或主观偏好。
-- [ ] `themeAdaptationResult` 已说明输入主题色、换肤策略、replaced token、preservedVisualDNA 和 preservedMechanisms。
-- [ ] 主题色遵守“换 hue，不换 DNA；换 token，不换结构”。
-- [ ] 源图或参考业务内容已抽象为中性槽位。
-- [ ] 文档识别了 2-5 个视觉 DNA / 设计母体。
-- [ ] 每个 DNA 都包含证据、规则、实现钩子、失败表现和置信度。
-- [ ] DNA 已同步进入必须包含、禁止项、错误 vs 正确、Agent 使用提示和最终自检。
-- [ ] 若页面类型是工作台、仪表盘、管理后台或运营首页，文档已包含快捷入口区域。
-- [ ] 可推断的 token 已给出具体值。
-- [ ] 组件包含状态规则，而不只是静态外观。
-- [ ] `iconSystem` 已声明默认图标库、可用图标库、尺寸、描边风格，并为快捷入口、按钮、状态、导航和空态提供具体 `actionIconMap` / `statusIconMap` / `navigationIconMap` / `emptyStateIconMap`。
-- [ ] 已明确卡片圆角范围：0-32px，并说明业务卡片、主面板、控件和状态胶囊各自取值。
-- [ ] 已明确紧凑密度默认值：状态摘要、动作条、列表行、空态高度、卡片 padding >20px、卡片 gap <20px 都有数值范围。
-- [ ] 工作台/首页首屏没有超宽空 KPI 框、大空态白卡、无内容右栏或靠 margin/padding 撑出的空白。
-- [ ] 响应式和可访问性规则完整。
-- [ ] `themeProfile`、`yidaThemeRuntime` 和 `tokens` 一致。
-- [ ] `backgroundLayer` 已说明基础画布、装饰方式和是否使用背景 primitive；若选择近白画布，已说明如何通过渐变、细线、素材或内容密度形成背景感。
-- [ ] `surfaceContrast` 已说明页面背景与卡片背景的明确层次搭配，不存在相近或相同背景。
-- [ ] 若使用 `topIrregularWash`、`flowLight` 或 `organicNoise`，已写清对比度、内容栅格和 reduced motion 静态降级。
-- [ ] 自定义色盘没有传给 `create-app/update-app --theme`。
-- [ ] 需要运行时主题时，已声明复制 `theme-runtime-helpers.md`，并覆盖当前窗口与同源父级窗口。
-- [ ] 不依赖原截图，也能指导生成一个新页面。
+## 3. 基础组件表达
+
+<a id="component-button"></a>
+### 按钮
+主要操作使用品牌色。
+
+## 5. 项目应用与调整规则
+
+<a id="page-workbench"></a>
+### 工作台
+- **页面任务：** 处理逾期待办并支持批量完成
+- **首屏焦点：** 逾期队列置顶并高亮最紧急一项
+- **布局：** 主列表居左、上下文分栏居右，720px 以下上下堆叠
+- **表面与组件：** 表格消费共享卡片表面与按钮规则
+- **主操作：** 行尾「完成」提交并刷新计数
+- **状态：** 空记录显示登记入口，加载显示骨架
+- **响应式：** 窄屏工具栏换行、表格横向滚动
+- **验收：** 完成操作后计数与列表同源刷新
 ```
 
-## 交给实现阶段
+frontmatter 对应 `components.button.anchor: "#component-button"`、`sceneRecipes.workbench.pages: [{ "pageId": "workbench", "anchor": "#page-workbench" }]`：标签 id 不带 `#`，frontmatter 引用带 `#`；页面锚点必须落在第 5 章，八项要点紧跟本页锚点、止于下一个页面锚点。
 
-- `yida-app` 读取 `prd/<项目名>/prd.md` 和 `prd/<项目名>/design.md` 后创建或复用资源。
-- 页面实现阶段读取 `prd.md` 的业务内容，并直接读取 `design.md` 的视觉 DNA、token、布局、组件、状态和 `Yida Global Theme Runtime Contract`。
-- 页面实现交给 `yida-canvas-custom-page`。
-- 只有走页面生成器或需要稳定交接时才派生 `page-spec.json`，并标记 `sourceOfTruth.prdFile/designFile`。`page-spec.json` 不复制完整 design.md，只保存与 design.md 一致的主题摘要和引用。
+## 图片素材与图标
+
+动态记录图片写入真实数据绑定和设计正文，不为每条记录分配静态素材槽位。仅有动态图片时素材策略使用 `imageNeed: none` 与空 slots，含义是无静态采集任务；页面仍按记录渲染图片。固定素材才进入下方清单，详见[任务驱动的视觉设计](../references/task-driven-visual-design.md)。
+
+`assetStrategy.pages[]` 按 [素材清单契约](../../yida-image-assets/references/manifest-contract.md) 记录图片等级与槽位；槽位含用途、数量、比例、尺寸、焦点、填充方式和生成许可。无图片需求的实际页面记录 `imageNeed: none`。保持 frontmatter 单行 JSON 兼容 `--design design.md`，不能只保留槽位数量；有需求时交给 `yida-image-assets`。
+
+`iconSystem.mappings` 只登记实际业务动作、状态、导航和空态使用的具体组件名称。图标尺寸、描边和容器规则放在正文；Canvas 按选中库 import，旧平台 JSX 则按已验证的运行时加载方式使用。不能用 emoji、CSS 图形、字母占位、Unicode、临时 SVG 或 iconfont 绕过图标规范；无法稳定加载时去掉非必要图标或使用已验证资源。
+
+图标配色按 [主题一致性门禁](../references/page-quality-gates.md#4-主题一致性门禁) 检查。有底盒、按钮背景或选中底色时，在 `iconSystem.colorPairs` 登记配色，例如 `{"name":"统计图标·默认","foreground":"var(--oyd-stat-icon-fg)","background":"var(--oyd-stat-icon-bg)"}`。优先引用已有变量，需要新角色时再加入 `tokens`；共享配色只记录一次，颜色不同的状态分别记录。
+
+Fast 写入 `design.md`；Plan 写入 `visualStyle.forUser.iconSystem.colorPairs`，变量写入 `visualStyle.tokens`。CLI 支持 HEX、rgb/rgba、black/white/transparent 及这些颜色的变量引用；半透明底色需补充实际不透明的 `surface`。低于 3:1、颜色无法解析或缺少底色信息时校验失败。
+
+## 用户配色与模板的优先级
+
+用户最新明确的风格、颜色要求优先；没有新要求时保留已选主题的配色与材质，模板示例色不替代用户选择。指定颜色写入项目 token，并协调页面、卡片、导航和交互；保留主题结构、文字可读性与独立状态语义，不只改按钮或统一染色。
+
+Fast 与 Plan 使用同一主题的颜色推导、组件规则和页面设计标准。只计算模板中已有的主色公式，固定值与变量引用按原设计保留；项目差异直接写入 token，不强制其他色阶跟随主色。Plan 输入使用 `visualStyle.tokens`，Fast 写入 `design.md.tokens`，最终设计相同。导航差异 token（未声明项沿用平台绑定） 沿用主题模板，并合入明确的项目差异；`navigationStyle.tone` 表示导航明暗，具体外观由这组 token 表达。导航明暗与内容画布分别设计。用户明确保留中性参考或只改强调色时尊重该范围。`--pod-nav-menu-item-selected-shadow` 作为方向无关的基础外观 Token 独立透传，`none` 表示关闭；CLI 不根据导航明暗生成替代配色。
+
+圆角、padding、gap、密度、背景与卡片关系按选中主题和真实任务执行，通用参考值仅补未定义项。同色画布与面板可通过边界、共容器和留白建立层次；渐变、玻璃、阴影、纹理不互相强制绑定。需要动效时提供 reduced motion 降级，装饰不覆盖内容与操作。
+
+## 应用主题 CSS 的职责
+
+以下应用级上传流程先核对服务端 `appThemeEnable=y` 且 `appThemeMode=modern`。旧主题或能力未知时，按 [旧主题注入与停用规则](../references/application-style-library.md#旧主题应用的样式作用域与确认) 保留平台主题并使用页面局部样式；应用层注入须取得目标应用和 CSS 范围的明确用户确认，不能因计划或视觉方案已确认而自动追加 `--confirm-legacy-app-style`。
+
+按 [应用与自定义页面共用主题](../references/application-theme-consistency.md) 将风格承诺落实到变量，再交接页面开发。文字中的“暖色”“纸感”不是 CLI 的色值输入；模板之外的全局风格必须写入 token，不能只在自定义页实现。
+
+平台基础变量是最低契约，不是允许使用的全部变量。项目可按需扩展颜色、材质、布局、字体、动效和组件状态等语义，命名不限定为 `--oyd-*`。基础变量和扩展变量统一生成到主题 CSS；分组不决定运行时作用域，新增变量需有明确的使用组件、CSS 属性或平台映射，详见 [扩展规则](../references/application-theme-consistency.md#平台基础变量是应用主题基础框架)。
+
+`app-theme.css` 是当前应用的主题资源产物，承载品牌色阶、语义色、字体、间距、圆角、阴影，以及 Shell、导航、页面、表单、表格和浮层的主题 token 与必要样式覆盖。`app_theme.css` 等其他 `.css` 文件名同样可用；CLI 根据 `--theme-file` 路径读取内容，不靠固定文件名识别用途。Plan 使用 `outputs.theme`，其他流程使用已记录的产物路径，避免生成多份后上传错文件。
+
+- `design.md` 定义视觉意图、布局和交互；主题 CSS 把对应的平台样式契约落成可加载的资源。导航是否悬浮、侧栏如何折叠和拖拽、业务内容如何排布，仍由页面代码实现。
+- 平台组件与自定义页面通过对应 token 消费主题。保留原有变量名；固定主题的全局及平台模式选择器共用一份变量声明，不按 is-light/is-dark 生成两套颜色；页面组件用 `var(--token, fallback)`，不在每页重新注入全局主题。只有实际引用该 token 或命中 CSS 选择器的内容才会改变外观。
+- 文件生成后，通过 `update-app --theme-file <实际路径>` 上传，再更新应用基础设置中的 `colour=custom`、`themeColor` 和 `customThemeStyle`；导航、Logo 来源与布局在同一次更新中同步。创建应用或仅修改本地 CSS 均不等于绑定了主题。
+- iframe 是独立文档，不能假定它继承父页面的 CSS 变量。原生表单页依靠该应用的平台主题加载链路；自绘抽屉外壳由所在页面消费 token，高度兜底由容器代码保证。
+- `themeVerification.verified=true` 证明应用设置已绑定资源，不证明所有页面视觉正确。发布后仍需检查实际页面及表单 iframe 的资源加载、计算样式与布局；CLI 无法仅凭 CSS 文件判断最终视觉效果。
+
+主题准备与表单、页面开发按 [并行依赖](../../yida-app/workflow/parallel-work.md#主题与业务资源的依赖) 调度：计划或主题确认后即生成 CSS，不依赖表单或页面实现；appType 与 CSS 就绪便立即同步应用基础设置。页面先按已确认 token 开发，视觉验收再核对主题加载结果。
+
+页面背景统一使用 `--pod-page-bg-color`，卡片和面板使用 `--pod-card-bg-color`，默认回退 `--color-white`；抽屉外壳使用 `--pod-shell-theme-bg-color`，内部 iframe 继续加载表单或详情页主题，标题栏与正文容器透明承接，不用卡片底色铺满抽屉。导航归属不改变页面底色，隐藏导航不自动透明；深色或明确的应用背景通过同一平台 token 配置。Plan 和 Fast 将设计值写入 design.md 并生成 app-theme.css，Canvas 宿主、页面根和 antd 统一消费；渐变、纹理和素材作为页面局部装饰层。
+
+### 背景颜色、渐变与图片
+
+Fast 与 Plan 按同一规则记录背景，先确定作用范围：
+
+- 应用根背景：底色写 `--pod-app-root-bg-color`，渐变或图片写 `--pod-app-root-bg-image`，例如 `linear-gradient(135deg, #F4F8F5, #E8F0EC)`。主题 CSS 提供变量，由实际使用它们的应用根容器显示；不把根背景复制到卡片、输入框或表格。
+- 页面与卡片：`--pod-page-bg-color`、`--pod-card-bg-color` 保持颜色值。它们还会被 `background-color` 和组件颜色配置使用，不能填入渐变或图片。实心页面、卡片会遮住后面的根背景，不能认为根背景一改，所有内容面就会一起改变。
+- 单页或首屏装饰：在当前页面根容器或区块上使用 `background-image` 或装饰层，保留基础底色。自绘导航需要与首屏连贯时，让两者共用该页面的背景层。
+- 应用级样式覆盖写在 `app-theme.css`；先核实目标环境实际承载背景的容器和样式，再做小范围覆盖。不要猜测 `app body` 选择器，也不要从 Canvas 页面修改父页面的 body 或全局主题。iframe 内的页面需要各自加载主题。
+
+## CLI token 契约（Fast / Plan 共用）
+
+`tokens` 的格式与变量契约见 [frontmatter 规范](#frontmatter-规范)。需要改变平台表现的圆角、字体、间距等必须落实为 CSS token，不能只写正文。
+
+Fast 或单独更新主题时，执行 `openyida sample yida-design app-theme --output .cache/openyida/<项目名>/app-theme.css --design-file prd/<项目名>/design.md`。首次按 `themeProfile.sourceThemeId` 读取命名主题配对 CSS，保留其原有声明与规则，只实例化品牌及相对原模板的项目覆盖，不按设计默认值覆盖模板 CSS 的差异；自由创意使用公共骨架；同主题已有 CSS 只更新变化的 token，保留其他 token 和自定义样式。换主题或来源不明时使用新输出路径，按[模板来源约束](../references/application-style-library.md#模板来源与重复生成)迁移定制。CLI 自动保存更新记录，内容相同时跳过写入，写入失败回滚。省略 `--design-file` 会用公共模板重置目标 CSS。
+
+主题生成前校验输入 CSS 的括号、字符串和注释闭合，生成后与上传前复用同一检查；纯模板导出也须通过。出现 `THEME_CSS_STRUCTURE_INVALID` 时按错误行修复源模板或已有 CSS，再重试；生成失败保留原 CSS 和 token 更新记录，不能靠重置模板覆盖已有定制。新增全局及页面语义 token 写入包含顶层 `:root` 的统一声明块；light、dark、white、gray 选择器消费同一套项目颜色。
+
+品牌色阶 `--color-brand1-1/2/3/5/6/9/10` 必须完整且在顶层 `:root` 可用。`THEME_BRAND_SCALE_INCOMPLETE` 表示缺档或作用域不满足，`THEME_BRAND_SCALE_INVALID` 表示最终颜色值或引用不可用，`THEME_CSS_UNRESOLVED_TOKEN` 表示残留模板占位或生成说明；按 details 修复 design.md 后重新生成，不能只替换主色或追加另一套默认色盘。
+
+导航边框、box-shadow 与上述必需色阶不同，是按需覆盖：省略时不生成额外的平台菜单形状规则，显式 `none` 才表示有意关闭。删除声明后 CLI 移除对应生成规则，保留规则块外的项目样式；单独声明阴影不改变边框、内部高度或顶部间距。普通入口按连续目录组织，主题一致不要求复制表单输入框或卡片造型。
+
+主题文件只能由上述 OpenYida CLI 契约生成或更新。不得另写 Python、Node、Shell 或 `run_workspace_script` 临时脚本来生成、复制、整文件重写、正则替换或 retheme 主题 CSS；校验脚本只能读取并报告问题，不能改写主题文件。需要调整 CLI 未覆盖的精确 classname 覆盖时，只允许在现有文件末尾做小范围编辑，并重新通过 `update-app --theme-file` 上传完整文件。
+
+Plan 修改现有方案按 [局部调整](../../yida-app/workflow/plan/step-4-deliver.md#4-处理调整) 更新视觉字段与配色，使用返回的 `outputs.theme`。Fast 由 `yida-design` 直接维护 `design.md`。应用阶段由 `yida-app` 使用 `--theme-file` 应用同一份产物。
+
+整体暗色方案按 [浮层适配](../references/theme/theme-token-presets.md#暗色主题浮层适配) 补齐组件 token。实现阶段可在生成的应用主题 CSS 末尾追加精确 classname 覆盖，再上传完整主题文件。
+
+## 校验与交接
+
+Fast 写完和更新 `design.md` 后执行：
+
+```bash
+openyida check-design prd/<项目名>/design.md --json
+```
+
+PRD 已就绪时带上关联校验；并行生成 PRD 时先做单文件校验，由 `yida-app` 合并阶段补执行：
+
+```bash
+openyida check-design prd/<项目名>/design.md --prd prd/<项目名>/prd.md --json
+```
+
+PRD 的相对 `designFile` 默认相对命令的当前工作目录解析，必须指向本次检查的设计文件；绝对路径也会核对。若从其他目录检查项目或导出包，传 `--base-dir <项目根目录>` 指定 PRD 引用的根目录。命令行中的设计文件和 `--prd` 路径仍相对当前工作目录解析。导出包须保留 PRD 中声明的目录结构，或更新引用为实际位置；不因文件名相同或属于导出包而跳过检查。路径不一致返回 `DESIGN_FILE_MISMATCH`，修正引用或根目录后再交接。
+
+Plan 物化内部使用同一校验，不另维护宽松标准。校验覆盖格式、变量、定位引用和跨文档一致性；真实界面的视觉、数据、交互与可访问性仍按 [页面质量门禁](../references/page-quality-gates.md) 检查。
+
+`check-design` 检查设计文档，不读取主题 CSS；CSS 结构检查由主题生成和 `update-app --theme-file` 执行。结构检查不等于完整 CSS 语义或浏览器效果验证。
+
+页面实现交给 `yida-canvas-custom-page`。
+
+交接须满足：五章正文完整且项目化，frontmatter 可解析，所有引用可定位，真实页面八项要点齐备，主题变量和素材/图标记录一致，没有模板身份、未解析指令或重复维护的规则副本。页面实现按 `designRefs` 读取当前页及其共享规则；`page-spec.json` 仅派生业务输入、主题摘要和引用，保留 `sourceOfTruth.prdFile/designFile`，不复制完整设计。
+
+本地校验失败统一按[本地校验修复](../../../references/source-repair.md)处理：先修正并回读源文件，未变化不重跑，连续两次修复无进展时保留产物并报告阻塞。
+
+移动端 `--color-brand-1`、`--color-brand-2`、`--color-brand-3`、`--color-brand-4` 由 CLI 按应用色阶生成桥接；最终 CSS 也必须在顶层 `:root` 完整提供这四项。生成后和上传前同时校验 PC 七档与移动端四档的缺失、无效颜色及引用循环，不要求在 design.md 重复声明自动桥接。

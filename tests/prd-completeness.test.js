@@ -36,6 +36,82 @@ describe('prd completeness check', () => {
     { formUuid: 'FORM-CUSTOMER', formName: '客户信息', formType: 'receipt' },
   ];
 
+  test.each([
+    ['red theme', {}, 'pass'],
+    ['equivalent CSS color', { themeColor: 'rgb(200, 37, 44)' }, 'pass'],
+    ['platform blue', { colour: 'blue', themeColor: '#1677FF' }, 'fail'],
+    ['custom blue', { themeColor: '#1677FF' }, 'fail'],
+    ['missing application CSS', { customThemeStyle: null }, 'fail'],
+    ['disabled CSS', { customThemeStyle: { enabled: false, cssUrl: 'https://example.test/theme.css' } }, 'fail'],
+    ['wrong navigation tone', { navTheme: 'dark' }, 'fail'],
+    ['legacy light alias', { navTheme: 'white' }, 'pass'],
+    ['config field aliases', { colour: undefined, themeColor: undefined, navTheme: undefined, customThemeStyle: undefined,
+      config: { COLOUR: 'custom', THEME_COLOR: '#C8252C', NAV_THEME: 'light',
+        CUSTOM_THEME_STYLE: JSON.stringify({ enabled: true, cssUrl: 'https://example.test/theme.css' }) } }, 'pass'],
+  ])('checks the live application theme against the selected project theme: %s', async (_label, overrides, verdict) => {
+    const prd = buildPrd() + '\n```json\n' + JSON.stringify({ applicationTheme: { themeColor: '#C8252C', navTheme: 'light' } }) + '\n```\n';
+    const app = { colour: 'custom', themeColor: '#C8252C', navTheme: 'light',
+      customThemeStyle: { enabled: true, cssUrl: 'https://example.test/theme.css' }, ...overrides };
+    const result = await evaluatePrdCompleteness(prd, { appType: 'APP_XXX', buildManifest: buildManifest() }, {
+      fetchForms: jest.fn().mockResolvedValue(forms), fetchApp: jest.fn().mockResolvedValue(app),
+    });
+    expect(result.verdict).toBe(verdict);
+    expect(result.themeVerification).toMatchObject({ configurationReadback: true, verified: verdict === 'pass', runtimeVerified: false });
+    expect(JSON.stringify(result)).not.toContain('https://example.test/theme.css');
+  });
+
+  test('unavailable application settings never count as verified theme delivery', async () => {
+    const prd = buildPrd() + '\n```json\n' + JSON.stringify({ applicationTheme: { themeColor: '#C8252C', navTheme: 'light' } }) + '\n```\n';
+    const result = await evaluatePrdCompleteness(prd, { appType: 'APP_XXX', buildManifest: buildManifest() }, {
+      fetchForms: jest.fn().mockResolvedValue(forms), fetchApp: jest.fn().mockRejectedValue(new Error('denied')),
+    });
+    expect(result.verdict).toBe('needs_review');
+    expect(result.themeVerification).toEqual({ configurationReadback: false, verified: false, runtimeVerified: false });
+  });
+
+  test.each([{}, null])('empty application readback remains unverified: %j', async app => {
+    const prd = buildPrd() + '\n```json\n' + JSON.stringify({ applicationTheme: { themeColor: '#C8252C', navTheme: 'light' } }) + '\n```\n';
+    const result = await evaluatePrdCompleteness(prd, { appType: 'APP_XXX', buildManifest: buildManifest() }, {
+      fetchForms: jest.fn().mockResolvedValue(forms), fetchApp: jest.fn().mockResolvedValue(app),
+    });
+    expect(result.verdict).toBe('needs_review');
+    expect(result.themeVerification.configurationReadback).toBe(false);
+  });
+
+  test('legacy PRDs without theme expectations do not add a network request or claim verification', async () => {
+    const fetchApp = jest.fn();
+    const result = await evaluatePrdCompleteness(buildPrd(), { appType: 'APP_XXX', buildManifest: buildManifest() }, {
+      fetchForms: jest.fn().mockResolvedValue(forms), fetchApp,
+    });
+    expect(fetchApp).not.toHaveBeenCalled();
+    expect(result).not.toHaveProperty('themeVerification');
+  });
+
+  test.each([
+    [true, true, 'pass'], [false, true, 'fail'], [true, false, 'fail'], [false, undefined, 'fail'], [undefined, true, 'needs_review'],
+  ])('audits frontend PC and mobile menu visibility independently: %s / %s', async (hidden, mobileHidden, verdict) => {
+    const prd = buildPrd() + '\n```json\n' + JSON.stringify({ navigationVisibility: [
+      { name: '销售工作台', type: 'display-page', hidden: true, mobileHidden: true },
+    ] }) + '\n```\n';
+    const fetchForms = jest.fn().mockResolvedValue([{ ...forms[0], hidden, mobileHidden }, forms[1]]);
+    const result = await evaluatePrdCompleteness(prd, { appType: 'APP_XXX', buildManifest: buildManifest() }, { fetchForms });
+    expect(result.verdict).toBe(verdict);
+    expect(fetchForms).toHaveBeenCalledTimes(1);
+    expect(fetchForms).toHaveBeenCalledWith('APP_XXX', {}, { includeNavigation: true });
+    if (verdict !== 'pass') {expect(result.items[0].id).toMatch(/^frontend_navigation_/);}
+  });
+
+  test('does not treat a missing manifest binding as proof that the frontend menu is hidden', async () => {
+    const prd = buildPrd() + '\n```json\n' + JSON.stringify({ navigationVisibility: [
+      { name: '销售工作台', hidden: true, mobileHidden: true },
+    ] }) + '\n```\n';
+    const result = await evaluatePrdCompleteness(prd, { appType: 'APP_XXX' }, {
+      fetchForms: jest.fn().mockResolvedValue([{ ...forms[0], hidden: true, mobileHidden: true }, forms[1]]),
+    });
+    expect(result.verdict).toBe('needs_review');
+    expect(result.items).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'frontend_navigation_not_checked' })]));
+  });
+
   test('passes when build manifest required resources match the remote resource list', async () => {
     const fetchSchema = jest.fn(() => Promise.reject(new Error('schema should not be read')));
     const fetchOneFormRecordCount = jest.fn(() => Promise.reject(new Error('seed should not be queried')));

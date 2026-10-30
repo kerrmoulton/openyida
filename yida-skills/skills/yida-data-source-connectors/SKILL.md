@@ -38,6 +38,12 @@ use_skill("yida-canvas-data-binding", "为使用 YidaCodeCanvas 组件实现的�
 
 ## 平台 JSX 组件核心规则
 
+### 搜索与筛选参数
+
+已有数据源调用普通表单 `searchFormDatas` 时，按[查询条件指南](../../references/query-condition-guide.md)构造条件数组，`searchFieldJson` 传 `JSON.stringify(conditions)`。单日期用 `is` / `is_not`；区间用真实字段 ID 加 `.start` / `.end` 按 `DateField` 查询。条件按 AND 组合，筛选变化时回到第 1 页，读取服务端 `totalCount`。
+
+多选未选择、子表无行及区间任一端已填，用同步维护的计数字段筛选。`openyida sample yida-data-management empty-query` 提供构造器；条件和分页参数按已有数据源定义传给 `.load()`。连接器沿用 Action 的 Headers、Query、Body 契约。Canvas 由 `yida-canvas-data-binding` 接入。
+
 历史平台 JSX 组件页面调用连接器或远程 API 时，先在设计器 Page 根节点 `dataSource.online` 注册数据源，再通过：
 
 ```javascript

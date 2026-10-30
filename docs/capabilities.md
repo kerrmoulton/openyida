@@ -26,11 +26,13 @@
 
 ## 应用与组织管理
 
+原生数据卡片支持 `data-card list/create/get/save/publish/probe`，可导出完整 Schema、备份保存草稿并独立发布；`save --config` 从真实表单字段搭建九类原生组件、多指标和同源下拉筛选，probe 逐组件核对运行时数据；单卡最多五个图表。配置字段及图表使用原生数据模型，详见[数据卡片指南](guides/data-cards.md)。投放另有 `release-get/release-save/release-check/release-test/refs`，支持播报配置、启停、显式测试发送和使用记录，群安装仍需钉钉客户端确认，门户暂不自动挂载。`app-settings <appType> --section theme|basic|data-card --json` 返回目标应用的主题、业务前后台配置或数据卡片管理入口。
+
 | 功能 | 执行操作 |
 |---|---|
-| 查询我的应用 | `openyida app-list [--size N]` |
+| 查询我管理的或我创建的应用（手动分页） | `openyida app-list [--type managed\|created] [--page N] [--size N]` |
 | 创建应用 | `openyida create-app "<应用名称>"` |
-| 更新应用名称、布局、主题、访问态应用导航显示 | `openyida update-app <appType> [--name "..."] [--layout slide\|ver] [--theme deepBlue] [--hide-app-nav\|--show-app-nav]` |
+| 更新应用名称、自定义主题、导航风格、Logo 来源、布局、访问态应用导航显示 | `openyida update-app <appType> [--theme-file <css>] [--nav-theme light\|dark\|white\|gray] [--logo-source appIcon\|customImage] [--layout side\|top\|l_shape]` |
 | 启用应用 / 上线应用 | `openyida app-online <appType> [--to-ding-app-center] [--show-app-center]` |
 | 停用应用 / 下线应用 | `openyida app-offline <appType> [--to-ding-app-center] [--show-app-center]` |
 | 导出应用迁移包 | `openyida export <appType> [output]` |
@@ -61,8 +63,11 @@
 | 获取表单 Schema | `openyida get-schema <appType> <formUuid>` |
 | 获取应用全部 Schema | `openyida get-schema <appType> --all` |
 | 导出 ER 关系图 | `openyida er <appType> [--format mermaid\|json] [--output file]` |
-| 注入、移除或检查表单详情页样式 | `openyida form-detail-style <apply\|remove\|check> <appType> <formUuid> ...` |
 | 管理聚合表 virtualView | `openyida aggregate-table <list\|create-empty\|inspect\|preview\|save\|publish\|status> <appType> ...` |
+
+## 打印模板与单据
+
+`openyida print-template` 管理宜搭原生富文本打印模板，支持查询、按真实字段编排多种单据、创建、复制、保存、备份恢复、模板设置、启停、排序、字段二维码/条形码和请求单条记录 PDF。通过 `openyida sample yida-print-template order|quotation|delivery|receipt|approval|codes --output <file.json>` 输出六种可编辑示例；也可 build --scene 配合 --bindings 映射实际字段。create --config 完成新建和正文保存，已有模板通过 inspect 指纹与 save 修改，copy 创建版式变体。数据详情链接可通过 list --detail-url 查询当前记录可用模板，再 render --detail-url --template-id 打印该条记录；与管理端列表分开校验权限。保存后直接生效，PDF 请求受理与文件生成成功分开验证。详见 [打印模板技能](../yida-skills/skills/yida-print-template/SKILL.md)。Word、叮当和物理打印机操作不在此命令范围内。
 
 ## 自定义页面与发布
 
@@ -106,6 +111,10 @@
 |---|---|
 | 创建流程表单并配置流程 | `openyida create-process <appType> ...` |
 | 配置并发布流程规则 | `openyida configure-process <appType> ...` |
+| 检查流程设计器字段来源和子表路径 | `openyida process fields <appType> <formUuid> --json` |
+| 配置发起、审批和办理节点字段权限 | 发起页用顶层 `startFormConfig`，人工节点用 `formConfig`；见 [字段权限](../yida-skills/skills/yida-flow-node-config/references/fields.md) |
+| 人工节点条件选人 | `approver/executor/receiver.kind=conditional`；见 [条件选人](../yida-skills/skills/yida-flow-node-config/references/conditional-actors.md) |
+| 配置审批节点的加签、转交 | 在流程定义的 `nodes[].actions.normalActions/appendActions` 中声明，由上述创建/配置命令编译；见 [操作权限配置](../yida-skills/skills/yida-flow-node-config/references/actions.md) |
 | 预览流程实例 | `openyida process preview <appType> <processInstanceId> [--output <path>]` |
 | 查询 AI 审批提示配置 | `openyida ai-form-setting get <appType> <formUuid>` |
 | 查询 AI 审批可用字段 | `openyida ai-form-setting fields <appType> <formUuid>` |
@@ -124,7 +133,12 @@
 | 更新表单数据 | `openyida data update form <appType> <formUuid> <formInstId> --data-file <file>` |
 | 查询流程/任务/子表数据 | `openyida data <action> <resource> [args]` |
 | 查询表单权限 | `openyida get-permission <appType> <formUuid>` |
+| 通用数据权限 AND／OR 条件 | `save-permission ... --conditions-file conditions.json --dry-run`；见 [条件编排](../yida-skills/skills/yida-form-permission/references/conditions.md) |
+| 权限组复制／重命名／删除及矩阵管理 | `permission-manage`、`matrix`；见 [管理说明](../yida-skills/skills/yida-form-permission/references/management.md) |
 | 保存表单权限 | `openyida save-permission <appType> <formUuid> ...` |
+| 权限组成员、数据范围和字段权限 | 完整配置用 `--data-permission`、`--field-permission`；角色和字段简写用 `--roles`、`--field-access`，先用 `--dry-run` 看差异；见 [配置说明](../yida-skills/skills/yida-form-permission/references/row-field-access.md) |
+| 提前查询 OA 矩阵可用性 | `get-permission <appType> <formUuid> --check-matrix --json`；结果不证明已购买 |
+| 查询、配置谁能发起流程 | 查询和保存权限命令均加 `--package-type FORM_PACKAGE_START`；见 [发起权限](../yida-skills/skills/yida-form-permission/SKILL.md#发起权限-start) |
 | 验证短链接 | `openyida verify-short-url <appType> ...` |
 | 保存公开访问/分享配置 | `openyida save-share-config <appType> ...` |
 | 查询页面分享配置 | `openyida get-page-config <appType> <formUuid>` |
@@ -158,6 +172,14 @@
 | 解析 API 文档/接口信息 | `openyida connector parse-api [options]` |
 | 生成 API 文档模板 | `openyida connector gen-template [output]` |
 | 创建集成自动化 | `openyida integration create <appType> ... [--spec file.json]` |
+| 批量取数、新增和复制子表明细 | `integration create --spec`；见 [批量数据配置](../yida-skills/skills/yida-integration/references/batch-data.md) |
+| 获取数据节点按字段筛选 | `dataRetrieve.conditions` / `--data-condition`，目标字段与触发记录／上游单条节点字段比较；数字操作符别名转原生码；见 [条件与变量](../yida-skills/skills/yida-flow-node-config/references/conditions-variables.md) |
+| 开始节点触发过滤、分支的字段比较（待完成） | 与取数筛选是不同消费场域，尚未通过平台保存及运行验收；见 [条件与变量](../yida-skills/skills/yida-flow-node-config/references/conditions-variables.md) |
+| 按角色发送自动化消息 | spec 的 `sendMessage.toRoles`；见 [通知节点](../yida-skills/skills/yida-flow-node-config/references/notifications.md) |
+| 已有自动化安全增量修改 | `integration update ... --patch patch.json --dry-run`，可靠基线仅支持名称、描述和消息正文补丁；见 [安全更新](../yida-skills/skills/yida-integration/references/safe-update.md) |
+| 定时及字段变化触发 | spec `schedule`、`changedFields`；见 [触发配置](../yida-skills/skills/yida-integration/references/triggers.md) |
+| 并行及循环 | spec `parallel/cycle`；见 [控制节点](../yida-skills/skills/yida-integration/references/control-nodes.md) |
+| 节点日志、异常监听及自动化生命周期 | `integration detail-log/monitor/copy/rename/delete`；见 [操作说明](../yida-skills/skills/yida-integration/references/operations.md) |
 | 查询集成自动化 | `openyida integration list <appType> [--form-uuid <uuid>]` |
 | 启用集成自动化 | `openyida integration enable <appType> <formUuid> <processCode>` |
 | 停用集成自动化 | `openyida integration disable <appType> <formUuid> <processCode>` |
@@ -174,10 +196,17 @@
 | AI 文生文 | `openyida ai text [options]` |
 | AI 识图 | `openyida ai image [options]` |
 | 检测素材能力 | `openyida asset status [options]` |
-| 校验图片 URL | `openyida asset verify-url <url> [options]` |
-| 解析并回填页面素材 | `openyida asset resolve [options]` |
-| 生成 AI 图片素材 | `openyida asset generate [options]` |
-| 检查宜搭公式 | `openyida formula evaluate <formula\|file> [--schema file]` |
+| 检查单个图片槽位 | `openyida asset resolve --slot <slotId>=<路径或URL> [options]` |
+| 生成素材清单 | `openyida asset resolve --input <草稿> --manifest <清单> [options]` |
+| 查看图片来源规则 | `openyida asset sources [--json]` |
+| 查看公式保存方式和检查范围 | `openyida formula contracts [--json]` |
+| 检查公式写法、字段和类型 | `openyida formula check <formula\|file> [--schema file] [--contract field-value\|validation-rule\|business-action\|node-expression] [--context form\|validation\|automation\|business] [--target-type NumberField]`；原 `evaluate` 继续执行本地检查 |
+| 查询当前组织的公式函数和参数 | `openyida formula functions <appType> [--name ROUND] [--output metadata.json] [--json]` |
+| 查询字段组件支持的公式值类型 | `openyida formula types <appType> [--component NumberField] [--json]`；组件名从 Schema 读取，结合函数参数和返回类型检查 |
+| 查看表单字段已保存的公式 | `openyida formula inspect <appType> <formUuid> [--field fieldId] [--json]` |
+| 调用表达式接口核对样例 | `openyida formula test <appType> <formUuid> <formula\|file> --data-file data.json [--binding platform\|numeric-literals] [--expect JSON] [--json]`；只运行已确认不写业务数据的函数 |
+| 按原生字段链路试算 | `openyida formula test <appType> <formUuid> --field <fieldId> --data-file data.json [--expect JSON] [--timezone-offset 480] --json`；读取已存公式，按依赖顺序计算并保留子表行 |
+| 重跑多组公式样例 | `openyida formula test <appType> <formUuid> --field <fieldId> --cases cases.json --json`；每组提供 `name/data/expect`，报告缺失值及类型转换问题 |
 | 读取钉钉文档并转为 Markdown | `openyida read-dingtalk-doc <docUrl> [--output <file>] [--json]` |
 | 按 taskUuid 读取钉钉听记 | `openyida read-dingtalk-tingji <taskUuid> [--json]` |
 | 闪记/会议纪要转 PRD | `openyida flash-to-prd --file <path> --name "<project>"` |

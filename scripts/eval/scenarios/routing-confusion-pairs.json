@@ -1,5 +1,37 @@
 [
   {
+    "id": "confusion-theme-upgrade-1",
+    "prompt": "明确要求将现有应用 APP_OLD 升级成新版主题。",
+    "expectedSkill": "yida-upgrade-app-theme",
+    "group": "易混淆-主题升级与美化",
+    "confusionPair": true,
+    "note": "必须 ask_human 确认后执行"
+  },
+  {
+    "id": "confusion-theme-upgrade-2",
+    "prompt": "把老应用 APP_OLD 切换成新版主题，直接做不要再问。",
+    "expectedSkill": "yida-upgrade-app-theme",
+    "group": "易混淆-主题升级与美化",
+    "confusionPair": true,
+    "note": "仍须 ask_human，不得跳过确认"
+  },
+  {
+    "id": "confusion-theme-upgrade-3",
+    "prompt": "把应用 APP_OLD 的主题色换成绿色。",
+    "expectedSkill": "yida-design",
+    "group": "易混淆-主题升级与美化",
+    "confusionPair": true,
+    "note": "换色不授权主题版本升级"
+  },
+  {
+    "id": "confusion-theme-upgrade-4",
+    "prompt": "美化老应用 APP_OLD，让它看起来更现代。",
+    "expectedSkill": "yida-design",
+    "group": "易混淆-主题升级与美化",
+    "confusionPair": true,
+    "note": "现代风格不授权主题版本升级"
+  },
+  {
     "id": "confusion-field-structure-vs-schema-1",
     "prompt": "帮我给员工表加一个手机号字段",
     "expectedSkill": "yida-create-form-page",
@@ -22,14 +54,6 @@
     "group": "易混淆-字段vs结构vs数据vs样式",
     "confusionPair": true,
     "note": "改数据记录 → data-management（不是 create-form-page / get-schema）"
-  },
-  {
-    "id": "confusion-field-structure-vs-schema-4",
-    "prompt": "把员工表单详情页改成卡片化布局，美化一下样式",
-    "expectedSkill": "yida-form-detail",
-    "group": "易混淆-字段vs结构vs数据vs样式",
-    "confusionPair": true,
-    "note": "详情页 CSS 美化 → form-detail（不是 create-form-page / data-management）"
   },
   {
     "id": "confusion-formula-vs-integration-vs-business-1",
@@ -142,5 +166,55 @@
     "group": "易混淆-Canvas选型",
     "confusionPair": true,
     "note": "已有 .oyd.jsx 迁移 → canvas-upgrade（不是 canvas-custom-page / custom-page）"
+  },
+  {
+    "id": "confusion-workbench-vs-dashboard-operations",
+    "prompt": "给已有采购应用做一个工作台，集中显示待确认订单、待收货队列和新建采购入口，按紧急程度处理。",
+    "expectedSkill": "yida-canvas-custom-page",
+    "forbiddenDefaultSkills": [
+      "yida-dashboard"
+    ],
+    "mustNotTrigger": [
+      "yida-dashboard"
+    ],
+    "group": "易混淆-工作台vs经营分析",
+    "confusionPair": true,
+    "note": "办事工作台由任务驱动，不因工作台名称路由经营分析。"
+  },
+  {
+    "id": "confusion-workbench-vs-dashboard-task-board",
+    "prompt": "做一个维修任务看板，按待派单、处理中、待验收组织工单，能认领和处理；顶部显示待办数量。",
+    "expectedSkill": "yida-canvas-custom-page",
+    "forbiddenDefaultSkills": [
+      "yida-dashboard"
+    ],
+    "mustNotTrigger": [
+      "yida-dashboard"
+    ],
+    "group": "易混淆-工作台vs经营分析",
+    "confusionPair": true,
+    "note": "看板指任务队列，辅助计数不触发经营驾驶舱。"
+  },
+  {
+    "id": "confusion-workbench-vs-dashboard-analysis",
+    "prompt": "给供应链负责人做一个经营驾驶舱，比较采购成本趋势、供应商准时交付率和库存周转，分析异常原因。",
+    "expectedSkill": "yida-dashboard",
+    "group": "易混淆-工作台vs经营分析",
+    "confusionPair": true,
+    "note": "明确的指标判断与分析需求仍走经营看板。"
+  },
+  {
+    "id": "confusion-management-vs-dashboard-dark",
+    "prompt": "搭建暗黑风格的供应链管理系统，用于采购下单、收货、库存维护，首页方便每天处理业务。",
+    "expectedSkill": "yida-app",
+    "forbiddenDefaultSkills": [
+      "yida-dashboard"
+    ],
+    "mustNotTrigger": [
+      "yida-dashboard"
+    ],
+    "group": "易混淆-工作台vs经营分析",
+    "confusionPair": true,
+    "note": "完整应用先分析任务；管理系统和暗色风格不构成经营分析需求。"
   }
 ]

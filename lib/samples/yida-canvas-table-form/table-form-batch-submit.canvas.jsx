@@ -110,7 +110,10 @@ function getBridgeState(props) {
   return { ready: true, reason: '', writeBridge, fieldMap };
 }
 
-function YidaComp(props) {
+/* @canvas-application-theme */
+
+function PageContent(props) {
+  const [modal, modalContextHolder] = Modal.useModal();
   const formUuid = props && props.formUuid ? props.formUuid : 'sample-unbound';
   const draftKey = 'openyida_canvas_table_form_draft_' + formUuid;
   const [rows, setRows] = useState(() => loadDraft(draftKey));
@@ -257,7 +260,7 @@ function YidaComp(props) {
     }
     if (!validated.length) return;
 
-    Modal.confirm({
+    modal.confirm({
       title: '确认批量提交',
       content: '将提交 ' + validated.length + ' 行数据，首行事项为“' + validated[0].name + '”。提交后成功行不会重复写入。',
       okText: '确认提交',
@@ -380,23 +383,14 @@ function YidaComp(props) {
   const pendingCount = rows.filter((row) => row._status !== 'submitted').length;
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#0F766E',
-          colorInfo: '#0F766E',
-          borderRadius: 9,
-          colorText: '#23312F',
-          colorBgLayout: '#F3F8F7',
-        },
-      }}
-    >
+    <>
       <style>{`
         .canvas-table-page {
-          min-height: 100%;
+          display: flow-root;
+          min-height: 100vh;
           box-sizing: border-box;
           padding: 28px;
-          background: linear-gradient(145deg, #F0F9F7 0%, #F7FAFC 56%, #EEF5FF 100%);
+          background: var(--pod-page-bg-color, var(--color-white, #fff));
         }
         .canvas-table-shell { max-width: 1320px; margin: 0 auto; }
         .canvas-table-header {
@@ -409,10 +403,9 @@ function YidaComp(props) {
         .canvas-table-title.ant-typography { margin: 0 0 6px; }
         .canvas-table-panel {
           overflow: hidden;
-          border: 1px solid #DDE9E6;
-          border-radius: 16px;
-          background: #FFFFFF;
-          box-shadow: 0 14px 38px rgba(46, 84, 77, .08);
+          border: var(--pod-card-border, none);
+          border-radius: var(--pod-card-border-radius, 20px);
+          background: var(--pod-card-bg-color, var(--color-white, #fff));
         }
         .canvas-table-toolbar {
           display: flex;
@@ -420,7 +413,7 @@ function YidaComp(props) {
           justify-content: space-between;
           gap: 16px;
           padding: 16px 18px;
-          border-bottom: 1px solid #E5EFED;
+          border-bottom: 1px solid var(--color-line1-2, rgba(31, 35, 41, .12));
         }
         .canvas-table-body { padding: 0 18px 18px; }
         .canvas-table-error { margin-top: 4px; color: #C2413B; font-size: 12px; line-height: 1.35; }
@@ -432,7 +425,8 @@ function YidaComp(props) {
         }
       `}</style>
 
-      <div className="canvas-table-page" data-theme-scope="page">
+      <div className="canvas-table-page">
+        {modalContextHolder}
         <div className="canvas-table-shell">
           <div className="canvas-table-header">
             <div>
@@ -504,8 +498,12 @@ function YidaComp(props) {
           </div>
         </div>
       </div>
-    </ConfigProvider>
+    </>
   );
+}
+
+function YidaComp(props) {
+  return <CanvasThemeProvider><PageContent {...props} /></CanvasThemeProvider>;
 }
 
 export default YidaComp;

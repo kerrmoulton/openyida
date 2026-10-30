@@ -1,0 +1,99 @@
+[
+  {
+    "id": "native-data-card-explicit-create",
+    "prompt": "在应用 APP_TEST 中创建一张宜搭原生数据卡片，用来展示报名总数。",
+    "expectedSkill": "yida-data-card"
+  },
+  {
+    "id": "native-data-card-explicit-release",
+    "prompt": "请读取这张宜搭原生数据卡片 CARD-abc 的数据播报配置，先不要启用。",
+    "expectedSkill": "yida-data-card"
+  },
+  {
+    "id": "native-data-card-explicit-context",
+    "prompt": "上文已明确选择宜搭原生数据卡片 CARD-abc，现在继续读取它的已发布版本。",
+    "expectedSkill": "yida-data-card"
+  },
+  {
+    "id": "native-data-card-generic-canvas-cards",
+    "prompt": "给已有 Canvas 首页增加四张数据卡片，展示销售额、订单数、客户数和库存，做成页面内容。",
+    "expectedSkill": "yida-canvas-custom-page",
+    "mustNotTrigger": [
+      "yida-data-card"
+    ],
+    "forbiddenDefaultSkills": [
+      "yida-data-card"
+    ]
+  },
+  {
+    "id": "native-data-card-generic-dashboard",
+    "prompt": "做一个经营分析看板，包含收入指标卡、销售趋势和渠道占比。",
+    "expectedSkill": "yida-dashboard",
+    "mustNotTrigger": [
+      "yida-data-card"
+    ],
+    "forbiddenDefaultSkills": [
+      "yida-data-card"
+    ]
+  },
+  {
+    "id": "native-data-card-report-indicator",
+    "prompt": "在现有宜搭原生报表中新增一个基础指标卡组件，统计订单数。",
+    "expectedSkill": "yida-report",
+    "mustNotTrigger": [
+      "yida-data-card"
+    ],
+    "forbiddenDefaultSkills": [
+      "yida-data-card"
+    ]
+  },
+  {
+    "id": "native-data-card-generic-broadcast",
+    "prompt": "用集成自动化每周统计订单，并将结果发送到指定钉钉群。",
+    "expectedSkill": "yida-integration",
+    "mustNotTrigger": [
+      "yida-data-card"
+    ],
+    "forbiddenDefaultSkills": [
+      "yida-data-card"
+    ]
+  },
+  {
+    "id": "native-data-card-explicit-opt-out",
+    "prompt": "不要使用宜搭原生数据卡片，请在已有 Canvas 页面中实现订单指标卡。",
+    "expectedSkill": "yida-canvas-custom-page",
+    "mustNotTrigger": [
+      "yida-data-card"
+    ],
+    "forbiddenDefaultSkills": [
+      "yida-data-card"
+    ]
+  },
+  {
+    "id": "native-data-card-reference-wrapper-only",
+    "prompt": "已有 Canvas 首页引用宜搭原生数据卡片 CARD-abc，只把引用外层的间距缩小，不改源卡片配置。",
+    "expectedSkill": "yida-design",
+    "mustNotTrigger": [
+      "yida-data-card"
+    ],
+    "forbiddenDefaultSkills": [
+      "yida-data-card"
+    ]
+  },
+  {
+    "id": "native-data-card-reference-source-edit",
+    "prompt": "请修改首页所引用的宜搭原生数据卡片 CARD-abc 自身的指标，把订单金额聚合从 SUM 改成 AVG，保留首页源码。",
+    "expectedSkill": "yida-data-card"
+  },
+  {
+    "id": "native-data-card-page-source-form",
+    "prompt": "已有 Canvas 页面 FORM-page 的 React 数据卡片要接入真实表单 FORM-orders 的数据，不创建宜搭原生数据卡片。",
+    "expectedSkill": "yida-canvas-data-binding",
+    "mustNotTrigger": [
+      "yida-data-card"
+    ],
+    "forbiddenDefaultSkills": [
+      "yida-data-card"
+    ]
+  }
+]

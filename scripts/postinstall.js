@@ -12,14 +12,11 @@
  *   folderName 固定为 yida-skills，安装目标始终是 ~/<tool-config>/skills/yida-skills/
  *   ~/.claude/skills/yida-skills/          ← <package>/yida-skills (copy)
  *   ~/.opencode/skills/yida-skills/        ← <package>/yida-skills (copy)
- *   ~/.aone_copilot/skills/yida-skills/    ← <package>/yida-skills (copy)
  *   ~/.cursor/skills/yida-skills/          ← <package>/yida-skills (copy)
  *   ~/.qwenworkcn/skills/yida-skills/      ← <package>/yida-skills (copy)
  *   ~/.qoderwork/skills/yida-skills/       ← <package>/yida-skills (copy)
  *   ~/.qoder/skills/yida-skills/           ← <package>/yida-skills (copy)
  *   ~/.mulerun/skills/yida-skills/          ← <package>/yida-skills (copy)
- *
- * 悟空（Wukong）通过手动上传技能，不在此安装。
  */
 
 'use strict';
@@ -27,6 +24,7 @@
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { spawnSync } = require('child_process');
 const {
   detectActiveTool,
   resolveProjectRoot,
@@ -117,6 +115,29 @@ function installSkillsToDest(destPath) {
 }
 
 /**
+ * 将仍位于 skills/ 下的历史备份移出宿主扫描目录。
+ * 这些目录会被 Codex/Qoder 当成独立技能再次加载，不能只保留新版主目录。
+ */
+function archiveStaleSkillBackups(toolConfigDir) {
+  const skillsRoot = path.join(toolConfigDir, 'skills');
+  if (!fs.existsSync(skillsRoot)) {return;}
+
+  const toolName = path.basename(toolConfigDir).replace(/^\./, '') || 'unknown';
+  const archiveRoot = path.join(HOME_DIR, '.openyida', 'skill-backups', toolName);
+  fs.readdirSync(skillsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && /^yida-skills\.backup-/.test(entry.name))
+    .forEach((entry) => {
+      const sourcePath = path.join(skillsRoot, entry.name);
+      fs.mkdirSync(archiveRoot, { recursive: true });
+      let archivePath = path.join(archiveRoot, entry.name);
+      if (fs.existsSync(archivePath)) {
+        archivePath += '-' + Date.now();
+      }
+      fs.renameSync(sourcePath, archivePath);
+    });
+}
+
+/**
  * 将 yida-skills 安装到 AI 工具的 skills 目录。
  * 正确路径：~/<tool-config>/skills/yida-skills/
  *
@@ -125,6 +146,9 @@ function installSkillsToDest(destPath) {
 function installSkillsToTool(toolConfigDir) {
   // 清理旧版遗留在根目录的错误安装（缺少 skills/ 中间层级）
   cleanupLegacy(path.join(toolConfigDir, 'yida-skills'));
+
+  // 历史备份不能继续留在 skills/ 下，否则宿主会把旧规则当成另一套可用技能。
+  archiveStaleSkillBackups(toolConfigDir);
 
   // 安装到正确路径：~/<tool-config>/skills/yida-skills/
   installSkillsToDest(path.join(toolConfigDir, 'skills', 'yida-skills'));
@@ -250,7 +274,7 @@ openyida login
 
 ## 工作目录
 
-执行宜搭开发前检查当前工作区是否已有 \`project/\` 目录。没有时运行：
+首轮需求澄清完成、准备资源执行时检查当前工作区是否已有 \`project/\` 目录。没有时运行：
 
 \`\`\`bash
 openyida copy
@@ -260,39 +284,53 @@ openyida copy
 
 用户说“按默认方案 / 不要追问 / 直接创建 / 尽快搭建”时，加载 \`yida-app\` 走完整应用统一编排。
 
-统一编排只做：解析资源上下文 → \`yida-design\` 输出 \`prd.md\` 和 \`design.md\` → 创建/复用应用 → 核心表单/流程 → 主页面 → 编写主页面源码 → 发布 + 轻量导航排序 → 返回 2-3 句业务交付总结和一个主入口链接。资源创建顺序按 PRD 执行：应用先落位，表单/流程先于自定义页面。发布主页面成功后，PRD 写明导航顺序时执行 \`openyida nav-group order <appType> <页面/表单...>\`；PRD 只写宽泛分组或缺少导航顺序时，执行 \`openyida publish ... --auto-nav-order\` 或 \`openyida nav-group auto-order <appType>\` 兜底，兜底顺序为门户/首页/工作台入口、业务办理、数据管理、经营分析、系统配置。
+完整应用先由 yida-requirement-analysis 按 prepare-brief.md 读取必需材料，尽早确认核心功能和实际用法。澄清后由 yida-app 核验所需资源，按 yida-design/references/design-mode.md 复用或确定执行方式，保留用户已有选择。AI 先按使用任务判断统一入口、前后台双入口或仅前台，再按 yida-design/references/navigation-decision.md 为各入口确定导航；用户已指定时优先沿用。前台自己的菜单只配置当前页面，后台按自己的导航方案执行。两种模式都完成业务规划与视觉设计；Plan 展示 build-plan.html，确认当前版本后执行对应方案。其余设计文件供内部实施使用。
 
-表单页开发默认加载 \`yida-form-detail\` 做表单视觉引导，并把 Divider 分割线语义分组合并进字段 JSON；拿到真实 formUuid 后默认注入 formDetail CSS。
+统一编排只做：解析资源上下文并整理用户需求 → 同时调用 \`yida-prd\` 输出 \`prd.md\`、\`yida-design\` 输出 \`design.md\` → 由 \`yida-app\` 校验两份结果 → 创建/复用应用 → 核心表单/流程 → 主页面 → 编写主页面源码 → 发布 + 轻量导航排序 → 返回 2-3 句业务交付总结和一个主入口链接。资源创建顺序按 PRD 执行：应用先落位，表单/流程先于自定义页面。发布主页面成功后，PRD 写明导航顺序时执行 \`openyida nav-group order <appType> <页面/表单...>\`；PRD 只写宽泛分组或缺少导航顺序时，执行 \`openyida publish ... --auto-nav-order\` 或 \`openyida nav-group auto-order <appType>\` 兜底，兜底顺序为门户/首页/工作台入口、业务办理、数据管理、经营分析、系统配置。
+
+应用主题只在应用级统一配置。严禁页面代码向原生表单、详情页、父页面或平台容器写入主题样式；\`YidaCodeCanvas\` 页面只在 \`YidaComp\` 内消费现有主题 token。字段结构统一交给 \`yida-create-form-page\`。
+
+已有页面或应用美化先加载 \`yida-design\` 的 \`sub_skill/ui-improve/SKILL.md\`：展示视觉方案，通过 ask_human 确认并备份后才修改 UI；允许替换展示组件，业务逻辑保持原样，不满意时恢复。具体规则只在该子流程维护。
 
 完整应用页面源码默认不得使用 \`this.dataSourceMap.*\`，除非本轮已经明确创建并绑定设计器数据源；默认使用入口型页面或 \`this.utils.yida.*\` 查询已创建表单。
 
-最终结果先输出 2-3 句业务交付总结，再给一个主入口链接：新增/修改/发布单个页面时主入口是当前页面 URL；其他完整应用、表单、流程、权限、主题、导航或批量资源场景主入口是应用首页 \`{base_url}/{appType}/workbench\`。示例：“已完成订单、商品和客户等核心表单，并发布首页、订单管理和库存看板入口。当前应用已支持订单录入、库存预警、销售统计和表单详情查看，示例记录与轻量导航排序也已就绪。主入口：{base_url}/{appType}/workbench”。不要使用表格、资源 ID 清单或长列表；不要把 \`g.alicdn.com\` 静态资源、CDN 构建产物、locale JSON、\`/admin\` 管理页或中间文件 URL 当成最终结果。
+所有任务（包括创建应用、修复单页、发布、升级和配置）统一遵循 \`references/user-facing-summary.md\`。页面文案、提示、方案、提问、任务标题、进度、卡片、总结和后续建议均使用业务语言，围绕实际业务名称、动作和结果表达。默认 1–3 句说明本轮业务变化和真实结果，简单修改一句即可；修复总结使用“已完成 ×× 问题的修复”，用一句话点明修复的问题及完成状态。确实影响使用时才补充剩余事项，需要用户操作时才说明下一步。源码、命令、校验字段和环境排障过程保留在内部；CLI 指令仅在用户明确询问命令或用法时提供。
+
+按任务范围交付已验证的真实入口：单页任务提供当前页面；完整应用按 \`yida-app\` 的 Step 9 提供适用的业务入口和开发者后台。入口使用业务名称，宿主已展示同一入口时复用其交付机制。不要使用资源 ID 清单或长列表，不把静态资源、CDN 构建产物、locale JSON 或中间文件 URL 当成最终结果。
 
 完整应用创建/解析多个表单后，页面阶段需要字段映射时，对每个目标表单默认只执行一次 \`openyida get-schema <appType> <formUuid> --field-map-json\`，读取完整 JSON 并写入/复用 \`.cache/<项目名>-schema.json\`；不要用 \`head\` / \`tail\` / \`grep\` 截断 schema stdout 后重复拉取。
 
-使用 \`YidaCodeCanvas\` 组件实现的自定义页面统一直接写最终 \`.canvas.jsx\`：先读 PRD 的页面场景、业务区块、数据来源和主操作，再读 design.md 的主题、布局、材质、组件和状态规则，然后用 \`compileCanvasLocal\` 快检或 \`openyida publish\` 的编译阶段验证发布。\`openyida check-page\` / \`openyida compile\` 只用于历史平台 JSX 组件页面维护。
+使用 \`YidaCodeCanvas\` 组件实现的自定义页面按对应技能编写 \`.canvas.jsx\`，先执行 \`openyida compile <源文件> --json\`，再通过 \`openyida publish\` 发布和读回。\`openyida check-page\` 只用于历史平台 JSX 组件页面维护；美化任务先满足 ui-improve 的确认、备份和业务保留条件。
 
-完整应用需求分析和产品设计由 \`yida-design\` 承担，并输出两份文件：\`prd/<项目名>/prd.md\` 写业务目标、数据结构、页面与功能、资源顺序、导航顺序和验收标准；\`prd/<项目名>/design.md\` 写主题色、themeProfile、tokens、视觉系统、组件和状态规则。页面实现先读 PRD 的页面场景、页面区块、数据来源、主操作和表单入口，再读 design.md 的主题、布局、材质、组件和状态规则，然后交给 \`yida-canvas-custom-page\` 落地。只有已识别为历史平台 JSX 组件页面维护时，才由 \`yida-custom-page\` 自身闭环处理。
+完整应用先由 \`yida-requirement-analysis\` 整理用户需求，再同时执行两个技能：\`yida-prd\` 写 \`prd/<项目名>/prd.md\`，负责业务目标、数据结构、页面与功能、资源顺序、导航顺序和验收标准；\`yida-design\` 写 \`prd/<项目名>/design.md\`，负责主题色、themeProfile、tokens、视觉系统、组件和状态规则。\`yida-app\` 必须等待两份文件完成并通过一致性校验后才能创建业务资源。页面实现先读 PRD 的页面场景、页面区块、数据来源、主操作和表单入口，再读 design.md 的主题、布局、材质、组件和状态规则，然后交给 \`yida-canvas-custom-page\` 落地。只有已识别为历史平台 JSX 组件页面维护时，才由 \`yida-custom-page\` 自身闭环处理。
 
 默认只加载当前阶段必需技能；示例数据、精细导航分组、截图验收、公开访问、数据源深接、数据管理和原生报表只在用户明确要求或 PRD 验收标准命中时执行。发布后的轻量导航排序是统一编排默认收尾，不等于精细导航分组。
 
 ## 子技能目录
+
+已有流程的当前任务查询、流程审批转交或管理员转交，直接加载 \`yida-data-management\`，使用 \`data query process-tasks\` 和 \`data transfer task\`，并回读实际处理人。修改流程中的转交操作权限才使用 \`yida-process-rule\`。
+原生酷卡片仅在用户明确指定宜搭原生酷卡片（交互/置顶卡片）或继续已明确上下文时加载 \`yida-cool-card\`。它用 cardPageCode/cardTemplateId；CARD 资源和 dataCardDesigner 属于 \`yida-data-card\`，Canvas 展示卡片归页面。酷卡片 CLI 负责创建、读取与模板查询，返回官方入口由用户配置保存，再由 CLI 回读；不代替编辑器保存、发布或发送，不修改权益或官方卡片开关。
+原生数据卡片仅在用户显式指定宜搭原生数据卡片，或继续已明确的原生卡片操作时加载 \`yida-data-card\`。泛称卡片、指标卡、看板、投放或数据播报不触发；完整应用搭建也不自动添加该资源。自定义页面内的卡片随页面发布；页面虽有 CARD 引用，只改外层仍属页面任务，明确修改源卡片才进入原生卡片技能。
 
 根据用户意图先命中一个大类目录，再选择最匹配的子技能。支持 \`use_skill\` / \`search_skills\` 的宿主中，必须调用 \`use_skill("<技能名>", "<本次目的>")\` 加载子技能；不要用 Read / read_file / cat 读取 SKILL.md 路径，也不要猜测 .skills、插件缓存或 workspace/project/.skills。\`skills-index.json\` 的 \`route_groups\` 与下表一致，供 yida-agent 或同构宿主做机器路由。机器路由推荐顺序：先用 \`route_groups[].signals\` 命中 \`yida-skills/<area>\` 大类，只在该 \`category\` 下用 skill 的 description/tags/signals 精排，再调用 \`use_skill\`。完全没有 \`use_skill\` 的本地工具，才允许按根技能路由表选定技能，并按 \`skills/<技能名>/SKILL.md\` 定位当前阶段唯一必要的 SKILL.md，禁止并发批量读取多个 SKILL.md。
 
 | 大类目录 | 第一层意图信号 | 子技能 |
 | --- | --- | --- |
 | \`yida-skills/context\` | 登录、退出、组织信息、Schema、fieldId、只读预检 | \`yida-login\`, \`yida-logout\`, \`yida-basic-info\`, \`yida-get-schema\`, \`yida-corp-efficiency\` |
-| \`yida-skills/app\` | 从零搭应用、导航、多语言 | \`yida-app\`, \`yida-create-app\`, \`yida-nav-group\`, \`yida-i18n\` |
-| \`yida-skills/design\` | 完整应用产品设计、单页 UI 改造、主页面视觉设计、应用主题色、全局换肤、PRD 和 design.md | \`yida-design\` |
-| \`yida-skills/form\` | 表单字段、公式、校验、业务规则、详情页、批量录入、数据记录 | \`yida-create-form-page\`, \`yida-formula\`, \`yida-formula-evaluate\`, \`yida-business-rule\`, \`yida-form-detail\`, \`yida-canvas-table-form\`, \`yida-table-form\`, \`yida-data-management\` |
+| \`yida-skills/app\` | 从零搭应用、导航、多语言、AI 老应用主题升级 | \`yida-app\`, \`yida-create-app\`, \`yida-nav-group\`, \`yida-i18n\`, \`yida-upgrade-app-theme\`（仅明确要求升级，必须 ask_human 确认） |
+| \`yida-skills/design\` | 完整应用需求分析、产品 PRD、单页 UI 改造、主页面视觉设计、应用主题色、全局换肤、图片素材 | \`yida-requirement-analysis\`, \`yida-prd\`, \`yida-design\`, \`yida-image-assets\` |
+| \`yida-skills/form\` | 表单字段、公式、校验、业务规则、批量录入、数据记录、日期为空、日期区间筛选 | \`yida-create-form-page\`, \`yida-formula\`, \`yida-formula-evaluate\`, \`yida-business-rule\`, \`yida-canvas-table-form\`, \`yida-table-form\`, \`yida-data-management\` |
 | \`yida-skills/process\` | 审批、流程表单、流程规则、代理人 | \`yida-create-process\`, \`yida-process-rule\`, \`yida-agent-center\` |
-| \`yida-skills/page\` | 自定义展示页、YidaCodeCanvas 组件、历史平台 JSX 组件页面维护、发布、导航壳、PPT | \`yida-create-page\`, \`yida-canvas-custom-page\`, \`yida-custom-page\`, \`yida-canvas-data-binding\`, \`yida-canvas-upgrade\`, \`yida-publish-page\`, \`yida-openyida-publish-guard\`, \`yida-density\`, \`yida-nav-shell\`, \`yida-ppt-slider\` |
-| \`yida-skills/analytics\` | 报表、统计、图表、Recharts、ECharts、看板、驾驶舱 | \`yida-report\`, \`yida-rechart\`, \`yida-chart\`, \`yida-dashboard\` |
-| \`yida-skills/integration\` | 连接器、外部 API、数据源、集成自动化 | \`yida-integration\`, \`yida-connector\`, \`yida-connector-safe-actions\`, \`yida-data-source-connectors\` |
+| \`yida-skills/page\` | 自定义展示页、YidaCodeCanvas 组件、dataBinding、DataBridge、轮询刷新列表或 KPI、历史平台 JSX 组件页面维护、发布、导航壳、PPT | \`yida-create-page\`, \`yida-canvas-custom-page\`, \`yida-custom-page\`, \`yida-canvas-data-binding\`, \`yida-canvas-upgrade\`, \`yida-publish-page\`, \`yida-openyida-publish-guard\`, \`yida-density\`, \`yida-nav-shell\`, \`yida-ppt-slider\` |
+| \`yida-skills/analytics\` | 用户显式指定宜搭原生数据卡片；报表、统计、图表、Recharts、ECharts、看板、驾驶舱 | \`yida-data-card\`, \`yida-report\`, \`yida-rechart\`, \`yida-chart\`, \`yida-dashboard\` |
+| \`yida-skills/integration\` | 明确指定宜搭原生酷卡片；连接器、钉钉开放平台、外部 API、数据源、集成自动化 | \`yida-cool-card\`, \`yida-integration\`, \`yida-dingtalk-openapi\`, \`yida-connector\`, \`yida-connector-safe-actions\`, \`yida-data-source-connectors\` |
 | \`yida-skills/access\` | 平台/应用/表单/页面权限、公开访问、分享 | \`yida-corp-manager\`, \`yida-app-permission\`, \`yida-form-permission\`, \`yida-page-config\` |
-| \`yida-skills/ops\` | Sequence、VOC | \`yida-db-seq-fix\`, \`yida-voc\` |
+| \`yida-skills/ops\` | Sequence、VOC、OpenYida 故障、Issue/Fork PR | \`yida-db-seq-fix\`, \`yida-voc\`, \`yida-feedback\` |
 | \`yida-skills/agent\` | 导出对话、读取钉钉文档/听记、会议纪要/闪记转 PRD | \`yida-export-conversation\`, \`yida-document-markdown\`, \`yida-tingji\`, \`yida-flash-note-to-prd\` |
+
+## 本地使用问题反馈
+
+OpenYida 反复报错、不会提 Issue/PR、没有 GitHub 账号或源码时加载 \`yida-feedback\`，先整理脱敏本地报告；外部提交按用户授权执行，修复贡献通过个人 Fork。普通宜搭 VOC 清单用 \`yida-voc\`。
 
 ## 执行规则
 
@@ -364,6 +402,32 @@ function ensureCodexConfig(codexDir, marketplaceRoot) {
 }
 
 /**
+ * 已打开的 Codex 会话可能仍引用旧版本缓存路径。同步其中的技能正文，
+ * 但保留每个缓存目录自己的 manifest/version，避免当前会话继续执行旧规则。
+ */
+function syncExistingCodexPluginSkillCaches(codexDir, pluginRoot) {
+  const cacheRoot = path.join(
+    codexDir,
+    'plugins',
+    'cache',
+    CODEX_MARKETPLACE_NAME,
+    CODEX_PLUGIN_NAME,
+  );
+  if (!fs.existsSync(cacheRoot)) {return;}
+
+  fs.readdirSync(cacheRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .forEach((entry) => {
+      const cachedPluginRoot = path.join(cacheRoot, entry.name);
+      ['skills', 'references'].forEach((folderName) => {
+        const cachedFolder = path.join(cachedPluginRoot, folderName);
+        cleanupLegacy(cachedFolder);
+        copyDirRecursive(path.join(pluginRoot, folderName), cachedFolder);
+      });
+    });
+}
+
+/**
  * 将 OpenYida 导入为 Codex 本地插件。
  */
 function installCodexPlugin() {
@@ -404,12 +468,31 @@ function installCodexPlugin() {
 
   writeCodexMarketplace(marketplaceRoot);
   ensureCodexConfig(codexDir, marketplaceRoot);
+  syncExistingCodexPluginSkillCaches(codexDir, pluginRoot);
 
   return true;
 }
 
+/**
+ * 本地 marketplace 内容更新后，让 Codex 将当前版本重新安装到实际插件缓存。
+ * Codex 不在 PATH、当前版本不支持 plugin 命令或宿主正忙时静默降级，主 skills 安装仍然有效。
+ */
+function refreshCodexPluginInstall() {
+  const codexBin = process.env.OPENYIDA_CODEX_BIN || (process.platform === 'win32' ? 'codex.exe' : 'codex');
+  const result = spawnSync(
+    codexBin,
+    ['plugin', 'add', CODEX_PLUGIN_NAME + '@' + CODEX_MARKETPLACE_NAME, '--json'],
+    {
+      encoding: 'utf8',
+      stdio: 'ignore',
+      timeout: 30000,
+    },
+  );
+  return !result.error && result.status === 0;
+}
+
 // ── 1. Skills 安装 ───────────────────────────────────────────────────
-// 安装到各 AI 工具的正确 skills 目录（悟空跳过，悟空通过手动上传技能）
+// 安装到各 AI 工具的正确 skills 目录
 
 let codexPluginInstalled = false;
 
@@ -422,6 +505,9 @@ safeExec(() => {
 safeExec(() => {
   if (fs.existsSync(path.join(HOME_DIR, '.codex'))) {
     codexPluginInstalled = installCodexPlugin();
+    if (codexPluginInstalled) {
+      refreshCodexPluginInstall();
+    }
   }
 });
 
@@ -429,13 +515,6 @@ safeExec(() => {
 safeExec(() => {
   if (fs.existsSync(path.join(HOME_DIR, '.opencode'))) {
     installSkillsToTool(path.join(HOME_DIR, '.opencode'));
-  }
-});
-
-// Aone Copilot — 仅在已安装时安装
-safeExec(() => {
-  if (fs.existsSync(path.join(HOME_DIR, '.aone_copilot'))) {
-    installSkillsToTool(path.join(HOME_DIR, '.aone_copilot'));
   }
 });
 
@@ -485,11 +564,6 @@ safeExec(() => {
   if (fs.existsSync(path.join(HOME_DIR, '.mulerun'))) {
     installSkillsToTool(path.join(HOME_DIR, '.mulerun'));
   }
-});
-
-// 悟空（Wukong）— 跳过安装，只清理旧版遗留
-safeExec(() => {
-  cleanupLegacy(path.join(HOME_DIR, '.real', 'yida-skills'));
 });
 
 // ── 2. 首次安装欢迎引导 ──────────────────────────────────────────────
@@ -544,7 +618,7 @@ function printWelcomeGuide(isFirstInstall, hasCodexPlugin) {
   console.log('');
   console.log(`${BOLD}${CYAN}  🚀 开启 AI 问答模式${RESET}`);
   console.log(
-    '  在 Codex / Claude Code / MuleRun / Aone Copilot / Cursor 等 AI 工具中直接对话：',
+    '  在 Codex / Claude Code / MuleRun / Cursor 等 AI 工具中直接对话：',
   );
   console.log('');
 

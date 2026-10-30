@@ -209,3 +209,11 @@ describe('integration connector resolver', () => {
     }, {})).rejects.toThrow(/Path%missing/);
   });
 });
+
+test('upstream dotted Content-Type assignments do not receive a duplicate editor default', () => {
+  const { addContentTypeDefault } = require('../lib/integration/integration-connector-resolver');
+  const assignments = [{ column: 'Headers.Content-Type', valueType: 'literal', value: 'application/custom' }];
+  expect(addContentTypeDefault(assignments, { method: 'post', inputs: [{ name: 'Headers', childList: [
+    { name: 'Content-Type', defaultValue: 'application/json' },
+  ] }] })).toEqual(assignments);
+});

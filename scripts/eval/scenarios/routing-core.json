@@ -1,5 +1,17 @@
 [
   {
+    "id": "native-custom-button-current-form",
+    "prompt": "给现有客户表单的页面设置加一个自定义分配按钮，点击后只允许改跟进人，并显示在表格视图和详情页。",
+    "expectedSkill": "yida-custom-button",
+    "note": "表单原生按钮定义与显示引用"
+  },
+  {
+    "id": "native-custom-button-automation",
+    "prompt": "在采购审批已结束的数据详情页加个自定义按钮，点击执行已发布的手动触发集成自动化。",
+    "expectedSkill": "yida-custom-button",
+    "note": "按钮绑定已有自动化，不是新建自动化"
+  },
+  {
     "id": "dashboard-vs-report-vs-chart-1",
     "prompt": "帮我做一个公司经营看板/驾驶舱，要能产品化交付给老板看",
     "expectedSkill": "yida-dashboard",
@@ -28,6 +40,12 @@
     "prompt": "连接器已经有了，帮我从这段 API 代码生成执行动作",
     "expectedSkill": "yida-connector-safe-actions",
     "note": "已有连接器+从代码生成 action → safe-actions"
+  },
+  {
+    "id": "dingtalk-openapi-service",
+    "prompt": "把钉钉日程官方 OpenAPI 做成宜搭连接器，并让自定义页面调用",
+    "expectedSkill": "yida-dingtalk-openapi",
+    "note": "钉钉官方服务端 API → 专用契约与安全鉴权编排"
   },
   {
     "id": "create-process",
@@ -69,19 +87,25 @@
     "id": "full-app-milk-tea-multipage",
     "prompt": "基于奶茶品牌场景从零创建一个应用，面向消费者有官网首页，面向经销商有经营数据看板",
     "expectedSkill": "yida-app",
-    "note": "从零多页面应用 → yida-app 编排，内部再走 yida-design 与 Canvas"
+    "note": "从零多页面应用 → yida-app 编排，先整理用户需求，再同时生成并校验 PRD 与视觉设计，然后进入 Canvas"
   },
   {
     "id": "design-app-blueprint",
     "prompt": "这个应用需要官网、数据大屏、工作台、列表和详情页，先帮我规划角色路径、页面清单和导航分组",
-    "expectedSkill": "yida-design",
-    "note": "多页面结构规划 → yida-design"
+    "expectedSkill": "yida-prd",
+    "note": "多页面角色路径、页面清单和导航分组属于 PRD owner"
   },
   {
     "id": "design-landing-too-plain",
     "prompt": "这个律所官网首页太像工作台卡片堆了，先重新思考 UI 视觉方向和素材策略",
     "expectedSkill": "yida-design",
-    "note": "写代码前的单页 PRD → yida-design"
+    "note": "页面视觉方向和素材策略 → yida-design"
+  },
+  {
+    "id": "image-assets-product-placeholders",
+    "prompt": "商品目录页需要一组免费可商用的商品占位图和一张首页背景图，先检测当前 Agent 能不能联网搜图或生成图片并准备素材",
+    "expectedSkill": "yida-image-assets",
+    "note": "已有图片槽位的搜图与生图准备 → yida-image-assets"
   },
   {
     "id": "design-screen-impact",
@@ -106,12 +130,6 @@
     "prompt": "自定义页隐藏应用导航后，需要页面内自带多入口门户导航壳，并且跳转时保留 isRenderNav=false",
     "expectedSkill": "yida-nav-shell",
     "note": "页面内自绘导航壳 → yida-nav-shell"
-  },
-  {
-    "id": "form-detail-beautify",
-    "prompt": "这个表单详情页 formDetail 太丑了，帮我注入样式优化详情页卡片和字段展示",
-    "expectedSkill": "yida-form-detail",
-    "note": "表单详情页 schema 注入 Html/CSS → yida-form-detail"
   },
   {
     "id": "full-app-visitor-default-build",
@@ -142,5 +160,53 @@
     "prompt": "我要退出登录切换到另一个组织",
     "expectedSkill": "yida-logout",
     "note": "切换账号/组织 → logout"
+  },
+  {
+    "id": "canvas-polling-data",
+    "prompt": "现有 YidaCodeCanvas 页面需要轮询刷新列表或 KPI，刷新时保留旧数据。",
+    "expectedSkill": "yida-canvas-data-binding",
+    "note": "Canvas 数据桥负责轮询静默刷新与请求清理"
+  },
+  {
+    "id": "canvas-empty-filter",
+    "prompt": "现有 .canvas.jsx 页面接真实表单数据，增加日期为空和日期区间端点筛选，并使用服务端分页。",
+    "expectedSkill": "yida-canvas-data-binding",
+    "note": "已有 Canvas 页面查询接入和筛选"
+  },
+  {
+    "id": "form-empty-query",
+    "prompt": "用 CLI 查询普通表单里日期为空的记录，给出 searchFieldJson 多条件组合。",
+    "expectedSkill": "yida-data-management",
+    "note": "普通表单数据查询"
+  },
+  {
+    "id": "jsx-datasource-search",
+    "prompt": "已有 renderJsx 页面需要维护 this.dataSourceMap 搜索参数，设计器左侧数据源保持可见。",
+    "expectedSkill": "yida-data-source-connectors",
+    "note": "历史平台 JSX 设计器数据源维护"
+  },
+  {
+    "id": "data-manage-ui-style",
+    "prompt": "针对当前数据管理页换一种风格，只保留横线。",
+    "expectedSkill": "yida-data-manage-ui",
+    "note": "已有原生数据管理外观，不修改业务记录"
+  },
+  {
+    "id": "data-manage-ui-actions",
+    "prompt": "数据管理页重在操作，需要更突出新增、筛选和行操作。",
+    "expectedSkill": "yida-data-manage-ui",
+    "note": "操作优先的原生管理页 UI"
+  },
+  {
+    "id": "data-manage-ui-custom",
+    "prompt": "用自定义页面实现简单的数据管理，希望卡片和看板差异大一些。",
+    "expectedSkill": "yida-data-manage-ui",
+    "note": "明确自定义数据管理布局"
+  },
+  {
+    "id": "data-manage-ui-column-emphasis",
+    "prompt": "当前数据管理页突出客户名称列，用浅底色和加粗文字，不要左侧竖线；合作状态列改成标签。",
+    "expectedSkill": "yida-data-manage-ui",
+    "note": "列级外观调整，先读取真实字段，不修改业务数据或推断条件颜色"
   }
 ]

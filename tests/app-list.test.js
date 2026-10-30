@@ -13,7 +13,7 @@ jest.mock('../lib/core/utils', () => ({
 }));
 
 jest.mock('../lib/core/i18n', () => ({
-  t: jest.fn((key) => key),
+  t: jest.fn((key, ...args) => [key, ...args].join(':')),
 }));
 
 const utils = require('../lib/core/utils');
@@ -38,26 +38,29 @@ const mockAuth = {
   userId: 'user001',
 };
 
+let stderrSpy;
+
 beforeEach(() => {
   jest.clearAllMocks();
+  stderrSpy = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
   utils.loadAuthData.mockReturnValue(mockAuthData);
   utils.resolveBaseUrl.mockReturnValue('https://www.aliwork.com');
   // requestWithAutoLogin 默认透传执行 requestFn
   utils.requestWithAutoLogin.mockImplementation((requestFn) => requestFn(mockAuth));
 });
 
+afterEach(() => {
+  stderrSpy.mockRestore();
+});
+
 // ── 正常查询：单页 ────────────────────────────────────────────────────
 
 describe('run() 正常查询', () => {
   test('--help 只输出用法，不读取登录态', async () => {
-    const mockWrite = jest.spyOn(process.stderr, 'write').mockImplementation(() => {});
-
     await run(['--help']);
 
     expect(utils.loadAuthData).not.toHaveBeenCalled();
-    expect(mockWrite).toHaveBeenCalledWith(expect.stringContaining('openyida app-list'));
-
-    mockWrite.mockRestore();
+    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('app_list.usage'));
   });
 
   test('单页结果：正确输出 JSON 到 stdout', async () => {
@@ -82,6 +85,9 @@ describe('run() 正常查询', () => {
       appName: '测试应用',
       appType: 'APP_TEST001',
       systemLink: 'https://www.aliwork.com/APP_TEST001/workbench',
+      appUrl: 'https://www.aliwork.com/APP_TEST001/workbench',
+      workbenchUrl: 'https://www.aliwork.com/APP_TEST001/workbench',
+      adminUrl: 'https://www.aliwork.com/APP_TEST001/admin',
     });
     expect(output[1].appName).toBe('应用B');
 
@@ -89,19 +95,36 @@ describe('run() 正常查询', () => {
     mockError.mockRestore();
   });
 
-  test('多页结果：自动翻页并合并', async () => {
-    const page1Apps = [makeApp({ appType: 'APP_P1A' }), makeApp({ appType: 'APP_P1B' })];
-    const page2Apps = [makeApp({ appType: 'APP_P2A' })];
+  test('已登记的访问入口与主干的工作台、开发后台地址同时保留', async () => {
+    const accessEntries = {
+      frontend: { url: 'https://www.aliwork.com/o/public-home' },
+      management: { url: 'https://www.aliwork.com/APP_TEST001/workbench/FORM-TASKS?viewUuid=VIEW' },
+    };
+    utils.httpGet.mockResolvedValueOnce({
+      success: true,
+      content: { data: [makeApp({ accessEntries })], totalCount: 1 },
+    });
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await run([]);
+      expect(JSON.parse(mockLog.mock.calls[0][0])[0]).toEqual(expect.objectContaining({
+        accessEntries,
+        appUrl: 'https://www.aliwork.com/APP_TEST001/workbench',
+        workbenchUrl: 'https://www.aliwork.com/APP_TEST001/workbench',
+        adminUrl: 'https://www.aliwork.com/APP_TEST001/admin',
+      }));
+    } finally {
+      mockLog.mockRestore();
+    }
+  });
 
-    utils.httpGet
-      .mockResolvedValueOnce({
-        success: true,
-        content: { data: page1Apps, totalCount: 3 },
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        content: { data: page2Apps, totalCount: 3 },
-      });
+  test('结果超过一页时仅返回当前页并提示下一页命令', async () => {
+    const page1Apps = [makeApp({ appType: 'APP_P1A' }), makeApp({ appType: 'APP_P1B' })];
+
+    utils.httpGet.mockResolvedValueOnce({
+      success: true,
+      content: { data: page1Apps, totalCount: 3 },
+    });
 
     const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
     const mockError = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -109,8 +132,12 @@ describe('run() 正常查询', () => {
     await run(['--size', '2']);
 
     const output = JSON.parse(mockLog.mock.calls[0][0]);
-    expect(output).toHaveLength(3);
-    expect(output.map((a) => a.appType)).toEqual(['APP_P1A', 'APP_P1B', 'APP_P2A']);
+    expect(output).toHaveLength(2);
+    expect(output.map((a) => a.appType)).toEqual(['APP_P1A', 'APP_P1B']);
+    expect(utils.httpGet).toHaveBeenCalledTimes(1);
+    expect(mockError).toHaveBeenCalledWith(expect.stringContaining(
+      'openyida app-list --type managed --page 2 --size 2'
+    ));
 
     mockLog.mockRestore();
     mockError.mockRestore();
@@ -138,7 +165,7 @@ describe('run() 正常查询', () => {
 // ── 空列表 ────────────────────────────────────────────────────────────
 
 describe('run() 空列表', () => {
-  test('返回空数组时输出"暂无应用"', async () => {
+  test('返回空数组时 stdout 仍输出 JSON 数组', async () => {
     utils.httpGet.mockResolvedValueOnce({
       success: true,
       content: { data: [], totalCount: 0 },
@@ -149,7 +176,7 @@ describe('run() 空列表', () => {
 
     await run([]);
 
-    expect(mockLog).toHaveBeenCalledWith('暂无应用');
+    expect(JSON.parse(mockLog.mock.calls[0][0])).toEqual([]);
 
     mockLog.mockRestore();
     mockError.mockRestore();
@@ -215,7 +242,7 @@ describe('run() API 失败场景', () => {
 
     const mockError = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    await expect(run([])).rejects.toThrow('登录态已失效');
+    await expect(run([])).rejects.toThrow('app_list.auth_required');
     expect(mockError).not.toHaveBeenCalled();
 
     mockError.mockRestore();
@@ -224,7 +251,64 @@ describe('run() API 失败场景', () => {
 
 // ── --size 参数 ───────────────────────────────────────────────────────
 
-describe('run() --size 参数', () => {
+describe('run() 查询范围与分页参数', () => {
+  test('默认查询我管理的第 1 页，每页 16 条', async () => {
+    utils.httpGet.mockResolvedValueOnce({
+      success: true,
+      content: { data: [makeApp()], totalCount: 1 },
+    });
+
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const mockError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await run([]);
+
+    expect(utils.httpGet.mock.calls[0][2]).toMatchObject({
+      pageIndex: 1,
+      pageSize: 16,
+      creator: 'user001',
+      isAdmin: true,
+    });
+
+    mockLog.mockRestore();
+    mockError.mockRestore();
+  });
+
+  test('--type created 以 isAdmin=false 查询我创建的', async () => {
+    utils.httpGet.mockResolvedValueOnce({
+      success: true,
+      content: { data: [makeApp()], totalCount: 1 },
+    });
+
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const mockError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await run(['--type', 'created']);
+
+    expect(utils.httpGet.mock.calls[0][2]).toMatchObject({ isAdmin: false });
+
+    mockLog.mockRestore();
+    mockError.mockRestore();
+  });
+
+  test('--page 3 只查询第 3 页', async () => {
+    utils.httpGet.mockResolvedValueOnce({
+      success: true,
+      content: { data: [makeApp()], totalCount: 40 },
+    });
+
+    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const mockError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await run(['--page', '3']);
+
+    expect(utils.httpGet).toHaveBeenCalledTimes(1);
+    expect(utils.httpGet.mock.calls[0][2]).toMatchObject({ pageIndex: 3, pageSize: 16 });
+
+    mockLog.mockRestore();
+    mockError.mockRestore();
+  });
+
   test('--size 50 时以 pageSize=50 发起请求', async () => {
     utils.httpGet.mockResolvedValueOnce({
       success: true,
@@ -243,21 +327,14 @@ describe('run() --size 参数', () => {
     mockError.mockRestore();
   });
 
-  test('未传 --size 时默认 pageSize=20', async () => {
-    utils.httpGet.mockResolvedValueOnce({
-      success: true,
-      content: { data: [makeApp()], totalCount: 1 },
-    });
-
-    const mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
-    const mockError = jest.spyOn(console, 'error').mockImplementation(() => {});
-
-    await run([]);
-
-    const callArgs = utils.httpGet.mock.calls[0];
-    expect(callArgs[2]).toMatchObject({ pageSize: 20 });
-
-    mockLog.mockRestore();
-    mockError.mockRestore();
+  test.each([
+    [['--type', 'all'], 'app_list.invalid_type'],
+    [['--page', '0'], 'app_list.invalid_positive_integer'],
+    [['--size', 'nope'], 'app_list.invalid_positive_integer'],
+    [['--all'], 'app_list.invalid_argument'],
+  ])('无效参数 %j 在读取登录态前失败', async (args, expectedMessage) => {
+    await expect(run(args)).rejects.toThrow(expectedMessage);
+    expect(utils.loadAuthData).not.toHaveBeenCalled();
+    expect(utils.httpGet).not.toHaveBeenCalled();
   });
 });

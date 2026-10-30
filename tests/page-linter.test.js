@@ -3,6 +3,52 @@
 const { lintYidaSource } = require('../lib/app/page-linter');
 
 describe('page linter', () => {
+  test('blocks systemToken use in custom-page source', () => {
+    const source = `
+export function renderJsx() { return <button>run</button>; }
+export function run() {
+  var body = { systemToken: 'must-not-be-here' };
+  return fetch('/query/app/getSystemToken.json', { method: 'POST', body: body });
+}
+`;
+    const result = lintYidaSource(source, '/tmp/system-token.jsx');
+    expect(result.errors.filter(issue => issue.rule === 'system-token-frontend-forbidden'))
+      .toHaveLength(2);
+  });
+
+  test('blocks numeric connector management ids in custom-page bindings', () => {
+    const source = `
+export function renderJsx() { return <button>run</button>; }
+export function run() {
+  return window.__OPENYIDA_CONNECTOR_API__.invoke({
+    connectorId: '917319',
+    operationId: 'calendarCreate'
+  }, { body: {} });
+}
+`;
+    const result = lintYidaSource(source, '/tmp/connector-runtime-id.jsx');
+    expect(result.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ rule: 'connector-runtime-name-required', line: 5 }),
+    ]));
+  });
+
+  test('blocks numeric connector ids in object and JSON-style bindings', () => {
+    const source = `
+export function renderJsx() { return <button>run</button>; }
+export function run() {
+  var objectBinding = { connectorId: 917319, operationId: 'calendarCreate' };
+  var jsonBinding = { "connectorId": "917320", "operationId": "calendarQuery" };
+  return [objectBinding, jsonBinding];
+}
+`;
+    const result = lintYidaSource(source, '/tmp/connector-runtime-id-variants.jsx');
+    expect(result.errors.filter(issue => issue.rule === 'connector-runtime-name-required'))
+      .toEqual([
+        expect.objectContaining({ line: 4 }),
+        expect.objectContaining({ line: 5 }),
+      ]);
+  });
+
   test('accepts a hand-authored Yida custom page', () => {
     const source = `
 export function renderJsx() {
@@ -304,6 +350,50 @@ export function openMobileCreate() {
     expect(formOpenErrors[0].line).toBe(4);
   });
 
+  test.each([
+    'return <a href="/APP_X/submission/FORM_X">新增</a>;',
+    'window.location.assign(\'/APP_X/submission/FORM_X\');',
+    'location.replace(\'/APP_X/formDetail/FORM_X?formInstId=ID\');',
+    'if (!isMobile) window.open(\'/APP_X/submission/FORM_X\');',
+    'return isMobile ? null : window.open(\'/APP_X/submission/FORM_X\');',
+    'return <Drawer><iframe src="/APP_X/submission/FORM_X" /></Drawer>;',
+    'return <div style={{position: \'fixed\'}}><iframe src="/APP_X/submission/FORM_X" /></div>;',
+    'const {openForm, formOpenContainer} = useYidaFormOpen(\'APP_X\'); return <div>{formOpenContainer}</div>;',
+  ])('blocks a form template bypass: %s', body => {
+    const result = lintYidaSource(`function Page() { ${body} }`, '/tmp/form-entry.canvas.jsx');
+    expect(result.errors.some(issue => issue.rule === 'form-open-container')).toBe(true);
+  });
+
+  test.each([
+    'if (isMobile) window.open(\'/APP_X/submission/FORM_X\');',
+    'return isMobile ? window.open(\'/APP_X/submission/FORM_X\') : null;',
+    'isMobile && location.assign(\'/APP_X/submission/FORM_X\');',
+    'return <a href="https://example.com/help">帮助</a>;',
+    'return <iframe src="/APP_X/workbench/FORM_X" />;',
+    'return <iframe src="/APP_X/submission/FORM_X" />;',
+  ])('preserves mobile opens, external links and native navigation content: %s', body => {
+    const result = lintYidaSource(`function Page() { ${body} }`, '/tmp/form-entry.canvas.jsx');
+    expect(result.errors.filter(issue => issue.rule === 'form-open-container')).toEqual([]);
+  });
+
+  test('requires actual template composition and a rendered container, not a marker or copied names', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const template = fs.readFileSync(path.join(__dirname, '../lib/samples/openyida-scaffold/canvas-form-drawer.canvas.jsx'), 'utf8');
+    const fragment = template.split('// @openyida-form-drawer:start')[1].split('// @openyida-form-drawer:end')[0];
+    const page = `function Page() {
+      const {openForm, formOpenContainer} = useYidaFormOpen('APP_X');
+      return <div><button onClick={() => openForm({type:'submission',formUuid:'FORM_X'})}>新增</button>{formOpenContainer}</div>;
+    }`;
+    const errors = source => lintYidaSource(source, '/tmp/form-entry.canvas.jsx').errors.filter(issue => issue.rule === 'form-open-container');
+    expect(errors(fragment + page)).toEqual([]);
+    expect(errors(fragment + page.replace('openForm, formOpenContainer}', 'openForm, formOpenContainer: drawer}').replace('{formOpenContainer}</div>', '{drawer}</div>'))).toEqual([]);
+    expect(errors(fragment + page.replace('{formOpenContainer}</div>', '</div>'))).not.toEqual([]);
+    expect(errors(fragment.replace('<ExternalLink size={18} />', 'null') + page)).not.toEqual([]);
+    expect(errors(fragment.replace('onPointerDown={startResize}', '') + page)).not.toEqual([]);
+    expect(errors('/* FormOpenContainer CanvasDrawer openyida-form-drawer */\n' + page)).not.toEqual([]);
+  });
+
   test('blocks form detail links without a reliable formInstId', () => {
     const source = `
 export function openDetail(row) {
@@ -525,6 +615,80 @@ export function loadRows() {
     const errorResult = lintYidaSource(errorSource, '/tmp/pagesize-error.jsx');
     expect(errorResult.errors.map(issue => issue.rule)).toContain('page-size-limit');
     expect(errorResult.warnings.map(issue => issue.rule)).not.toContain('page-size-recommend');
+  });
+
+  test('blocks static gmtCreate dynamicOrder values passed to searchFormDatas', () => {
+    const source = `
+export function loadDirect() {
+  return this.utils.yida.searchFormDatas({ formUuid: 'FORM-X', pageSize: 50, dynamicOrder: { gmtCreate: '-' } });
+}
+
+export function loadString() {
+  return this.utils.yida.searchFormDatas({ formUuid: 'FORM-X', pageSize: 50, dynamicOrder: '{"gmtCreate":"-"}' });
+}
+
+export function loadStringified() {
+  var order = { gmtCreate: '-' };
+  var params = { formUuid: 'FORM-X', pageSize: 50, dynamicOrder: JSON.stringify(order) };
+  return this.utils.yida.searchFormDatas(params);
+}
+
+export function buildDirectQuery() {
+  var params = { formUuid: 'FORM-X', pageSize: '50', dynamicOrder: '{"gmtCreate":"-"}' };
+  return new URLSearchParams(params).toString();
+}
+
+export function buildAppendedQuery() {
+  var params = new URLSearchParams();
+  params.append('dynamicOrder', JSON.stringify({ gmtCreate: '-' }));
+  return params.toString();
+}
+
+export function buildSetQuery() {
+  var order = '{"gmtCreate":"-"}';
+  var params = new URLSearchParams({ pageSize: '50' });
+  params.set('dynamicOrder', order);
+  return params.toString();
+}
+`;
+    const result = lintYidaSource(source, '/tmp/searchformdata-dynamic-order-bad.jsx');
+    const issues = result.errors.filter(issue => issue.rule === 'searchformdata-dynamic-order-metadata');
+
+    expect(issues).toHaveLength(6);
+    expect(issues.map(issue => issue.line)).toEqual([3, 7, 12, 17, 23, 30]);
+    expect(issues.every(issue => issue.message.includes('gmtCreate'))).toBe(true);
+  });
+
+  test('accepts business-field dynamicOrder and unrelated gmtCreate data', () => {
+    const source = `
+export function loadRows() {
+  var auditPreview = { dynamicOrder: '{"gmtCreate":"-"}' };
+  return this.utils.yida.searchFormDatas({
+    formUuid: 'FORM-X',
+    pageSize: 50,
+    dynamicOrder: JSON.stringify({ textField_k2abc: '-' })
+  }).then(function (rows) {
+    return rows.sort(function (a, b) { return b.gmtCreate - a.gmtCreate; });
+  });
+}
+`;
+    const result = lintYidaSource(source, '/tmp/searchformdata-dynamic-order-good.jsx');
+
+    expect(result.errors.map(issue => issue.rule)).not.toContain('searchformdata-dynamic-order-metadata');
+  });
+
+  test('does not treat append/set on ordinary objects as URLSearchParams', () => {
+    const source = `
+export function updateState() {
+  var params = createParams();
+  params.append('dynamicOrder', '{"gmtCreate":"-"}');
+  var cache = new Map();
+  cache.set('dynamicOrder', JSON.stringify({ gmtCreate: '-' }));
+}
+`;
+    const result = lintYidaSource(source, '/tmp/searchformdata-dynamic-order-ordinary-objects.jsx');
+
+    expect(result.errors.map(issue => issue.rule)).not.toContain('searchformdata-dynamic-order-metadata');
   });
 
   test('flags direct searchFormDatas.json misuse (POST / pageNumber / missing query contract / no content unwrap)', () => {

@@ -1,255 +1,30 @@
-# 看板视觉主题预设
+# 看板视觉主题与配色
 
-> 3 套现成主题，根据业务域直接 copy THEME 常量到看板源码顶部。
->
-> 注意：本文的 3 套是 dashboard 视觉主题，不是推荐应用主题。新看板先由 `yida-design` 根据行业、品牌、业务情绪和视觉目标做创意色彩判断；`podBlue`、`podGreen`、`podOrange` 只是平台预置候选，不是行业默认答案。本文主题只在需要更强看板风格时作为场景配方。
->
-> 选型决策树（按关键词顺序匹配，命中即止）：
-> - 用户明确说“暗色 / 深色 / 暗黑 / 夜间 / 高对比 / 暗色科技风 / 黑金 / 深色大屏” → **深色紫蓝**
-> - 奢侈品零售 / 高端酒店 / 航空集团 / 金融私行 / 国际化总部高管汇报，且明确需要高端深色视觉 → **金蓝奢华**
-> - 其他看板、驾驶舱、大屏、供应链、物流、制造、政务、零售、快消、餐饮连锁、科技感需求 → **白底商务**（DEFAULT）
->
-> **避坑**：用户只说“看板 / 大屏 / 科技感 / 高级 / 酷炫”不等于暗色主题，默认仍走白底商务。金蓝奢华只服务明确的“高奢/私行/国际化 + 深色高级视觉”语境。
+看板与应用共用 [主题选择规则](../../yida-design/references/theme-selection.md)，不另设行业到主题的决策树。先读取当前项目 `design.md`；已有主题直接继承，尚无主题时按共享规则拒绝第一直觉后再比较新候选。
 
----
+## 根据任务确定视觉方向
 
-## 主题 1：深色紫蓝科技风（显式暗色时使用）
+- “销售经营驾驶数据看板”说明要看业绩、趋势、目标差距或异常，不代表用户指定了蓝色、科技风或深色。先确认主要决策、阅读距离、使用频率与信息密度。
+- 用户说“根据业务场景选择合适风格/主题”，属于委托 AI 判断；在内部比较候选后给出选择及业务理由，不把示例色或目录首项当作依据。
+- 默认浅色内容画布；深色需明确要求或已确认方向。浅色、深色只约束表面明暗，不决定品牌色相。
+- 配色、轮廓、表面层次、数字排版、密度和强调面积一起选择。蓝色可以保留，但需要品牌、参考或候选比较依据；不能因为“商务、销售、驾驶舱”直接选择蓝色，也不能强制改成绿色或橙色。
 
-**典型业务**：供应链、物流、制造、能源、政务大屏、零售品牌（非奢侈非高端）、快消、餐饮连锁
-**视觉关键词**：夜色太空、数据流动感、发光线、霓虹蓝紫
-**标杆样本**：`project/pages/src/supply-chain-dashboard.js`
+## 从项目主题落实到图表
 
-```javascript
-var THEME = {
-  // 背景层
-  bg: '#0a0e27',                              // 页面主背景（近黑靛蓝）
-  bgCard: 'rgba(15, 23, 60, 0.85)',           // 卡片背景（半透明蓝）
-  bgCardHover: 'rgba(30, 41, 80, 0.95)',
-  bgMask: 'rgba(4, 8, 30, 0.6)',              // 模态遮罩
+平台预置色只有与已选项目配色匹配时才使用应用 `--theme`；自定义配色通过应用级主题 CSS 落地，页面消费共享运行时变量。不要复制固定色值的 `THEME` 常量覆盖已选主题。
 
-  // 边框
-  border: 'rgba(99, 179, 237, 0.25)',
-  borderLight: 'rgba(99, 179, 237, 0.45)',
+| 颜色角色 | 设计要求 |
+| --- | --- |
+| 画布、卡片、边界、文字 | 使用项目主题对应 token，层次和对比度保持一致 |
+| 主操作、选中态、关键序列 | 使用项目主色及其配套层级，不因图表示例回退为蓝色 |
+| 多序列图表 | 使用项目设计的分类色盘；各系列可辨认，同一业务对象跨图保持同色 |
+| 达成、预警、异常 | 保留独立状态语义，并补文字或符号，不能所有状态都染成品牌色 |
+| Tooltip、轴线、网格线 | 跟随项目表面与文字 token；网格弱于数据，浮层文字可读 |
 
-  // 主色（蓝）
-  primary: '#3b82f6',
-  primaryLight: '#60a5fa',
-  primaryDark: '#2563eb',
+常规图表按 `yida-rechart` 的运行时取色契约；明确 ECharts 或维护旧图表时按 `yida-chart` 解析变量后传入图表。图表库需要具体色值时，读取并解析项目运行时变量，不把 CSS `var(...)` 当作已经解析的 Canvas 颜色。
 
-  // 强调色（紫）
-  accent: '#8b5cf6',
-  accentLight: '#a78bfa',
+## 信息层级与验收
 
-  // 功能色
-  success: '#10b981',
-  warning: '#f59e0b',
-  danger: '#ef4444',
+KPI 数字使用等宽数字，标题、数值、单位和同比保持层级；按阅读距离与容器宽度安排字号及留白，不因“大屏”自动增加发光、渐变和装饰。表面可以有主次差异，但必须符合项目设计；不要求每张卡片完全同色。
 
-  // 文字
-  textPrimary: '#f1f5f9',
-  textSecondary: '#cbd5e1',
-  textMuted: '#64748b',
-
-  // 渐变
-  gradient: {
-    primary: 'linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)',
-    accent:  'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)',
-    success: 'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)',
-    danger:  'linear-gradient(135deg, #ef4444 0%, #f97316 100%)',
-    card:    'linear-gradient(135deg, rgba(59,130,246,0.12) 0%, rgba(139,92,246,0.08) 100%)',
-    royal:   'linear-gradient(135deg, #1e1b4b 0%, #0a0e27 100%)'
-  }
-};
-
-var FONT_STACK = '"Orbitron", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif';
-```
-
-**发光效果要点**：
-- Logo / KPI 数字加 `textShadow: '0 0 16px rgba(59,130,246,0.6)'`
-- 卡片加 `boxShadow: '0 0 30px rgba(59,130,246,0.12), inset 0 1px 0 rgba(255,255,255,0.05)'`
-- 标题用 `WebkitBackgroundClip: text` + 渐变填充
-
-**可选粒子背景**：Canvas 粒子见 `yida-ppt-slider` 的 dark-tech 主题实现。
-
----
-
-## 主题 2：金蓝奢华风
-
-**典型业务**：酒店、航空、奢侈品零售、金融私行、国际化集团高管汇报
-**视觉关键词**：黑夜金光、克制奢华、海蓝配金、Orbitron 字体
-**标杆样本**：`project/pages/src/shangri-la-executive-dashboard.js`
-
-```javascript
-var THEME = {
-  // 背景层
-  bg: '#0a1628',                               // 主背景（深海蓝）
-  bgLight: '#1a2847',                          // 卡片背景（偏亮深蓝）
-  bgCard: 'rgba(26, 40, 71, 0.85)',
-  bgMask: 'rgba(5, 12, 26, 0.7)',
-
-  // 边框
-  border: 'rgba(0, 212, 255, 0.22)',
-  borderLight: 'rgba(0, 212, 255, 0.35)',
-  borderGold: 'rgba(212, 175, 55, 0.35)',
-
-  // 主色（青蓝）
-  primary: '#00d4ff',
-  primaryLight: '#5eead4',
-  primaryDark: '#0891b2',
-
-  // 强调色（金）
-  accent: '#d4af37',
-  accentLight: '#facc15',
-  accentDark: '#b8860b',
-
-  // 功能色
-  success: '#00e676',
-  warning: '#f59e0b',
-  danger:  '#ff5252',
-
-  // 文字
-  textPrimary: '#e0f2fe',
-  textSecondary: '#cbd5e1',
-  textMuted: '#64748b',
-
-  // 渐变
-  gradient: {
-    primary: 'linear-gradient(135deg, #00d4ff 0%, #06b6d4 100%)',
-    accent:  'linear-gradient(135deg, #d4af37 0%, #f59e0b 100%)',
-    gold:    'linear-gradient(135deg, #d4af37 0%, #facc15 100%)',
-    success: 'linear-gradient(135deg, #00e676 0%, #06b6d4 100%)',
-    danger:  'linear-gradient(135deg, #ff5252 0%, #f97316 100%)',
-    purple:  'linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)',
-    royal:   'linear-gradient(135deg, #1a2847 0%, #0a1628 100%)'
-  }
-};
-
-var FONT_STACK = '"Orbitron", "Playfair Display", "Segoe UI", -apple-system, sans-serif';
-```
-
-**奢华效果要点**：
-- 标题用 **金 → 金黄 → 青蓝** 三段渐变：`'linear-gradient(90deg, #d4af37, #facc15, #00d4ff)'`
-- Logo 用 gold 渐变 + `boxShadow: '0 0 20px rgba(212,175,55,0.4)'`
-- carbonBar 背景用金+蓝+紫三色横向渐变：
-  ```css
-  linear-gradient(90deg, rgba(212,175,55,0.15) 0%, rgba(0,212,255,0.10) 50%, rgba(167,139,250,0.10) 100%)
-  ```
-- 关键动作按钮用金色 bg + 深蓝文字，提升品牌仪式感
-
----
-
-## 主题 3：白底商务风（DEFAULT）
-
-**典型业务**：日常业务看板、财务看板、医疗健康、内部管理、HR 分析
-**视觉关键词**：克制、可读、大屏投屏友好、打印友好
-**自定义页面默认**：配色与主题落地参考 `yida-rechart`；只有明确 ECharts 或维护旧 native 图表时再参考 `yida-chart`。
-
-```javascript
-var THEME = {
-  // 背景层
-  bg: '#f8fafc',           // 页面背景（极浅灰，避免纯白晃眼）
-  bgCard: '#ffffff',
-  bgCardHover: '#f1f5f9',
-  bgMask: 'rgba(15, 23, 42, 0.35)',
-
-  // 边框
-  border: '#e2e8f0',
-  borderLight: '#f1f5f9',
-
-  // 主色（深蓝）
-  primary: '#1e40af',
-  primaryLight: '#3b82f6',
-  primaryDark: '#1e3a8a',
-
-  // 强调色（天蓝）
-  accent: '#0ea5e9',
-  accentLight: '#38bdf8',
-
-  // 功能色
-  success: '#059669',
-  warning: '#d97706',
-  danger:  '#dc2626',
-
-  // 文字
-  textPrimary: '#0f172a',
-  textSecondary: '#475569',
-  textMuted: '#94a3b8',
-
-  // 渐变（克制使用）
-  gradient: {
-    primary: 'linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)',
-    accent:  'linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%)',
-    card:    'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'
-  }
-};
-
-var FONT_STACK = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif';
-```
-
-**商务风要点**：
-- 卡片无阴影或极淡阴影（`0 1px 3px rgba(15,23,42,0.06)`）
-- 边框 `1px solid #e2e8f0`，不用色带装饰
-- KPI 数字 `font-feature-settings: "tnum"` 启用等宽数字
-- tooltip 用深色反色 `rgba(15,23,42,0.92)` 提升可读性
-- 分割线用 `#f1f5f9` 虚线（`type: [4,4]`）
-
----
-
-## 通用字体与排版
-
-所有主题共用：
-
-```javascript
-var TYPO = {
-  titleL:  { fontSize: 20, fontWeight: 700, letterSpacing: '1px' },  // 看板主标题
-  titleM:  { fontSize: 16, fontWeight: 600 },                         // 卡片标题
-  titleS:  { fontSize: 13, fontWeight: 600 },                         // section 小标题
-  kpiNum:  { fontSize: 28, fontWeight: 800, fontFeatureSettings: '"tnum"' },
-  body:    { fontSize: 13, fontWeight: 400, lineHeight: 1.5 },
-  caption: { fontSize: 11, fontWeight: 400, color: 'textMuted' }
-};
-```
-
-**移动端统一缩小 2px**：`titleL → 16px, titleM → 14px, kpiNum → 22px`。
-
----
-
-## ECharts 主题对齐
-
-所有图表的 `itemStyle.color` / `axisLine.lineStyle.color` / `splitLine.lineStyle.color` 统一引用 `THEME.primary / THEME.accent / THEME.border`。
-
-**深色主题下的 tooltip**：
-```javascript
-tooltip: {
-  backgroundColor: 'rgba(10, 14, 39, 0.95)',
-  borderColor: THEME.border,
-  borderWidth: 1,
-  textStyle: { color: THEME.textPrimary, fontSize: 12 }
-}
-```
-
-**白底主题下的 tooltip**：
-```javascript
-tooltip: {
-  backgroundColor: 'rgba(15, 23, 42, 0.92)',
-  borderWidth: 0,
-  textStyle: { color: '#ffffff', fontSize: 12 }
-}
-```
-
----
-
-## 选型快速决策
-
-用户只说“做个看板 / 驾驶舱 / 数据大屏”，不说暗色或夜间，默认用 **主题 3（白底商务）**。
-
-用户提到以下关键词 → 切到对应主题：
-
-| 关键词 | 主题 |
-|-------|------|
-| 酒店 / 奢华 / 高端 / 尊享 / 高净值 / 集团高层 / 国际 | 金蓝奢华 |
-| 暗色 / 深色 / 暗黑 / 夜间 / 高对比 / 暗色科技风 / 黑金 / 深色大屏 | 深色紫蓝 |
-| 供应链 / 物流 / 智能 / 科技 / 大屏 / 指挥中心 / 驾驶舱 | 白底商务 |
-| 财务 / 预算 / 医疗 / HR / 日报 / 月报 / 周报 / 打印 | 白底商务 |
-
-**禁止混搭**：同一个看板内不要让 KPI 用深色、图表用白底。THEME 选定后贯穿所有 section。
+验收覆盖整页及应用导航、原生表单/详情：检查主色是否来自选定方向、强调面积是否压过数据、分类色与状态色是否混淆、筛选和下钻是否可用。具体颜色及使用理由记录在项目 `design.md`，没有真实渲染检查时不能宣称视觉验收通过。

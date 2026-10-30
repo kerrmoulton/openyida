@@ -10,10 +10,10 @@ const { httpGet } = require('../lib/core/utils');
 const { createYidaClient } = require('../lib/core/yida-client');
 const {
   getFormSchema,
-  getLogicflowProcess,
+  getLogicflowDetail,
   listFormLogicflows,
   listLogicflowLogs,
-  saveProcess,
+  listLogicflowDetailLogs,
 } = require('../lib/integration/integration-api');
 
 jest.mock('../lib/core/yida-client', () => ({
@@ -33,6 +33,18 @@ describe('integration api', () => {
         return httpGet(auth.baseUrl, path, resolvedQuery, options);
       }),
     });
+  });
+
+  test('timer switching uses its verified native binding type instead of form-event type', async () => {
+    const get = jest.fn(async () => ({ success: true, content: { data: [
+      { processCode: 'TIMER', formUuid: 'FORM', eventType: 3 },
+    ] } }));
+    const postForm = jest.fn(async () => ({ success: true, content: { status: 'n' } }));
+    createYidaClient.mockReturnValue({ get, postForm });
+    await require('../lib/integration/integration-api').switchLogicflow({}, {
+      appType: 'APP', formUuid: 'FORM', processCode: 'TIMER', enable: false,
+    });
+    expect(postForm.mock.calls[0][1]).toMatchObject({ type: '3', enable: 'n', processCode: 'TIMER' });
   });
 
   test('listLogicflowLogs sends the frontend status filter for exception logs', async () => {
@@ -68,6 +80,48 @@ describe('integration api', () => {
     expect(options).toEqual({ silentStatus: true });
   });
 
+  test('listLogicflowDetailLogs calls the read-only node detail endpoint with run ID and pagination', async () => {
+    httpGet.mockResolvedValue({
+      success: true,
+      content: { currentPage: 2, data: [{ name: 'node' }], totalCount: 101, hasMore: false },
+    });
+    const result = await listLogicflowDetailLogs({ baseUrl: 'https://example.com' }, {
+      appType: 'APP_TEST', procInstId: 'run-1', pageIndex: 2, pageSize: 100,
+    });
+    expect(result.totalCount).toBe(101);
+    const [, path, query, options] = httpGet.mock.calls[0];
+    expect(path).toBe('/alibaba/web/APP_TEST/query/formLogicflowBinding/listDetailLog.json');
+    expect(query).toMatchObject({
+      _api: 'Connector.listDetailLog', procInstId: 'run-1', pageIndex: '2', pageSize: '100',
+    });
+    expect(query).not.toHaveProperty('processCode');
+    expect(options).toEqual({ silentStatus: true });
+  });
+
+  test.each([null, undefined])('listLogicflowDetailLogs accepts zero records with data %s', async (data) => {
+    const content = { totalCount: 0, data };
+    httpGet.mockResolvedValue({ success: true, content });
+    await expect(listLogicflowDetailLogs({}, {
+      appType: 'APP_TEST', procInstId: 'run-1', pageIndex: 1, pageSize: 100,
+    })).resolves.toEqual({ totalCount: 0, data: [] });
+    expect(content.data).toBe(data);
+  });
+
+  test.each([{ totalCount: 1, data: null }, { totalCount: 0, data: {} }])(
+    'listLogicflowDetailLogs rejects missing nonempty or malformed lists %#', async (content) => {
+      httpGet.mockResolvedValue({ success: true, content });
+      await expect(listLogicflowDetailLogs({}, {
+        appType: 'APP_TEST', procInstId: 'run-1', pageIndex: 1, pageSize: 100,
+      })).rejects.toThrow();
+    });
+
+  test('listLogicflowDetailLogs rejects malformed successful responses', async () => {
+    httpGet.mockResolvedValue({ success: true, content: { data: [], totalCount: '0' } });
+    await expect(listLogicflowDetailLogs({}, {
+      appType: 'APP_TEST', procInstId: 'run-1', pageIndex: 1, pageSize: 100,
+    })).rejects.toThrow();
+  });
+
   test('listFormLogicflows uses the form binding endpoint for grouped load-more flows', async () => {
     httpGet.mockResolvedValue({
       success: true,
@@ -95,77 +149,25 @@ describe('integration api', () => {
     expect(options).toEqual({ silentStatus: true });
   });
 
-  test('getLogicflowProcess returns the unmodified designer response', async () => {
-    const response = {
+  test('getLogicflowDetail reads the exact processCode through the confirmed designer endpoint', async () => {
+    httpGet.mockResolvedValue({
       success: true,
-      content: '{"schema":{"componentName":"CanvasEngine"}}',
-    };
-    httpGet.mockResolvedValue(response);
+      content: { schema: { componentName: 'CanvasEngine' }, globalSetting: {} },
+    });
 
-    await expect(getLogicflowProcess({ baseUrl: 'https://example.com' }, {
-      appType: 'APP_TEST',
-      formUuid: 'FORM_TEST',
-      processCode: 'LPROC_TEST',
-    })).resolves.toBe(response);
+    await getLogicflowDetail({ baseUrl: 'https://example.com' }, {
+      appType: 'APP_TEST', formUuid: 'FORM_TEST', processCode: 'LPROC-TEST',
+    });
 
-    const [, requestPath, query, options] = httpGet.mock.calls[0];
-    expect(requestPath).toBe('/alibaba/web/APP_TEST/query/simpleProcess/getProcess.json');
+    const [, path, query, options] = httpGet.mock.calls[0];
+    expect(path).toBe('/alibaba/web/APP_TEST/query/simpleProcess/getProcess.json');
     expect(query).toMatchObject({
       _api: 'SimpleProcess.getProcess',
-      formUuid: 'FORM_TEST',
-      processCode: 'LPROC_TEST',
-    });
-    expect(options).toEqual({ silentStatus: true });
-  });
-
-  test('saveProcess sends the same form fields for draft and publish requests', async () => {
-    const postForm = jest.fn().mockResolvedValue({ success: true });
-    createYidaClient.mockReturnValue({ postForm });
-    const processJson = { props: { processCode: 'LPROC_TEST' }, nodes: [] };
-    const viewJson = { schema: { componentName: 'CanvasEngine', children: [] } };
-
-    await saveProcess({ baseUrl: 'https://example.com' }, {
       appType: 'APP_TEST',
       formUuid: 'FORM_TEST',
-      processCode: 'LPROC_TEST',
-      processJson,
-      viewJson,
-      isOnline: true,
+      processCode: 'LPROC-TEST',
     });
-
-    expect(postForm).toHaveBeenCalledWith(
-      '/alibaba/web/APP_TEST/query/simpleProcess/saveProcess.json',
-      {
-        formUuid: 'FORM_TEST',
-        isLogic: 'true',
-        isOnline: 'true',
-        json: JSON.stringify(processJson),
-        needReportLine: 'y',
-        processCode: 'LPROC_TEST',
-        viewJson: JSON.stringify(viewJson),
-      }
-    );
-  });
-
-  test.each(['outputs', 'targetType', 'summary'])('raw saveProcess blocks incomplete %s before POST', async defect => {
-    const postForm = jest.fn();
-    createYidaClient.mockReturnValue({ postForm });
-    const { buildSpecProcessAndViewJson } = require('../lib/integration/integration-spec-builder');
-    const built = buildSpecProcessAndViewJson({
-      appType: 'APP_TEST', formUuid: 'FORM_TEST',
-      formMetadataByUuid: new Map([['FORM_TEST', { formType: 'process', formName: '申请单',
-        fields: [{ componentName: 'SelectField', props: { fieldId: 'selectField_result', label: '意见' } }] }]]),
-      spec: { events: ['activityTask'], approvalActions: ['agree'], approvalNodeIds: ['approval-1'], nodes: [
-        { id: 'self', type: 'getSelf' },
-        { type: 'dataUpdate', source: 'self', assignments: [{ column: 'selectField_result', valueType: 'literal', value: '同意' }] },
-      ] },
-    });
-    if (defect === 'outputs') { built.viewJson.schema.children[1].props.getData.outputs = []; }
-    if (defect === 'targetType') { built.viewJson.schema.children[1].props.getData.targetItem.formItem.formType = 'receipt'; }
-    if (defect === 'summary') { delete built.viewJson.schema.children[2].props.updateDataRules.description; }
-    await expect(saveProcess({}, { appType: 'APP_TEST', formUuid: 'FORM_TEST', processCode: 'LPROC_TEST',
-      ...built, isOnline: true })).rejects.toThrow();
-    expect(postForm).not.toHaveBeenCalled();
+    expect(options).toEqual({ silentStatus: true });
   });
 
   test('getFormSchema extracts nested field components from V5 containers only', async () => {

@@ -14,6 +14,21 @@ jest.mock('../lib/integration/integration-node-ids', () => {
 const { buildProcessJson } = require('../lib/integration/integration-process-builder');
 const { buildViewJson } = require('../lib/integration/integration-view-builder');
 const { buildSpecProcessAndViewJson } = require('../lib/integration/integration-spec-builder');
+const { buildConnectorRulesFromInputs } = require('../lib/integration/connector-presets');
+
+test('keeps nested body assignments on connector child rules', () => {
+  const rules = buildConnectorRulesFromInputs([
+    {
+      name: 'Body', componentName: 'ObjectField',
+      childList: [{ name: 'systemToken', componentName: 'TextField' }],
+    },
+  ], [{ column: 'systemToken', valueType: 'literal', value: 'secret' }]);
+  expect(rules[0].childList[0]).toMatchObject({
+    id: 'Body%systemToken',
+    parentId: 'Body',
+    rules: [expect.objectContaining({ value: 'secret', valueType: 'literal' })],
+  });
+});
 
 function getFlatMessagePair(options = {}) {
   const common = {
@@ -37,6 +52,22 @@ function getFlatMessagePair(options = {}) {
 }
 
 describe('integration process/view builder consistency', () => {
+  test('unknown connector actions fail closed instead of synthesizing TextField inputs', () => {
+    expect(() => buildViewJson({
+      processCode: 'LPROC-UNKNOWN',
+      formUuid: 'FORM-A',
+      appType: 'APP-A',
+      formEventTypes: ['insert'],
+      connectorId: 'Http_unknown',
+      actionId: 'missing',
+      connectorMode: 5,
+      connectorAssignments: [{ column: 'amount', valueType: 'literal', value: 1 }],
+      hasMessageNode: false,
+      toUsers: [],
+      nodeIds: ['canvas', 'trigger', 'connector', 'end'],
+    })).toThrow(expect.objectContaining({ code: 'INTEGRATION_CONNECTOR_SCHEMA_UNVERIFIED' }));
+  });
+
   test('flat builders preserve the exact declared recipient collections without implicit user fields', () => {
     const pair = getFlatMessagePair();
 
@@ -93,6 +124,9 @@ describe('integration process/view builder consistency', () => {
           connectionId: 'connection-1',
           name: 'HTTP connector',
           assignments: [{ column: 'code', valueType: 'literal', value: '0012' }],
+          inputs: [{ name: 'code', componentName: 'TextField', paramType: 'String' }],
+          outputs: [],
+          schemaVerificationLevel: 'FIXED_CONTRACT_FIXTURE',
         }],
       },
       processCode: 'LPROC-SPEC',
@@ -136,6 +170,9 @@ describe('integration process/view builder consistency', () => {
       connectorMode: 5,
       hasMessageNode: false,
       toUsers: [],
+      connectorInputs: [],
+      connectorOutputs: [],
+      connectorSchemaVerificationLevel: 'FIXED_CONTRACT_FIXTURE',
     };
     const flatProcess = buildProcessJson({ ...flatOptions, nodeIds: ['trigger', 'connector', 'end'] });
     const flatView = buildViewJson({ ...flatOptions, nodeIds: ['canvas', 'trigger', 'connector', 'end'] });
@@ -162,6 +199,9 @@ describe('integration process/view builder consistency', () => {
           type: 'connector',
           connectorId: 'Http_123',
           actionId: 'publish',
+          inputs: [],
+          outputs: [],
+          schemaVerificationLevel: 'FIXED_CONTRACT_FIXTURE',
         }],
       },
       processCode: 'LPROC-SPEC-HTTP',
@@ -194,6 +234,7 @@ describe('integration process/view builder consistency', () => {
           connectorId: 'Http_123',
           actionId: 'publish',
           connectorConfig: { connectionLess: false },
+          schemaVerificationLevel: 'FIXED_CONTRACT_FIXTURE',
         }],
       },
       processCode: 'LPROC-ACCOUNT-REQUIRED',
@@ -212,6 +253,7 @@ describe('integration process/view builder consistency', () => {
   test('flat connector with a selected account shows the action configuration step', () => {
     const viewJson = buildViewJson({
       processCode: 'LPROC-FLAT-ACCOUNT',
+      connectorSchemaVerificationLevel: 'FIXED_CONTRACT_FIXTURE',
       formUuid: 'FORM-A',
       appType: 'APP-A',
       formEventTypes: ['insert'],
@@ -265,11 +307,32 @@ describe('integration process/view builder consistency', () => {
     ]);
     const processCreate = processJson.nodes[1].props.assignments;
     const viewCreate = viewNodes[1].props.addDataRules.rules.rules;
+    const viewAssignments = viewNodes[1].props.addDataRules.assignments;
     expect(processCreate.map(({ column, valueType, value }) => ({ column, valueType, value }))).toEqual(
       viewCreate.map((rule) => ({ column: rule.name, valueType: rule.valueType, value: rule.value }))
     );
+    expect(viewAssignments.map((rule) => ({ column: rule.name, valueType: rule.valueType, value: rule.value }))).toEqual(
+      viewCreate.map((rule) => ({ column: rule.name, valueType: rule.valueType, value: rule.value }))
+    );
+    expect(viewNodes[1].props.addDataRules.description).toBe(viewNodes[1].props.description);
     expect(processCreate.map((assignment) => assignment.value)).toEqual(['0012', 12]);
     expect(processJson.nodes[2].nextId).toEqual([viewNodes[3].id]);
+  });
+
+  test('flat get-single-data keeps its empty assignment contract and does not depend on add-data scope', () => {
+    const viewJson = buildViewJson({
+      processCode: 'LPROC-GET',
+      formUuid: 'FORM-A',
+      appType: 'APP-A',
+      formEventTypes: ['insert'],
+      nodeIds: ['canvas', 'trigger', 'get', 'end'],
+      dataFormUuid: 'FORM-A',
+      dataConditions: [{ bFieldId: 'pid', bFieldName: '实例ID', aFieldId: '__masterdata_form_inst_id' }],
+      hasMessageNode: false,
+      toUsers: [],
+    });
+    const getNode = viewJson.schema.children.find((node) => node.componentName === 'GetSingleDataNode');
+    expect(getNode.props.getData.assignments).toEqual([]);
   });
 
   test('rejects add-data assignments that are absent from the verified target schema', () => {

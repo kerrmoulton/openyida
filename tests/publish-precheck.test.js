@@ -5,6 +5,7 @@ const https = require('https');
 const os = require('os');
 const path = require('path');
 const { EventEmitter } = require('events');
+const { CliError } = require('../lib/core/cli-error');
 
 jest.mock('../lib/app/form-navigation', () => ({
   fetchFormPageList: jest.fn(),
@@ -18,6 +19,7 @@ const {
   buildMissingSourceHints,
   buildDefaultPageDataSource,
   buildCanvasSchemaContent,
+  buildCanvasSavePayload,
   buildSchemaContent,
   countCustomPageDataSources,
   extractPageDataSource,
@@ -26,6 +28,7 @@ const {
   mergePageDataSource,
   verifyPublishTarget,
 } = require('../lib/app/publish');
+const publishPage = require('../lib/app/publish');
 const {
   verifyPublishedContentMatch,
 } = require('../lib/app/display-page-readback');
@@ -67,14 +70,59 @@ function createSandboxIdentityFs(options = {}) {
 
 describe('publish prechecks', () => {
   let workspace;
+  let errorSpy;
+  let stderrSpy;
 
   beforeEach(() => {
     workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'openyida-publish-precheck-'));
     jest.clearAllMocks();
+    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    stderrSpy = jest.spyOn(process.stderr, 'write').mockReturnValue(true);
   });
 
   afterEach(() => {
+    errorSpy.mockRestore();
+    stderrSpy.mockRestore();
     fs.rmSync(workspace, { recursive: true, force: true });
+  });
+
+  test('fix-theme requires a mounted theme provider and never rewrites an unthemed page', async () => {
+    const sourcePath = path.join(workspace, 'theme.canvas.jsx');
+    const source = "import {ConfigProvider} from 'antd'; function YidaComp(){return <ConfigProvider theme={{token:{colorPrimary:'#1677ff'}}}><div/></ConfigProvider>}";
+    fs.writeFileSync(sourcePath, source);
+    await expect(publishPage([sourcePath, 'APP_XXX', 'FORM-PAGE', '--fix-theme', '--json']))
+      .rejects.toMatchObject({ code: 'OPENYIDA_CANVAS_THEME_PROVIDER_INVALID', details: { issueType: 'provider_missing' } });
+    expect(fs.readFileSync(sourcePath, 'utf8')).toBe(source);
+  });
+
+  test('a later compile error leaves the original source intact after preparing a theme migration', async () => {
+    const { buildApplicationProvider } = require('../yida-skills/skills/yida-canvas-custom-page/scripts/build-canvas-theme');
+    const sourcePath = path.join(workspace, 'theme.canvas.jsx');
+    const source = buildApplicationProvider() + `
+      function YidaComp(){return <CanvasThemeProvider><ConfigProvider theme={{token:{colorPrimary:'#1677ff' /* brand */,borderRadius:12}}}><UnknownComponent/></ConfigProvider></CanvasThemeProvider>}
+    `;
+    fs.writeFileSync(sourcePath, source);
+    await expect(publishPage([sourcePath, 'APP_XXX', 'FORM-PAGE', '--fix-theme', '--json'])).rejects.toThrow();
+    expect(fs.readFileSync(sourcePath, 'utf8')).toBe(source);
+  });
+
+  test('strict publish under a PTY rejects locally without opening a prompt, even with JSON', async () => {
+    const sourcePath = path.join(workspace, 'theme.canvas.jsx');
+    fs.writeFileSync(sourcePath, "import {ConfigProvider} from 'antd'; function YidaComp(){return <ConfigProvider theme={{token:{colorPrimary:'#1677ff'}}}><div/></ConfigProvider>}");
+    const descriptors = [process.stdin, process.stderr].map(stream => Object.getOwnPropertyDescriptor(stream, 'isTTY'));
+    const prompt = jest.spyOn(require('readline'), 'createInterface');
+    try {
+      for (const stream of [process.stdin, process.stderr]) { Object.defineProperty(stream, 'isTTY', { configurable: true, value: true }); }
+      await expect(publishPage([sourcePath, 'APP_XXX', 'FORM-PAGE', '--strict-theme', '--json']))
+        .rejects.toMatchObject({ code: 'OPENYIDA_CANVAS_THEME_FIXED_BRAND' });
+      expect(prompt).not.toHaveBeenCalled();
+    } finally {
+      [process.stdin, process.stderr].forEach((stream, index) => {
+        if (descriptors[index]) { Object.defineProperty(stream, 'isTTY', descriptors[index]); }
+        else { delete stream.isTTY; }
+      });
+      prompt.mockRestore();
+    }
   });
 
   test('detects project and artifacts copies with the same name but different content', () => {
@@ -94,6 +142,78 @@ describe('publish prechecks', () => {
     expect(mismatches).toEqual([
       { sourcePath, duplicatePath: artifactPath },
     ]);
+  });
+
+  test('publish rejects unsupported authoring hooks with CliError before login or process exit', async () => {
+    const sourcePath = path.join(workspace, 'reducer.oyd.jsx');
+    fs.writeFileSync(sourcePath, `
+import React, { useReducer } from 'react';
+export default function Page() {
+  const [state] = useReducer((value) => value, {});
+  return <div>{state.name}</div>;
+}
+`, 'utf8');
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit should not be called');
+    });
+
+    await expect(publishPage([
+      sourcePath,
+      'APP_XXX',
+      'FORM-PAGE',
+      '--compat',
+      '--no-open',
+    ])).rejects.toMatchObject({
+      code: 'BUILD_PAGE_FAILED',
+      details: {
+        retryable: false,
+        retrySafe: true,
+        sideEffectState: 'none',
+        sourceRepairable: true,
+        primaryIssue: {
+          code: 'UNSUPPORTED_HOOK',
+          hook: 'useReducer',
+          line: 4,
+        },
+        nextAction: {
+          type: 'edit_source_then_recheck',
+          commandId: 'check-page',
+        },
+      },
+    });
+    expect(exitSpy).not.toHaveBeenCalled();
+    exitSpy.mockRestore();
+  });
+
+  test('rejects a missing Canvas theme provider before any HTTP request even with force and skip-lint', async () => {
+    const { buildApplicationProvider } = require('../yida-skills/skills/yida-canvas-custom-page/scripts/build-canvas-theme');
+    const sourcePath = path.join(workspace, 'theme.canvas.jsx');
+    fs.writeFileSync(sourcePath, buildApplicationProvider() + `
+      function PageContent() { const { token } = useCanvasThemeContext(); return <div style={{color: token.colorText}}>经营指标</div>; }
+      function YidaComp() { return <PageContent />; }
+    `);
+    const requestSpy = jest.spyOn(https, 'request').mockImplementation(() => { throw new Error('Unexpected HTTP request'); });
+    try {
+      await expect(publishPage([sourcePath, 'APP_XXX', 'FORM-PAGE', '--canvas', '--force', '--skip-lint', '--no-open']))
+        .rejects.toMatchObject({ code: 'OPENYIDA_CANVAS_THEME_PROVIDER_INVALID', details: { issueType: 'provider_missing' } });
+      expect(requestSpy).not.toHaveBeenCalled();
+    } finally {
+      requestSpy.mockRestore();
+    }
+  });
+
+  test.each([
+    ["function YidaComp(){return <button onClick={()=>window.open('/custom/FORM-room')}>预订</button>}", 'OPENYIDA_CANVAS_PATH_MISSING_APP_TYPE', []],
+    ["import {ConfigProvider} from 'antd'; function YidaComp(){return <ConfigProvider theme={{token:{colorPrimary:'#1677ff'}}}><div/></ConfigProvider>}", 'OPENYIDA_CANVAS_THEME_FIXED_BRAND', ['--strict-theme']],
+  ])('rejects invalid navigation and theme before remote writes: %s', async (source, code, extraArgs) => {
+    const sourcePath = path.join(workspace, 'entry.canvas.jsx');
+    fs.writeFileSync(sourcePath, source);
+    const requestSpy = jest.spyOn(https, 'request').mockImplementation(() => { throw new Error('Unexpected HTTP request'); });
+    try {
+      await expect(publishPage([sourcePath, 'APP_XXX', 'FORM-PAGE', '--canvas', '--force', '--skip-lint', '--no-open', ...extraArgs]))
+        .rejects.toMatchObject({ code });
+      expect(requestSpy).not.toHaveBeenCalled();
+    } finally { requestSpy.mockRestore(); }
   });
 
   test('suggests pages/src path when cwd is already the OpenYida project directory', () => {
@@ -284,6 +404,31 @@ describe('publish prechecks', () => {
     });
   });
 
+  test('builds a code-free Canvas save skeleton while preserving local artifacts', () => {
+    const sourceCode = 'export default function Page() { return null; }';
+    const runtimeCode = 'var YidaComp = function Page() { return null; };';
+    const schemaContent = buildCanvasSchemaContent(
+      sourceCode,
+      runtimeCode,
+      '[]',
+      'FORM-CANVAS'
+    );
+
+    const payload = buildCanvasSavePayload(schemaContent, sourceCode, runtimeCode);
+    const schema = JSON.parse(payload.content);
+    const canvas = schema.pages[0].componentsTree[0].children[0];
+
+    expect(payload).toMatchObject({
+      canvasNodeId: canvas.id,
+      sourceCode,
+      runtimeCode,
+    });
+    expect(canvas.componentName).toBe('YidaCodeCanvas');
+    expect(canvas.props).not.toHaveProperty('code');
+    expect(canvas.props).not.toHaveProperty('runtimeCode');
+    expect(canvas.props).not.toHaveProperty('codeBundle');
+  });
+
   test('publish schema builders reject emoji in stored page source', () => {
     expect(() => buildSchemaContent(
       'export function renderJsx() { return React.createElement("div", null, "✅"); }',
@@ -413,11 +558,16 @@ describe('publish prechecks', () => {
       )).resolves.toMatchObject({
         ok: true,
         mode: 'publish_readback',
+        expectedPublishMode: 'canvas',
         authMode: 'token',
         targetReadable: true,
         schemaParsed: true,
         displayComponentPresent: true,
         publishedContentMatched: true,
+        readback: {
+          hasYidaCodeCanvas: true,
+          runtimeCodeBytes: expect.any(Number),
+        },
       });
 
       expect(requestSpy).not.toHaveBeenCalled();
@@ -429,7 +579,13 @@ describe('publish prechecks', () => {
     }
   });
 
-  test('publish main treats health check and auto nav order errors as non-fatal after save succeeds', async () => {
+  test.each([
+    [{ renderNav: false }, 'custom', false],
+    [{ isRenderNav: 'false' }, 'custom', false],
+    [{ renderNav: true, isRenderNav: false }, 'workbench', true],
+    [{ renderNav: null, isRenderNav: false }, 'workbench', null],
+    [null, 'workbench', null],
+  ])('publish returns the persisted navigation entry for %j without new flags and keeps post-save failures non-fatal', async (pageConfig, route, renderNav) => {
     const sourcePath = path.join(workspace, 'home.canvas.jsx');
     fs.writeFileSync(sourcePath, 'export default function Page() { return null; }\n', 'utf8');
 
@@ -442,7 +598,16 @@ describe('publish prechecks', () => {
     });
     const warnMock = jest.fn();
     const resultMock = jest.fn();
-    const autoOrderNavigationMock = jest.fn(() => Promise.reject(new Error('nav order broke')));
+    const autoOrderNavigationMock = jest.fn(() => Promise.reject(new CliError('NAV_ORDER_RESULT_UNKNOWN', {
+      code: 'NAV_ORDER_RESULT_UNKNOWN',
+      details: {
+        retryable: false,
+        retrySafe: false,
+        sideEffectState: 'unknown',
+        readbackVerified: false,
+        nextStep: 'openyida nav-group list APP_XXX --flat',
+      },
+    })));
     const requestSpy = jest.spyOn(https, 'request').mockImplementation((options, callback) => {
       const response = new EventEmitter();
       response.statusCode = 200;
@@ -464,9 +629,17 @@ describe('publish prechecks', () => {
         success: true,
         content: { pages: [], gmtModified: 100 },
       })),
-      httpPost: jest.fn(() => Promise.resolve({
+      httpPost: jest.fn(() => pageConfig === null
+        ? Promise.reject(new Error('config read unavailable'))
+        : Promise.resolve({ success: true, content: pageConfig })),
+      httpPostMultipart: jest.fn(() => Promise.resolve({
         success: true,
-        content: { formUuid: 'FORM-PAGE', version: 7 },
+        content: {
+          formUuid: 'FORM-PAGE',
+          version: 7,
+          storageMode: 'CODE_BUNDLE',
+          bundleId: 'a'.repeat(64),
+        },
       })),
       requestWithAutoLogin: jest.fn((requestFn, authRef) => requestFn(authRef)),
     };
@@ -508,7 +681,19 @@ describe('publish prechecks', () => {
       })),
     }));
     jest.doMock('../lib/app/services/canvas-page-schema-builder', () => ({
-      buildCanvasPageSchemaContent: jest.fn(() => JSON.stringify({ pages: [] })),
+      buildCanvasPageSchemaContent: jest.fn((sourceCode, runtimeCode) => JSON.stringify({
+        pages: [{
+          componentsTree: [{
+            componentName: 'Page',
+            id: 'page-1',
+            children: [{
+              componentName: 'YidaCodeCanvas',
+              id: 'canvas-1',
+              props: { code: sourceCode, runtimeCode },
+            }],
+          }],
+        }],
+      })),
     }));
     jest.doMock('../lib/app/nav-group', () => ({
       autoOrderNavigation: autoOrderNavigationMock,
@@ -531,8 +716,18 @@ describe('publish prechecks', () => {
       expect(exitSpy).not.toHaveBeenCalled();
       expect(resultMock).toHaveBeenCalledWith(true, expect.any(String), expect.any(Array));
       expect(warnMock).toHaveBeenCalledWith(expect.stringContaining('display_component_missing'));
-      expect(warnMock).toHaveBeenCalledWith(expect.stringContaining('nav order broke'));
+      expect(warnMock).toHaveBeenCalledWith(expect.stringContaining('NAV_ORDER_RESULT_UNKNOWN'));
       expect(autoOrderNavigationMock).toHaveBeenCalledWith('APP_XXX', expect.any(Object));
+      expect(mockUtils.httpPost).toHaveBeenCalledTimes(1);
+      expect(mockUtils.httpPost.mock.calls[0][1]).toContain('/getFormSchemaInfo.json');
+      expect(mockUtils.httpPostMultipart).toHaveBeenCalledTimes(1);
+      expect(mockUtils.httpPostMultipart.mock.calls[0][1]).toContain('/query/codeBundle/save.json');
+      expect(mockUtils.httpPostMultipart.mock.calls[0][2]).toMatchObject({
+        formUuid: 'FORM-PAGE',
+        canvasNodeId: 'canvas-1',
+      });
+      expect(JSON.parse(mockUtils.httpPostMultipart.mock.calls[0][2].content)
+        .pages[0].componentsTree[0].children[0].props).toEqual({});
       const outputPayload = consoleSpy.mock.calls
         .map((call) => call[0])
         .filter((line) => typeof line === 'string' && line.startsWith('{'))
@@ -542,11 +737,32 @@ describe('publish prechecks', () => {
         success: true,
         appType: 'APP_XXX',
         formUuid: 'FORM-PAGE',
+        publishMode: 'canvas',
+        url: `https://example.test/APP_XXX/${route}/FORM-PAGE`,
+        workbenchUrl: 'https://example.test/APP_XXX/workbench/FORM-PAGE',
+        standaloneUrl: route === 'custom' ? 'https://example.test/APP_XXX/custom/FORM-PAGE' : null,
+        navigationVerification: { renderNav, verified: renderNav !== null },
+        navigationWarning: pageConfig === null ? 'config read unavailable' : null,
+        storageMode: 'CODE_BUNDLE',
+        bundleId: 'a'.repeat(64),
+        publishReadbackVerified: false,
+        runtimeSmokeVerified: false,
+        runtimeSmokeStatus: 'not_checked',
         healthCheck: {
           ok: false,
+          expectedPublishMode: 'canvas',
           reason: 'display_component_missing',
         },
-        navOrderWarning: 'nav order broke',
+        navOrder: {
+          success: false,
+          errorCode: 'NAV_ORDER_RESULT_UNKNOWN',
+          retryable: false,
+          retrySafe: false,
+          sideEffectState: 'unknown',
+          readbackVerified: false,
+          nextStep: 'openyida nav-group list APP_XXX --flat',
+        },
+        navOrderWarning: 'NAV_ORDER_RESULT_UNKNOWN',
       });
     } finally {
       requestSpy.mockRestore();
@@ -595,6 +811,54 @@ describe('publish prechecks', () => {
       );
       expect(httpPost).toHaveBeenCalledTimes(1);
       expect(httpPost.mock.calls[0][3]).toEqual({ silentStatus: true });
+      expect(label).toBeTruthy();
+    } finally {
+      jest.dontMock('../lib/core/utils');
+      jest.resetModules();
+    }
+  });
+
+  test.each([
+    ['login expiry', { __needLogin: true, __httpStatus: 401 }],
+    ['ordinary failure', { success: false, errorCode: 'FAILED' }],
+    ['success', { success: true, content: { storageMode: 'CODE_BUNDLE' } }],
+  ])('Canvas unified save transport delegates once on %s', async (label, responseBody) => {
+    jest.resetModules();
+    const httpPostMultipart = jest.fn().mockResolvedValue(responseBody);
+    jest.doMock('../lib/core/utils', () => {
+      const actual = jest.requireActual('../lib/core/utils');
+      return {
+        ...actual,
+        httpPostMultipart,
+      };
+    });
+    const isolatedPublish = require('../lib/app/publish');
+
+    try {
+      await isolatedPublish.sendCanvasSaveRequestWithAuth(
+        { baseUrl: 'https://example.test', authMode: 'token', authSource: 'token' },
+        {
+          canvasNodeId: 'canvas-1',
+          content: JSON.stringify({ pages: [] }),
+          sourceCode: 'source',
+          runtimeCode: 'runtime',
+        },
+        'APP_XXX',
+        'FORM_XXX',
+        100
+      );
+      expect(httpPostMultipart).toHaveBeenCalledTimes(1);
+      expect(httpPostMultipart.mock.calls[0][1]).toContain('/query/codeBundle/save.json');
+      expect(httpPostMultipart.mock.calls[0][2]).toMatchObject({
+        formUuid: 'FORM_XXX',
+        gmtModified: 100,
+        canvasNodeId: 'canvas-1',
+        importSchema: true,
+      });
+      expect(httpPostMultipart.mock.calls[0][3]).toMatchObject({
+        source: { content: 'source', fileName: 'source.jsx' },
+        runtime: { content: 'runtime', fileName: 'runtime.js' },
+      });
       expect(label).toBeTruthy();
     } finally {
       jest.dontMock('../lib/core/utils');

@@ -1,0 +1,6 @@
+[
+  { "type": "TextField", "label": "订单名称", "required": true },
+  { "type": "SelectField", "label": "处理状态", "options": ["待处理", "已完成"] },
+  { "type": "NumberField", "label": "订单金额" },
+  { "type": "TextareaField", "label": "内部备注" }
+]

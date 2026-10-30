@@ -1,0 +1,38 @@
+[
+  {
+    "id": "ui-improve-local-spacing",
+    "prompt": "只把这个已有页面的卡片间距缩小一点，业务逻辑不要动。",
+    "expectedSkill": "yida-design",
+    "forbiddenDefaultSkills": ["yida-create-page", "yida-create-app", "yida-upgrade-app-theme"]
+  },
+  {
+    "id": "ui-improve-replace-components",
+    "prompt": "这个自定义页太丑了，UI 组件可以换，但请求、提交、分页和权限逻辑都不能改，先给我方案确认。",
+    "expectedSkill": "yida-design",
+    "forbiddenDefaultSkills": ["yida-create-page", "yida-canvas-upgrade"]
+  },
+  {
+    "id": "ui-improve-entire-app",
+    "prompt": "把已有应用的门户、自定义页面、表单、详情、报表和抽屉配色统一，先给视觉方案，不改功能。",
+    "expectedSkill": "yida-design",
+    "forbiddenDefaultSkills": ["yida-app", "yida-create-app", "yida-upgrade-app-theme"]
+  },
+  {
+    "id": "ui-improve-legacy-no-upgrade",
+    "prompt": "美化这个老主题应用，保留原来的主题模式，先看方案再决定。",
+    "expectedSkill": "yida-design",
+    "forbiddenDefaultSkills": ["yida-upgrade-app-theme", "yida-canvas-upgrade"]
+  },
+  {
+    "id": "ui-improve-rollback",
+    "prompt": "刚才美化的效果我不满意，把这个页面恢复到本轮修改前。",
+    "expectedSkill": "yida-design",
+    "forbiddenDefaultSkills": ["yida-create-page", "yida-app"]
+  },
+  {
+    "id": "ui-improve-explicit-upgrade-separate",
+    "prompt": "我要把这个旧应用升级为新版应用主题。",
+    "expectedSkill": "yida-upgrade-app-theme",
+    "mustNotTrigger": ["yida-design"]
+  }
+]

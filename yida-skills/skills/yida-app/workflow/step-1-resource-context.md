@@ -1,12 +1,14 @@
 # Step 1：解析资源上下文
 
-先确认本轮要操作哪个 app/page/form/process，再决定复用、补齐还是创建。不要把 `create-app`、`create-page`、`create-form` 当成默认动作。
+首轮需求澄清前只沿用用户显式资源引用及已有上下文，先进入 Step 2 的 2.0；不预检环境、不登录、不扫描配置或批量查询资源。已有应用的需求材料确实影响核心功能候选时，只读提问所需内容。
+
+需求澄清完成后，或已有需求足够明确而无需提问时，再按本节确认本轮要操作哪个 app/page/form/process，决定复用、补齐还是创建。不要把 `create-app`、`create-page`、`create-form` 当成默认动作。
 
 ## 只读预检
 
 若根入口已经完成只读预检，沿用结果，不要每个阶段重复跑 env/help/login。
 
-若还没有预检，优先跑一次 `openyida agent-capabilities --summary-json`；旧版本没有该命令时，退回 `openyida env --json` 和 `openyida login --check-only --json`。只有登录态可用后，才执行会创建、修改或发布宜搭资源的命令。
+若还没有预检，优先跑一次 `openyida agent-capabilities --summary-json`，将完整 JSON 保存到本轮上下文，按需从同一结果提取字段；组织、登录态或工作目录变化后刷新对应信息。旧版本没有该命令时，退回 `openyida env --json` 和 `openyida login --check-only --json`。只有登录态可用后，才执行会创建、修改或发布宜搭资源的命令。
 
 ## 资源解析顺序
 
@@ -34,10 +36,12 @@
 
 若已有 app 来自外部工具预创建资源，OpenYida 技能侧只复用 `appType`，不自动修改应用名称；应用名修正由外部工具侧负责。
 
+首次完整搭建无论是缺少 app，还是已有 app 但没有页面，都进入 Step 2 分析需求并完成首次搭建确认。已有 app 的复用结论不代表模式已选；具体判断遵守 [设计模式路由](../../yida-design/references/design-mode.md)。
+
 ## 命令选择
 
 - 已有显式 `appType`、应用 URL 或已绑定上下文中的 `appType` 且能唯一解析时，直接复用；不要调用 `app-list` 做存在性确认。
-- 只有用户只给应用名称、存在多个候选、resource context 冲突，或需要诊断目标 app 访问失败时，才运行 `openyida app-list [--size N]`。
+- 只有用户只给应用名称、存在多个候选、resource context 冲突，或需要诊断目标 app 访问失败时，才运行 `openyida app-list [--type managed|created] [--page N] [--size N]`。默认查询“我管理的”第 1 页、每页 16 条；需要继续查找时按返回提示逐页查询，不要假设命令会自动拉取全量。
 - 已知 `appType` 后，查询应用下表单/页面用 `openyida list-forms <appType> [--keyword <text>]`；选择页面发布目标时只用 `formType=display`。
 - 查询表单/页面 Schema、字段 ID 或批量字段摘要用 `openyida get-schema <appType> <formUuid|--all> ...`。
 - 页面、流程、公式或多表 dataBinding 确实需要多个 `fieldId` 时，对每个目标业务表单最多一次性执行 `openyida get-schema <appType> <formUuid> --field-map-json`，读取完整 JSON 并合并到 `.cache/<项目名>-schema.json`。

@@ -1,0 +1,260 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "9c33e492c30d5cd1b7550e5864ae94f2b3f4c5db",
+  "brandSeed": "#2C73A9",
+  "minimum": 4.5,
+  "reviewNote": "Approved main template baseline; only the confirmed shadow reference spelling differs. Known static findings remain reported, not runtime acceptance. Changed risk sources require review.",
+  "templates": [
+    {
+      "themeId": "ink-glow-soft-panels",
+      "sourceHash": "ea36b633ab225983b6a5cf4f7474c64f2111b9fe85935e7b0c87078f0e7ffa70",
+      "issues": [],
+      "unresolved": [
+        {
+          "role": "nav.selected",
+          "foreground": "--pod-nav-item-text-selected-color",
+          "background": "--pod-nav-menu-bg-selected-color",
+          "minimum": 4.5,
+          "reason": "COLOR_OR_SURFACE_UNRESOLVED"
+        }
+      ]
+    },
+    {
+      "themeId": "inset-frame-pixel-rhythm",
+      "sourceHash": "8e4e57b78dd9c501baf5b11271a5b8f04699b09a3233b393ec3c44cf74f3ca24",
+      "issues": [],
+      "unresolved": [
+        {
+          "role": "page.body",
+          "foreground": "--color-text1-4",
+          "background": "--pod-page-bg-color",
+          "minimum": 4.5,
+          "reason": "COLOR_OR_SURFACE_UNRESOLVED"
+        },
+        {
+          "role": "page.secondary",
+          "foreground": "--color-text1-3",
+          "background": "--pod-page-bg-color",
+          "minimum": 4.5,
+          "reason": "COLOR_OR_SURFACE_UNRESOLVED"
+        },
+        {
+          "role": "form.label",
+          "foreground": "--pod-form-label-color",
+          "background": "--yida-form-content-bgcolor",
+          "minimum": 4.5,
+          "reason": "COLOR_OR_SURFACE_UNRESOLVED"
+        }
+      ]
+    },
+    {
+      "themeId": "outlined-texture-duotone",
+      "sourceHash": "7941d5ce75abd9cde8bffa9920d07653461a4247276c5aa371e07b5fe0b01dab",
+      "issues": [
+        {
+          "role": "page.secondary",
+          "foreground": "--color-text1-3",
+          "background": "--pod-page-bg-color",
+          "minimum": 4.5,
+          "ratio": 4.41
+        },
+        {
+          "role": "card.secondary",
+          "foreground": "--color-text1-3",
+          "background": "--pod-card-bg-color",
+          "minimum": 4.5,
+          "ratio": 4.41
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "themeId": "soft-inset-surfaces",
+      "sourceHash": "f3d6d164d8ef1952aed6af986b8700dd8c1379b5ad205a0ac0d34a4612a70d9e",
+      "issues": [
+        {
+          "role": "nav.selected",
+          "foreground": "--pod-nav-item-text-selected-color",
+          "background": "--pod-nav-menu-bg-selected-color",
+          "minimum": 4.5,
+          "ratio": 3.88
+        },
+        {
+          "role": "nav.popup",
+          "foreground": "--pod-nav-item-text-color",
+          "background": "--pod-nav-popup-bg-color",
+          "minimum": 4.5,
+          "ratio": 1.04
+        }
+      ],
+      "unresolved": [
+        {
+          "role": "nav.item",
+          "foreground": "--pod-nav-item-text-color",
+          "background": "--pod-shell-theme-bg-color",
+          "minimum": 4.5,
+          "reason": "NAVIGATION_IMAGE_REQUIRES_RUNTIME_CHECK",
+          "selectors": [
+            ".vc-shell.pod-premium\n  .next-shell-brand\n  .next-shell-aside.next-shell-navigation"
+          ]
+        },
+        {
+          "role": "nav.hover",
+          "foreground": "--pod-nav-item-text-hover-color",
+          "background": "--pod-nav-menu-bg-hover-color",
+          "minimum": 4.5,
+          "reason": "NAVIGATION_IMAGE_REQUIRES_RUNTIME_CHECK",
+          "selectors": [
+            ".vc-shell.pod-premium\n  .next-shell-brand\n  .next-shell-aside.next-shell-navigation"
+          ]
+        },
+        {
+          "role": "nav.group",
+          "foreground": "--pod-nav-l-group-label-color",
+          "background": "--pod-shell-theme-bg-color",
+          "minimum": 4.5,
+          "reason": "NAVIGATION_IMAGE_REQUIRES_RUNTIME_CHECK",
+          "selectors": [
+            ".vc-shell.pod-premium\n  .next-shell-brand\n  .next-shell-aside.next-shell-navigation"
+          ]
+        },
+        {
+          "role": "nav.l-item",
+          "foreground": "--pod-nav-item-text-color",
+          "background": "--pod-nav-l-container-bg",
+          "minimum": 4.5,
+          "reason": "NAVIGATION_IMAGE_REQUIRES_RUNTIME_CHECK",
+          "selectors": [
+            ".vc-shell.pod-premium\n  .next-shell-brand\n  .next-shell-aside.next-shell-navigation"
+          ]
+        },
+        {
+          "role": "nav.l-group",
+          "foreground": "--pod-nav-l-group-label-color",
+          "background": "--pod-nav-l-container-bg",
+          "minimum": 4.5,
+          "reason": "NAVIGATION_IMAGE_REQUIRES_RUNTIME_CHECK",
+          "selectors": [
+            ".vc-shell.pod-premium\n  .next-shell-brand\n  .next-shell-aside.next-shell-navigation"
+          ]
+        },
+        {
+          "role": "search.value",
+          "foreground": "--pod-nav-search-text-color",
+          "background": "--pod-nav-search-bg-color",
+          "minimum": 4.5,
+          "reason": "NAVIGATION_IMAGE_REQUIRES_RUNTIME_CHECK",
+          "selectors": [
+            ".vc-shell.pod-premium\n  .next-shell-brand\n  .next-shell-aside.next-shell-navigation"
+          ]
+        },
+        {
+          "role": "search.placeholder",
+          "foreground": "--pod-nav-search-placeholder-color",
+          "background": "--pod-nav-search-bg-color",
+          "minimum": 4.5,
+          "reason": "NAVIGATION_IMAGE_REQUIRES_RUNTIME_CHECK",
+          "selectors": [
+            ".vc-shell.pod-premium\n  .next-shell-brand\n  .next-shell-aside.next-shell-navigation"
+          ]
+        },
+        {
+          "role": "search-hover.value",
+          "foreground": "--pod-nav-search-text-color",
+          "background": "--pod-nav-search-bg-hover-color",
+          "minimum": 4.5,
+          "reason": "NAVIGATION_IMAGE_REQUIRES_RUNTIME_CHECK",
+          "selectors": [
+            ".vc-shell.pod-premium\n  .next-shell-brand\n  .next-shell-aside.next-shell-navigation"
+          ]
+        },
+        {
+          "role": "search-hover.placeholder",
+          "foreground": "--pod-nav-search-placeholder-color",
+          "background": "--pod-nav-search-bg-hover-color",
+          "minimum": 4.5,
+          "reason": "NAVIGATION_IMAGE_REQUIRES_RUNTIME_CHECK",
+          "selectors": [
+            ".vc-shell.pod-premium\n  .next-shell-brand\n  .next-shell-aside.next-shell-navigation"
+          ]
+        },
+        {
+          "role": "search-active.value",
+          "foreground": "--pod-nav-search-text-color",
+          "background": "--pod-nav-search-bg-active-color",
+          "minimum": 4.5,
+          "reason": "NAVIGATION_IMAGE_REQUIRES_RUNTIME_CHECK",
+          "selectors": [
+            ".vc-shell.pod-premium\n  .next-shell-brand\n  .next-shell-aside.next-shell-navigation"
+          ]
+        },
+        {
+          "role": "search-active.placeholder",
+          "foreground": "--pod-nav-search-placeholder-color",
+          "background": "--pod-nav-search-bg-active-color",
+          "minimum": 4.5,
+          "reason": "NAVIGATION_IMAGE_REQUIRES_RUNTIME_CHECK",
+          "selectors": [
+            ".vc-shell.pod-premium\n  .next-shell-brand\n  .next-shell-aside.next-shell-navigation"
+          ]
+        }
+      ]
+    },
+    {
+      "themeId": "soft-rail-bold-band",
+      "sourceHash": "4d0ef0e1a87648f4c73cd66b47edcaa89c65aa4cb21fe229f018547413c01908",
+      "issues": [
+        {
+          "role": "search.placeholder",
+          "foreground": "--pod-nav-search-placeholder-color",
+          "background": "--pod-nav-search-bg-color",
+          "minimum": 4.5,
+          "ratio": 2.3
+        },
+        {
+          "role": "search-hover.placeholder",
+          "foreground": "--pod-nav-search-placeholder-color",
+          "background": "--pod-nav-search-bg-hover-color",
+          "minimum": 4.5,
+          "ratio": 2.3
+        },
+        {
+          "role": "search-active.placeholder",
+          "foreground": "--pod-nav-search-placeholder-color",
+          "background": "--pod-nav-search-bg-active-color",
+          "minimum": 4.5,
+          "ratio": 2.3
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "themeId": "warm-canvas-contrast-panels",
+      "sourceHash": "3e042bd758a2660ff033ec4134a51b0d1ef1de840b8aa9e9ad370c91c728c722",
+      "issues": [
+        {
+          "role": "search.value",
+          "foreground": "--pod-nav-search-text-color",
+          "background": "--pod-nav-search-bg-color",
+          "minimum": 4.5,
+          "ratio": 1.57
+        },
+        {
+          "role": "search-hover.value",
+          "foreground": "--pod-nav-search-text-color",
+          "background": "--pod-nav-search-bg-hover-color",
+          "minimum": 4.5,
+          "ratio": 1.57
+        },
+        {
+          "role": "search-active.value",
+          "foreground": "--pod-nav-search-text-color",
+          "background": "--pod-nav-search-bg-active-color",
+          "minimum": 4.5,
+          "ratio": 1.57
+        }
+      ],
+      "unresolved": []
+    }
+  ]
+}

@@ -65,3 +65,8 @@ test.each(['value', 'valueType', '__source', '__display'])('readback rejects los
   delete actual.schema.children[0].props.connectorRules.rules[0].rules[0][field];
   expect(() => validateSavedConnectorView(expected, { success: true, content: actual })).toThrow(field);
 });
+
+test('upstream dotted HTTP paths compile into the same execution groups as percent paths', () => {
+  expect(buildConnectorCallAssignments(assignments.map(item => ({ ...item, column: item.column.replace(/%/g, '.') }))))
+    .toEqual(buildConnectorCallAssignments(assignments));
+});

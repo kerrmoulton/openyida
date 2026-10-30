@@ -3,6 +3,13 @@
 const publish = require('../lib/app/publish');
 
 describe('publish argument parsing', () => {
+  test.each([
+    ['--fix-theme', '--allow-fixed-brand'], ['--strict-theme', '--allow-fixed-brand'], ['--unknown'],
+  ])('rejects conflicting or unknown options before touching a source: %j', (...options) => {
+    expect(() => publish.parseArgs(['page.canvas.jsx', 'APP_XXX', 'FORM-XXX', ...options]))
+      .toThrow(expect.objectContaining({ code: 'PUBLISH_INVALID_ARGUMENTS' }));
+  });
+
   test('uses source-first order for the public CLI contract', () => {
     expect(publish.parseArgs([
       'pages/src/home.oyd.jsx',
@@ -25,12 +32,14 @@ describe('publish argument parsing', () => {
       'pages/src/home.canvas.jsx',
       'APP_XXX',
       'FORM-XXX',
+      '--canvas',
       '--auto-nav-order',
       '--health-check',
     ])).toMatchObject({
       sourceFile: 'pages/src/home.canvas.jsx',
       appType: 'APP_XXX',
       formUuid: 'FORM-XXX',
+      canvas: true,
       healthCheck: true,
       autoNavOrder: true,
     });

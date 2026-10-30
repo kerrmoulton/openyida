@@ -2,6 +2,10 @@
 
 const querystring = require('querystring');
 
+jest.mock('../lib/permission/matrix-availability', () => ({
+  assertMatrixUsage: jest.fn(async () => ({ status: 'available' })),
+}));
+
 jest.mock('../lib/core/utils', () => ({
   loadAuthData: jest.fn(),
   triggerLogin: jest.fn(),
@@ -43,6 +47,28 @@ const customFieldPermit = {
   }],
 };
 
+function listResult(packages) {
+  return { success: true, content: { formPermit: packages } };
+}
+
+function packageFromLastWrite(packageUuid) {
+  const call = utils.httpPost.mock.calls[utils.httpPost.mock.calls.length - 1];
+  if (!call) {
+    return null;
+  }
+  const permitPackage = { ...querystring.parse(call[2]) };
+  if (packageUuid !== undefined) {
+    permitPackage.packageUuid = packageUuid;
+  }
+  return permitPackage;
+}
+
+function mockCreateReadback(packageUuid) {
+  utils.httpGet
+    .mockResolvedValueOnce(listResult([]))
+    .mockImplementation(async () => listResult([packageFromLastWrite(packageUuid)]));
+}
+
 describe('save-permission command', () => {
   let mockLog;
   let mockError;
@@ -52,6 +78,10 @@ describe('save-permission command', () => {
     jest.clearAllMocks();
     utils.httpGet.mockReset();
     utils.httpPost.mockReset();
+    utils.httpGet.mockImplementation(async () => {
+      const permitPackage = packageFromLastWrite();
+      return listResult(permitPackage ? [permitPackage] : []);
+    });
     utils.loadAuthData.mockReturnValue(mockAuthData);
     utils.requestWithAutoLogin.mockImplementation((requestFn, authRef) => requestFn(authRef));
     mockLog = jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -75,6 +105,7 @@ describe('save-permission command', () => {
               packageUuid: 'pkg-1',
               packageName: { zh_CN: '默认组' },
               roleMembers: [{ roleType: 'DEFAULT' }],
+              roleData: '{"include":[{"roleType":"DEFAULT","roleValue":"ALL"}]}',
               dataPermit: '{"rule":[{"type":"ALL","value":"y"}]}',
               operatePermit: '{"OPERATE_VIEW":"y"}',
               fieldPermit: '{"fieldRange":"FORM"}',
@@ -91,7 +122,7 @@ describe('save-permission command', () => {
       JSON.stringify({ role: 'DEFAULT', ...customFieldPermit }),
     ]);
 
-    expect(utils.httpGet).toHaveBeenCalledTimes(1);
+    expect(utils.httpGet).toHaveBeenCalledTimes(2);
     expect(utils.httpPost).toHaveBeenCalledTimes(1);
     const body = querystring.parse(utils.httpPost.mock.calls[0][2]);
     expect(body).toMatchObject({
@@ -110,6 +141,7 @@ describe('save-permission command', () => {
   });
 
   test('creates a permission group with custom fieldPermit payload', async () => {
+    mockCreateReadback('pkg-new');
     utils.httpPost.mockResolvedValueOnce({
       success: true,
       content: 'pkg-new',
@@ -145,6 +177,7 @@ describe('save-permission command', () => {
   });
 
   test('creates an all-members group when --all-members is provided', async () => {
+    mockCreateReadback('pkg-all');
     utils.httpPost.mockResolvedValueOnce({
       success: true,
       content: 'pkg-all',
@@ -213,7 +246,7 @@ describe('save-permission command', () => {
       '{"dataRange":"ALL"}',
     ]);
 
-    expect(utils.httpGet).toHaveBeenCalledTimes(1);
+    expect(utils.httpGet).toHaveBeenCalledTimes(2);
     expect(utils.httpPost).toHaveBeenCalledTimes(1);
     const body = querystring.parse(utils.httpPost.mock.calls[0][2]);
     expect(body).toMatchObject({
@@ -235,6 +268,7 @@ describe('save-permission command', () => {
   });
 
   test('creates a manager+persons group when --members is provided', async () => {
+    mockCreateReadback('pkg-persons');
     utils.httpPost.mockResolvedValueOnce({
       success: true,
       content: 'pkg-persons',
@@ -271,6 +305,7 @@ describe('save-permission command', () => {
   });
 
   test('creates a permission group with complex data-permit rules', async () => {
+    mockCreateReadback('pkg-complex');
     utils.httpPost.mockResolvedValueOnce({
       success: true,
       content: 'pkg-complex',
@@ -321,6 +356,7 @@ describe('save-permission command', () => {
   });
 
   test('creates a permission group with matrix member', async () => {
+    mockCreateReadback('pkg-matrix');
     utils.httpPost.mockResolvedValueOnce({
       success: true,
       content: 'pkg-matrix',
@@ -380,6 +416,9 @@ describe('save-permission command', () => {
               roleData: JSON.stringify({
                 include: [{ roleType: 'MATRIX', roleValue: [{ matrixId: 'OLD', columnId: 'OLD' }] }],
               }),
+              dataPermit: '{"rule":[{"type":"MATRIX","value":"y"}]}',
+              operatePermit: '{"OPERATE_VIEW":"y"}',
+              fieldPermit: '{"fieldRange":"FORM"}',
             },
           ],
         },
@@ -395,7 +434,7 @@ describe('save-permission command', () => {
       '{"rule":[{"type":"ORIGINATOR","value":"y"},{"type":"MATRIX","value":"y"}]}',
     ]);
 
-    expect(utils.httpGet).toHaveBeenCalledTimes(1);
+    expect(utils.httpGet).toHaveBeenCalledTimes(2);
     expect(utils.httpPost).toHaveBeenCalledTimes(1);
     const body = querystring.parse(utils.httpPost.mock.calls[0][2]);
     expect(body.packageUuid).toBe('pkg-matrix-old');
@@ -512,29 +551,41 @@ describe('save-permission command', () => {
     expect(utils.httpPost).not.toHaveBeenCalled();
   });
 
-  test('writes nothing when the first page is full and uniqueness cannot be proven', async () => {
-    utils.httpGet.mockResolvedValueOnce({
-      success: true,
-      content: {
-        formPermit: Array.from({ length: 20 }, (_item, index) => ({
-          packageUuid: `pkg-${index + 1}`,
-          packageName: { zh_CN: `权限组 ${index + 1}` },
-          roleMembers: [{ roleType: index === 0 ? 'DEFAULT' : 'MANAGER' }],
-        })),
-      },
-    });
+  test('continues to the next page before proving role uniqueness', async () => {
+    utils.httpGet
+      .mockResolvedValueOnce({
+        success: true,
+        content: {
+          formPermit: Array.from({ length: 20 }, (_item, index) => ({
+            packageUuid: `pkg-${index + 1}`,
+            packageName: { zh_CN: `权限组 ${index + 1}` },
+            roleMembers: [{ roleType: index === 0 ? 'DEFAULT' : 'MANAGER' }],
+            roleData: JSON.stringify({
+              include: [{
+                roleType: index === 0 ? 'DEFAULT' : 'MANAGER',
+                roleValue: index === 0 ? 'ALL' : 'appMainAdminRole',
+              }],
+            }),
+            dataPermit: '{"rule":[{"type":"ALL","value":"y"}]}',
+            operatePermit: '{"OPERATE_VIEW":"y"}',
+            fieldPermit: '{"fieldRange":"FORM"}',
+          })),
+        },
+      })
+      .mockResolvedValueOnce(listResult([]));
+    utils.httpPost.mockResolvedValueOnce({ success: true });
 
-    await expect(run([
+    const output = await run([
       'APP-1',
       'FORM-1',
       '--data-permission',
       '{"role":"DEFAULT","dataRange":"ALL"}',
-    ])).rejects.toMatchObject({
-      isCliError: true,
-      code: 'SAVE_PERMISSION_QUERY_LIMIT_REACHED',
-      message: expect.stringContaining('权限组 20 (pkg-20)'),
-    });
-    expect(utils.httpPost).not.toHaveBeenCalled();
+    ]);
+
+    expect(output).toMatchObject({ success: true, packageUuid: 'pkg-1' });
+    expect(utils.httpGet).toHaveBeenCalledTimes(3);
+    expect(utils.httpGet.mock.calls[1][2]).toMatchObject({ pageIndex: '2' });
+    expect(utils.httpPost).toHaveBeenCalledTimes(1);
   });
 
   test('blocks action replacement when the current package has unknown operation keys', async () => {

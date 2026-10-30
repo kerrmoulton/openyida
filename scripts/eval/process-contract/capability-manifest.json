@@ -48,7 +48,7 @@
       {
         "id": "topology.branch-nodes",
         "values": ["ConditionContainer:route", "ConditionNode:condition", "ParallelNode:condition"],
-        "evidenceLocator": "bundle@sha256:a4d0d5e6...#byte:3841667(eBt component type map); reference:yida-skills/skills/yida-process-rule/references/official-component-nodes.md#透传规则"
+        "evidenceLocator": "bundle@sha256:a4d0d5e6...#byte:3841667(eBt component type map); reference:yida-skills/skills/yida-process-rule/references/official-component-nodes.md#如何使用真实配置"
       },
       {
         "id": "approval.multi-approver-mode",
@@ -96,18 +96,35 @@
         "id": "approval.return-target",
         "values": ["routeRule.rules[].targetNodeId"],
         "evidenceLocator": "compiler:lib/process/services/process-compiler.js#buildRouteRule"
+      },
+      {
+        "id": "approval.append-forward-configuration",
+        "values": ["normalActions", "appendActions", "forward.hidden", "append.hidden", "appendPosition:BEFORE_APPEND|AFTER_APPEND", "appendResult:valid|invalid", "allowTaskAppend", "moldList", "isConsiderAppendedAction", "isNeedEndTaskGroupChain"],
+        "evidenceLocator": "compiler:lib/process/services/process-actions.js#buildNodeActions; tests:tests/process-actions.test.js; reference:yida-skills/skills/yida-flow-node-config/references/actions.md",
+        "verificationScope": "Compiler and offline regression tests only; not a new assertion about the pinned bundle or successful tenant runtime execution."
+      },
+      {
+        "id": "verification.cli-platform-view-actions",
+        "values": ["normal and appended action visibility", "enabled normal append position", "enabled normal append result"],
+        "evidenceLocator": "implementation:lib/process/services/process-view-verifier.js#verifyPlatformView,verifyActionSettings; tests:tests/process-actions.test.js",
+        "verificationScope": "CLI platform view readback checks; does not extend the separate eval verifyViewContract API or verify runtime execution."
       }
     ],
     "Unknown": [
       {
         "id": "advanced-node.complete-props",
         "values": ["ConnectorNode", "GroovyNode", "JavaScriptNode", "InitiateApprovalNode", "CycleContainer", "AINode"],
-        "evidenceLocator": "reference:yida-skills/skills/yida-process-rule/references/official-component-nodes.md#支持清单"
+        "evidenceLocator": "reference:yida-skills/skills/yida-process-rule/references/official-component-nodes.md#支持的组件与配置字段"
       },
       {
         "id": "runtime.platform-execution",
         "values": ["tenant-specific execution", "designer migration behavior"],
         "evidenceLocator": "not-verified:v1-is-static-and-offline"
+      },
+      {
+        "id": "runtime.append-forward-execution",
+        "values": ["normal approver append and forward", "appended approver append and forward", "mobile approval rendering", "existing process version recovery"],
+        "evidenceLocator": "not-verified:no-live-append-forward-acceptance-for-this-cli-fix"
       }
     ]
   }

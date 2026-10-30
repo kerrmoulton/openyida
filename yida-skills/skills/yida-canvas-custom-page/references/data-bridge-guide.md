@@ -1,17 +1,19 @@
 # YidaCodeCanvas 组件数据桥
 
-`YidaCodeCanvas` 组件运行时提供 React 函数组件上下文；`YidaComp` 内没有普通页面实例 `this`。读写宜搭表单数据时，发布层必须在外层普通自定义页面 `didMount` 中把 `this.utils.yida.*` 注册成 `window.__OPENYIDA_YIDA_API__`，`YidaCodeCanvas` 组件只消费这个 window 桥。连接器代理和自定义同源接口仍用 HTTP 数据桥。
+`YidaCodeCanvas` 组件运行时提供 React 函数组件上下文；`YidaComp` 内没有普通页面实例 `this`。发布层会在外层普通自定义页面 `didMount` 中注册 yida JS-API、根级 utils 和连接器三个 window 桥。表单读写使用 `window.__OPENYIDA_YIDA_API__`，平台连接器使用 `window.__OPENYIDA_CONNECTOR_API__`，只有自定义同源接口才直接使用 HTTP 数据桥。
 
-## 三条数据路径，先选对
+## 数据路径，先选对
 
 | 路径 | 是否可在浏览器页面内直接调 | 说明 |
 | --- | --- | --- |
-| 外层 yida JS-API 桥 `window.__OPENYIDA_YIDA_API__` | **表单默认** | 发布使用 `YidaCodeCanvas` 组件实现的页面时由外层页面 `didMount` 自动注册，底层调用官方 `this.utils.yida.searchFormDatas` 等 API。 |
-| 宜搭开放 API（OpenAPI，`appKey`/`appSecret` 签名） | 服务端 / 连接器代理 | 需服务端签名；浏览器直连会泄露 secret。由后端 / 连接器代理调用。 |
-| 平台已配置**连接器**（HTTP 连接器暴露的同源代理端点） | **推荐** | 同源 `fetch(url, { credentials: 'include' })` 带 cookie 即可，鉴权与密钥留在平台侧，符合数据源治理。 |
+| 外层 yida JS-API 桥 `window.__OPENYIDA_YIDA_API__` | **表单默认** | 发布使用 `YidaCodeCanvas` 组件实现的页面时由外层页面 `didMount` 自动注册，底层调用官方 `this.utils.yida.searchFormDatas`、`saveFormData`、`startProcessInstance`、`getProcessInstances` 等表单/流程 API，并同步运行态已有的 `this.utils.yida` 函数。 |
+| 根级 utils 桥 `window.__OPENYIDA_UTILS__` | **工具默认** | 同一个发布层自动注册，暴露 `toast`、`dialog`、`router.push`、`openPage`、`isMobile` 等根级工具；`window.__OPENYIDA_UTILS__.yida` 指向 `window.__OPENYIDA_YIDA_API__`。 |
+| 宜搭开放 API（OpenAPI，`appKey`/`appSecret` 签名） | 服务端 / 平台连接器 | 需服务端签名；浏览器直连会泄露 secret。由后端或已鉴权的平台连接器调用。 |
+| 平台已配置连接器 `window.__OPENYIDA_CONNECTOR_API__` | **第三方 API 默认** | 页面只保存 `Http_*` `connectorName`、`operationId`、`connectionId` 和业务输入，由固定的同源运行时桥调用；鉴权与密钥留在平台侧。 |
 | 内部表单数据端点（同源、依赖登录 cookie + CSRF） | 降级可用 | 仅在 yida JS-API 桥不存在时使用；必须使用同源相对路径、`credentials: 'include'` 和运行态 CSRF token。 |
+| 公开访问网关 `window.pageConfig[...]`（同源、匿名态） | **匿名页仅此可用** | 仅当页面运行在 `/o/...` 公开链接（`FREELOGIN`、`loginUser.userId === 'FREEUSER'`）时使用；提交 URL 从 `window.pageConfig.RECEIPT_SAVE_FORM_DATA` 取值，为 origin 相对路径；CSRF 优先从 `window.g_config._csrf_token` 取，兼容 `pageConfig` 等运行态配置，**作为请求参数**（不是 header）传递；必须设置 `X-Requested-With: XMLHttpRequest` 头；`credentials: 'same-origin'`。仅当显示页和目标表单都已开启公开访问（`isOpen === 'y'`）且目标表单权限包含 `FREE_LOGIN` 数据规则时平台才会放行。 |
 
-选路原则：读本应用或本轮创建的宜搭表单，默认走 yida JS-API 桥；读第三方或复杂后端数据，走连接器代理；只有桥不存在且必须读表单时，才同源直连内部端点。Cookie / CSRF / appSecret 由平台上下文、连接器或后端服务提供。
+选路原则：读本应用或本轮创建的宜搭表单，默认走 yida JS-API 桥；读第三方或复杂后端数据，走平台连接器桥；只有桥不存在且必须读表单时，才同源直连内部端点。页面运行在公开链接 `/o/...` 时即使能读到 `window.__OPENYIDA_YIDA_API__`，其登录态 `saveFormData` 也会失败；匿名提交必须优先走公开访问网关，且显示页和目标表单都已开启公开访问、目标表单权限包含 `FREE_LOGIN`。Cookie、CSRF、AK/SK 和签名由平台上下文、连接器或后端服务提供，页面不能接收或保存密钥。
 
 ## 推荐：先写 dataBinding，再实现数据桥
 
@@ -32,7 +34,7 @@
       "amount": "numberField_amount",
       "status": "selectField_status"
     },
-    "pageSize": 20,
+    "pageSize": 50,
     "refresh": "manual"
   }
 }
@@ -41,29 +43,42 @@
 数据绑定规则：
 
 - `mode=form` 使用真实 `appType/formUuid` 和字段 ID，字段来源为 `get-schema`、表单创建结果或已确认的业务 Schema。
-- `mode=connector/url` 使用同源代理端点，第三方密钥留在连接器或后端服务侧。
+- `mode=connector` 必须使用真实 `connectorName/operationId/connectionId`，其中 `connectorName` 以 `Http_` 开头；通过 `window.__OPENYIDA_CONNECTOR_API__.invoke(binding, inputs)` 调用，不得把连接器伪装成页面可配置 URL。
+- `mode=url` 只允许自定义同源业务端点；第三方密钥留在后端服务侧。
 - `mode=seed` 只用于离线预览或明确标注的演示页；完整应用/真实交付页默认先由 `yida-app` 调用 `yida-data-management` 把 1-3 条 demo records 写入真实表单，再用 `mode=form` 读取。
 - 页面生成或手写的 `DataBridge` 状态要保留，用于呈现“接口没通 / 结构没识别 / 权限不足”等运行时状态。
 
-`dataBinding.mode=form` 默认调用 `window.__OPENYIDA_YIDA_API__.searchFormDatas(params)`。参数至少包含 `formUuid`、`currentPage`、`pageSize` 和 `searchFieldJson`；`appType` 可保留在 `dataBinding` 中用于校验和构造详情/提交链接。只有桥不存在时才同源直连 `/dingtalk/web/<appType>/v1/form/searchFormDatas.json`；直连 query 至少包含 `formUuid`、`appType`、`currentPage`、`pageSize`、`searchFieldJson` 和 `_csrf_token`，并设置 `credentials: 'include'` 与 `global_csrf_token` 头。`/query/form/searchFormDatas.json` 不是可用表单数据端点。
+`dataBinding.mode=form` 默认调用 `window.__OPENYIDA_YIDA_API__.searchFormDatas(params)`。同一个桥还会暴露 `saveFormData`、`updateFormData`、`deleteFormData`、`startProcessInstance`、`updateProcessInstance`、`getProcessInstances`、`getProcessInstanceIds`、`getProcessInstanceById`、`request`、`searchUserList` 等 `this.utils.yida` 方法，并运行时枚举已有的额外函数；流程列表、流程详情或发起审批时优先使用这些桥接方法。根级 `toast`、`dialog`、`router.push`、`openPage`、`isMobile` 等工具通过 `window.__OPENYIDA_UTILS__` 访问，`window.__OPENYIDA_UTILS__.yida` 等于同一个 yida API 桥。表单查询参数至少包含 `formUuid`、`currentPage`、`pageSize` 和 `searchFieldJson`，`pageSize` 一般显式写 `50`；`appType` 可保留在 `dataBinding` 中用于校验和构造详情/提交链接。只有桥不存在时才同源直连 `/dingtalk/web/<appType>/v1/form/searchFormDatas.json`；直连 query 至少包含 `formUuid`、`appType`、`currentPage`、`pageSize`、`searchFieldJson` 和 `_csrf_token`，并设置 `credentials: 'include'` 与 `global_csrf_token` 头。`/query/form/searchFormDatas.json` 不是可用表单数据端点。
+
+## 同源窗口与身份
+
+桥先取当前窗口，再沿同源父链查找；每次单独读取并捕获异常，命中即返回。跨域、不可访问或不透明源返回未就绪。同源要求协议、主机和端口相同；`parentWindow` 参数不保证指向原生父窗口。
+
+身份仅取当前页面 `window.loginUser` 或本页 utils 的 `getLoginUserId()`，缺失显示未就绪；父窗口及 CLI 身份不作兜底。
 
 ## 可复用读数据 Hook
 
 ```jsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
+function getCanvasBridge(key, method) {
+  var target = window;
+  while (target) {
+    try {
+      if (target !== window && (!window.location.origin || window.location.origin === 'null'
+        || target.location.origin !== window.location.origin)) return null;
+      var bridge = target[key];
+      if (bridge && typeof bridge[method] === 'function') return bridge;
+      var parent = target.parent;
+      if (!parent || parent === target) return null;
+      target = parent;
+    } catch (err) { return null; }
+  }
+  return null;
+}
+
 function getYidaApiBridge() {
-  var candidates = [];
-  try { candidates.push(window.__OPENYIDA_YIDA_API__); } catch (err) {}
-  try { candidates.push(window.parent && window.parent.__OPENYIDA_YIDA_API__); } catch (err) {}
-  try {
-    if (typeof parentWindow !== 'undefined') {
-      candidates.push(parentWindow.__OPENYIDA_YIDA_API__);
-    }
-  } catch (err) {}
-  return candidates.find(function (item) {
-    return item && typeof item.searchFormDatas === 'function';
-  }) || null;
+  return getCanvasBridge('__OPENYIDA_YIDA_API__', 'searchFormDatas');
 }
 
 function getCsrfToken() {
@@ -229,44 +244,38 @@ function normalizeFormRow(row) {
 - 如果 `getTotalCount(json) > 0` 且 `unwrapRows(json).length === 0`，展示“接口返回结构未识别”，并保留原始错误状态供定位。
 - 用 `openyida data query form <appType> <formUuid> --size 20` 或数据管理页核对总数，页面统计必须和真实表单一致。
 
-## 在组件里用
+## 在组件里调用平台连接器
 
 ```jsx
-function YidaComp(props) {
-  var appType = props.appType || '<APP_TYPE>';        // 来自 props 或页面约定
-  var formUuid = props.formUuid || '<FORM_UUID>';
-
-  var q = useYidaFetch(function () {
-    return {
-      url: '/your-connector-proxy/searchFormDatas',    // 连接器同源代理端点（示意，不是宜搭表单直连端点）
-      method: 'POST',
-      body: { appType: appType, formUuid: formUuid, pageSize: 20, pageNumber: 1 },
-    };
-  }, [appType, formUuid]);
-
-  if (q.loading) { return <div>加载中…</div>; }
-  if (q.error) { return <div style={{ color: 'red' }}>加载失败：{q.error}</div>; }
-
-  var rows = unwrapRows(q.data);
-  var totalCount = getTotalCount(q.data);
-  if (totalCount > 0 && rows.length === 0) {
-    return <div style={{ color: 'red' }}>接口返回结构未识别，请检查响应包装层</div>;
-  }
-
-  return (
-    <ul>
-      {rows.map(function (row) {
-        var item = normalizeFormRow(row);
-        return <li key={item.id}>{item.title}</li>;
-      })}
-    </ul>
-  );
+// 复用上方同源桥 helper。
+function getConnectorBridge() {
+  return getCanvasBridge('__OPENYIDA_CONNECTOR_API__', 'invoke');
 }
 
-export default YidaComp;
+var CONNECTOR_BINDING = {
+  mode: 'connector',
+  connectorName: '<HTTP_CONNECTOR_NAME>',
+  operationId: '<OPERATION_ID>',
+  connectionId: '<CONNECTION_ID>'
+};
+
+function loadConnectorData(inputs) {
+  var bridge = getConnectorBridge();
+  if (!bridge) {
+    return Promise.reject(new Error('连接器运行时桥不可用'));
+  }
+  return bridge.invoke(CONNECTOR_BINDING, inputs);
+}
+
+loadConnectorData({
+  path: {},
+  query: {},
+  header: {},
+  body: { pageSize: 50 }
+});
 ```
 
-`url`、`body` 字段按实际连接器 / 端点契约填写；示例结构用于说明数据桥写法。直连宜搭表单数据时不要复用这个连接器代理示例，必须使用下文 `searchFormDatas.json` 请求契约。
+`connectorName` 来自创建或详情回读结果，值必须以 `Http_` 开头。数字 `connectorId` 只用于 CLI 管理命令，不能写入页面。`operationId` 来自动作清单，`connectionId` 来自用户完成账号鉴权后的连接列表。`inputs.body` 直接传对象，不使用 `JSON.stringify`；Header 在页面调用前校验后传入 `inputs.header`。页面不得传 AK/SK、拼接连接器代理 URL 或直接访问钉钉开放平台域名。
 
 ## 轮询只刷新数据，不刷新整页
 
@@ -340,7 +349,9 @@ function YidaComp() {
 }
 ```
 
-排序也要按用户语义明确：页面是“最新建议”时，按 `gmtCreate` / 提交日期倒序；页面是“排行榜”时，先按点赞数倒序，再用创建时间做 tie-break。验收时同时看总数和排序规则，确认新增记录是否进入正确位置。
+轮询骨架固定使用 `hasLoadedRef`；复制或调整代码时，声明、写入和读取必须保持同名，不能只把部分引用改成 `loadedRef`。
+
+排序也要按用户语义明确。`dynamicOrder` 的 key 必须是 `get-schema` 返回的真实业务字段 ID，例如页面是“最新建议”时按提交日期字段 `dateField_xxx` 倒序，页面是“排行榜”时先按点赞数字段倒序，再用业务日期字段做 tie-break。**不要把返回记录里的元数据名 `gmtCreate` 当成可排序字段传给 `searchFormDatas`**，否则平台会返回“无法找到字段:gmtCreate”。如果表单没有可排序的业务日期字段，只能在当前已取回页内按 `row.createTime` 做展示排序，并明确它不保证跨页稳定；需要稳定分页时应先补一个业务日期字段。验收时同时看总数、排序规则和真实运行页错误态，确认新增记录是否进入正确位置。
 
 ## 直连内部端点 `searchFormDatas.json` 请求契约
 
@@ -358,7 +369,7 @@ function fetchFormData(appType, formUuid, signal) {
     formUuid: formUuid,
     appType: appType,
     currentPage: '1',
-    pageSize: '100',
+    pageSize: '50',
     searchFieldJson: '{}',
   });
   var csrfToken = getCsrfToken();
@@ -373,10 +384,146 @@ function fetchFormData(appType, formUuid, signal) {
 function fieldOf(row, fieldId) { return (row.formData || row)[fieldId]; }
 ```
 
+## 公开访问（匿名态）提交
+
+页面运行在公开链接 `/o/...` 时，`this.utils.yida.saveFormData` 不可用于匿名提交；页面上即使存在 `window.__OPENYIDA_YIDA_API__` 桥对象，其登录态 `saveFormData` 也会返回 `LOGIN FAILED`。平台在 `window.pageConfig` 里注入的公开访问 API 网关映射，是匿名页写入表单数据的**唯一可行通道**。
+
+前置条件（缺一不可，缺任一都不承诺匿名提交）：
+
+- **显示页已开启公开访问**：`openyida get-page-config <appType> <显示页formUuid>` 返回 `isOpen === 'y'`。
+- **目标表单（receipt）也已开启公开访问**：`openyida get-page-config <appType> <目标formUuid>` 返回 `isOpen === 'y'`。显示页和目标表单的 `isOpen` 缺一不可。
+- **目标表单权限包含 FREE_LOGIN 规则**：`openyida get-permission <appType> <目标formUuid>` 的 DEFAULT 权限组 `dataPermit.rule` 包含 `{"type":"FREE_LOGIN","value":"y"}`。缺少此条会得到 `TIANSHU_160001 没有权限`。
+- 页面确实运行在匿名态：`String(window.pageConfig && window.pageConfig.FREELOGIN) === 'true'` 或 `(window.loginUser || {}).userId === 'FREEUSER'`。
+- `window.pageConfig.RECEIPT_SAVE_FORM_DATA` 非空（值形如 `/o/<hash>`）。
+
+网关请求契约：
+
+- **URL**：`window.location.origin + window.pageConfig.RECEIPT_SAVE_FORM_DATA`，与租户命名空间无关，不要硬编码 `/dingtalk/web` 或 `/alibaba/web`。
+- **方法与编码**：`POST` + `Content-Type: application/x-www-form-urlencoded`。
+- **必须的请求头**：`X-Requested-With: XMLHttpRequest`（缺少此头会导致 302 重定向而非 JSON 响应）。
+- **CSRF**：优先从 `window.g_config._csrf_token` 取，兼容 `pageConfig`、`YIDA_CONFIG`、`__YIDA__` 等运行态配置，**作为请求参数** `_csrf_token` 传递；`credentials: 'same-origin'`。
+- **body 参数**：`formUuid`、`appType`、`_csrf_token`、`value`（`JSON.stringify(字段数组)`）。`_schemaVersion` 不必填。
+- **`value` 字段数组格式**：每项固定为 `{componentName, fieldId, fieldData: {value}}`：
+  ```json
+  [
+    {
+      "componentName": "TextField",
+      "fieldId": "textField_xxx",
+      "fieldData": { "value": "文本值" }
+    }
+  ]
+  ```
+  `componentName` 必须取目标表单 `openyida get-schema <appType> <formUuid> --field-map-json` 返回的真实值，不得根据 `fieldId` 前缀猜测；标准组件名称见[字段定义 JSON 指南](../../yida-create-form-page/references/field-definition-guide.md#支持的字段类型)。`fieldData.value` 沿用表单保存值结构，文本、数字、单选、多选和日期等格式统一引用[数据格式指南](../../yida-data-management/references/data-format-guide.md#常见字段值格式)，不在本技能复制第二份映射表。该引用只说明值结构，不代表所有字段都支持公开匿名提交；仍需遵守下方匿名能力边界，并按返回实例 ID 回读目标字段。
+  把字段 ID 放进 `fieldData` 会得到 `success: true` 和 `formInstId`，但实际创建的是空记录，不能据此判定提交成功。
+- **响应**：`success: true` 时读 `content.formInstId`。
+
+自适应提交 helper（页面直接复制；登录态走既有桥，匿名态走公开网关；两态失败都返回可读原因）：
+
+```jsx
+function isFreeLoginPage() {
+  try {
+    var cfg = window.pageConfig || {};
+    if (String(cfg.FREELOGIN) === 'true') { return true; }
+  } catch (err) {}
+  try { return (window.loginUser || {}).userId === 'FREEUSER'; } catch (err) {}
+  return false;
+}
+
+function publicEndpoint(key) {
+  var cfg = (typeof window !== 'undefined' && window.pageConfig) || {};
+  var p = cfg[key];
+  if (!p) { return ''; }
+  return p.charAt(0) === '/' ? window.location.origin + p : p;
+}
+
+function getCsrfToken() {
+  var yida = window.__YIDA__ || {};
+  var sources = [
+    window.g_config,
+    window.pageConfig,
+    window.YIDA_CONFIG,
+    yida,
+    yida.config,
+    yida.pageConfig,
+    yida.runtimeConfig,
+  ];
+  var keys = ['_csrf_token', 'csrfToken', 'csrf_token', 'global_csrf_token'];
+  for (var i = 0; i < sources.length; i += 1) {
+    var source = sources[i] || {};
+    for (var j = 0; j < keys.length; j += 1) {
+      if (source[keys[j]]) { return source[keys[j]]; }
+    }
+  }
+  return '';
+}
+
+function submitViaPublicGateway(appType, formUuid, fieldArray) {
+  var url = publicEndpoint('RECEIPT_SAVE_FORM_DATA');
+  if (!url) {
+    return Promise.reject(new Error('当前页面未开启公开访问，无法匿名提交'));
+  }
+  var csrf = getCsrfToken();
+  if (!csrf) {
+    return Promise.reject(new Error('当前公开页面缺少提交凭证，请刷新后重试'));
+  }
+  var body = new URLSearchParams();
+  body.set('formUuid', formUuid);
+  body.set('appType', appType);
+  body.set('value', JSON.stringify(fieldArray));
+  body.set('_csrf_token', csrf);
+  return fetch(url, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body: body.toString(),
+  }).then(function (r) { return r.json(); }).then(function (json) {
+    if (!json || json.success === false) {
+      var msg = (json && (json.errorMsg || json.errorCode)) || '匿名提交失败';
+      throw new Error(msg);
+    }
+    return json.content || json;
+  });
+}
+
+function submitFormData(appType, formUuid, fields, fieldComponents) {
+  if (isFreeLoginPage()) {
+    var fieldArray = Object.keys(fields).map(function (fieldId) {
+      var componentName = fieldComponents && fieldComponents[fieldId];
+      if (!componentName) {
+        throw new Error('字段 ' + fieldId + ' 缺少真实 componentName，请先回读表单 Schema');
+      }
+      return {
+        componentName: componentName,
+        fieldId: fieldId,
+        fieldData: { value: fields[fieldId] },
+      };
+    });
+    return submitViaPublicGateway(appType, formUuid, fieldArray);
+  }
+  return window.__OPENYIDA_YIDA_API__.saveFormData({
+    appType: appType, formUuid: formUuid,
+    formDataJson: JSON.stringify(fields),
+  });
+}
+```
+
+匿名态能力边界（不要在这些场景里承诺免登能力）：
+
+- **不能发起流程**：`window.pageConfig.START_INSTANCE` 为空字符串，匿名态无法调用 `startProcessInstance`；流程页必须走登录态。
+- **不能读取跨组织附件**：匿名会话看不到组织内附件，附件字段默认不支持组织外访问。
+- **不支持成员/部门/关联表单/关联查询/行业组件/自定义组件**：这些字段在公开访问表单中被平台限制。
+- **唯一性校验不可用**：唯一约束不会在匿名提交时生效，业务侧要另外做去重。
+- **提交人恒为匿名**：审计需要真实身份时不要走匿名通道，改为登录页 + 表单公开访问关闭。
+- **匿名态开启后**：不再支持从该表单发送卡片消息给个人/群聊。
+
 ## 数据接入验收清单
 
 - 已确认 appType、formUuid 和字段 ID 来自真实表单 Schema。
 - 页面首屏接口返回后，统计总数与数据管理页 / `openyida data query form` 的总数一致。
+- 匿名提交不能只检查 `success` / `formInstId` 或总数增长；必须按返回的 `formInstId` 回读记录，确认代表性字段值真实落库。
 - 真实接口异常时显示错误原因和重试入口。
 - 提交、点赞等写操作成功后调用 silent reload，只更新统计和列表。
 - 轮询 `setInterval` 有 cleanup，页面隐藏时暂停请求。
@@ -387,3 +534,5 @@ function fieldOf(row, fieldId) { return (row.formData || row)[fieldId]; }
 - **幂等**：提交按钮加 loading 锁与去重键，拦截重复写入。
 - **权限**：写操作是否允许由平台权限决定；失败按后端返回的 `errorMsg` 提示。
 - **密钥位置**：任何 `appSecret` / 签名逻辑都留在服务端 / 连接器，页面源码里只出现同源相对路径与业务参数。
+- **匿名态分流**：页面运行在 `/o/...` 公开链接时，即使存在 `window.__OPENYIDA_YIDA_API__` 桥对象，其 `saveFormData` 仍会返回 `LOGIN FAILED`；必须先识别 `FREELOGIN` / `FREEUSER`，再按上文"公开访问（匿名态）提交"章节走 `window.pageConfig.RECEIPT_SAVE_FORM_DATA`，且 CSRF 走请求参数、`credentials: 'same-origin'`。
+- **匿名态限制**：匿名提交不能发起流程（`START_INSTANCE` 为空），唯一性校验不生效，成员/部门/关联表单/关联查询/行业组件/自定义组件不支持，提交人恒为匿名。审计需要真实身份、或需要唯一约束时不走匿名通道。

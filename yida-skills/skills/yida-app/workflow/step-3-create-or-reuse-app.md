@@ -8,27 +8,78 @@
 - `prd/<项目名>/prd.md`；
 - `prd/<项目名>/design.md`。
 
+## 调度边界
+
+Fast / Plan 已选主题是全应用决定，本步骤必须保存同一份应用主题，页面发布不会代做。主题与页面开发可以并行，但交付前必须汇合：不因前台已呈现红色等品牌色，就把应用导航仍是默认蓝色当作完成。旧主题能力或明确禁止写入的边界仍遵从既有规则，未完成全应用同步时如实说明覆盖范围。
+
+本步骤分为“取得 appType”和“主题设置同步”两条工作。真实 `appType` 就绪后立即启动 Step 4，主题任务按 [主题与业务资源的依赖](parallel-work.md#主题与业务资源的依赖) 与表单创建、页面开发并行。主题生成本身只依赖已确认主题，不要求先拿到 appType；下列序号说明操作职责，不代表必须依次等待。
+
 ## 操作
 
 1. 已有 `appType`、应用 URL 或已绑定 app → 直接复用该 app。
 2. 缺少 app 且 Step 1 判定 `allowCreate=true` → 执行 `use_skill("yida-create-app", "按 PRD 创建应用并获取 appType")`，再按 PRD 创建应用。
+   千问办公返回 `status=permission_required` 时，按 [权限处理](../../yida-create-app/SKILL.md#千问办公权限处理) 展示 CLI 指引并暂停后续步骤，等待用户处理并要求继续。
 3. 创建或复用后提取真实 `appType`，写入 `.cache/<项目名>-schema.json` 或当前任务资源上下文。
-4. 若 PRD 和 `design.md` 都写明 `shouldPassCreateAppTheme=true`，且 `themePresetKey` 命中平台 key，创建应用时传主题；否则不传自定义主题色。
-5. 已有 app 不自动改名。外部工具预创建 app 时，OpenYida 侧只复用 `appType`。
+   - Step 2 已确认的 `requirement-brief.json`、PRD 与 design 保持不变；不得仅因拿到真实 `appType` 回写需求文件或重新生成 PRD 和视觉设计。
+4. 用户确认计划或主题且 `constraints.prohibitedActions` 不含 `theme-file` 时立即准备 CSS，不等表单或页面完成。创建完整应用时，Plan 复用 `materialize` 返回的 `outputs.theme`。其他场景用以下命令生成或更新主题：
+
+   ```bash
+   openyida sample yida-design app-theme --output .cache/openyida/<项目名>/app-theme.css --design-file prd/<项目名>/design.md
+   ```
+
+   CLI 首次按 `sourceThemeId` 使用命名主题的配对 CSS；自由创意或历史无来源设计才使用公共骨架。后续只更新项目 token 差异并保留原规则，详见 [模板来源约束](../../yida-design/references/application-style-library.md#模板来源与重复生成)。整体暗色方案还需按 [浮层适配](../../yida-design/references/theme/theme-token-presets.md#暗色主题浮层适配) 在该文件末尾补充必要的 class 覆盖；仅深色导航不触发此操作。
+   若禁止 `theme-file`，不执行 sample，不复制、生成、修改或上传主题文件；已有应用沿用当前主题，新应用保留平台默认主题。
+5. 主题文件就绪、未禁止 `theme-file` 且已有真实 `appType` 后，先按 [旧主题注入与停用规则](../../yida-design/references/application-style-library.md#旧主题应用的样式作用域与确认) 核对服务端主题能力。新版主题可立即更新；旧主题或能力未知时保留平台主题、使用页面局部样式，仅在取得目标应用与 CSS 范围的明确注入确认后才传 `--confirm-legacy-app-style`，计划或主题确认不能代替此确认。符合条件后通过独立任务更新应用基础设置，与表单和页面开发并行：
+
+   ```bash
+   openyida update-app <appType> --theme-file <app-theme.css> --colour custom --nav-theme <light|dark> --logo-source appIcon --layout <l_shape|top|side>
+   ```
+
+   主题文件的职责与生效边界见 [应用主题 CSS 的职责](../../yida-design/workflow/output-design.md#应用主题-css-的职责)，使用当前流程记录的实际 CSS 路径。
+
+   `create-app` 只取得应用，不配置主题。CSS 生成后由 `update-app --theme-file` 上传并保存 `colour=custom`、CSS 主色、资源 URL 与导航；不另传 `--theme-color`。空壳请求、暂不换肤或旧主题未获注入确认时，保留平台主题并说明范围。
+   按[主题上传与绑定](../../../references/execution-rules.md#主题上传与绑定)保存 `themeUpload` 与 `themeVerification` 回执。失败保留 appType 和已有资源，先只读核实；CSS 修改后重新上传，旧主题注入仍须用户确认。
+6. 已有 app 不自动改名。外部工具预创建 app 时，OpenYida 侧只复用 `appType`，但用户明确要求应用级换肤时可以执行上一步主题更新。
+
+## 应用导航配置
+
+按 PRD 的 [导航类型](../../yida-prd/workflow/output-prd.md#agent-导航实施映射) 设置布局。已有应用切换平台导航时执行 `openyida update-app <appType> --layout <l_shape|top|side> --show-app-nav`；自定义导航执行 `openyida update-app <appType> --hide-app-nav`，并将逐页隐藏清单交给 Step 4 与 Step 6，在各页面创建后立即配置，Step 8 只做发布后核对。新建应用也在主题文件生成后的同一次 `update-app --theme-file` 中传入布局和 `--hide-app-nav` / `--show-app-nav`，不要提前单独更新导航或在创建时传入布局。用户已确认的应用导航隐藏随这次设置更新一起生效，不等待自定义页面创建、代码开发或发布。
+
+当前步骤只读取应用工作区的 `execution.appConfig.navigationType`。独立前台页面的 `pageSpecHandoff.navigation.type=custom` 不代表应用级 custom；不得据此前台菜单传入 `--hide-app-nav`。前台自定义、后台平台导航时，应用保持 `--show-app-nav`，页面在 Step 6 单独配置。
+
+### 平台导航参数
+
+`updateApp.json` 接收的布局字段名是 **`layoutDirection`**。CLI 使用 `--layout` 传入。下表为新版主题的保存值；`appThemeEnable=n` 或 `appThemeMode=legacy` 时，`top/side/l_shape` 分别保存为 `hoz/ver/ver`，`white/gray` 导航颜色降级为旧版 `light`，不会自动升级主题。按下表逐项对应：
+
+| PRD 导航方案 | CLI 参数 | 请求中的 `layoutDirection` | 请求中的 `hideAppNav` |
+| --- | --- | --- | --- |
+| 平台顶部导航 | `--layout top --show-app-nav` | `top` | `n` |
+| 平台侧边导航 | `--layout side --show-app-nav` | `side` | `n` |
+| 平台 L 型导航 | `--layout l_shape --show-app-nav` | `l_shape` | `n` |
+
+例如，仅将已有应用切换为平台顶部导航：`openyida update-app <appType> --layout top --show-app-nav`。联合更新主题时，将这两个参数合并到同一次 `update-app --theme-file` 调用。
+
+Agent 必须显式传入场景选择对应的布局，不依赖 CLI 默认值。`navigationType=platform-top` 是计划内部标识，不能作为 `--layout` 的值；也不能用旧 Shell 的 `navType`、`hoz/ver/slide` 或 `top_fold/top_side/side_only` 代替上述参数。`navTheme` 选择导航明暗模式，导航差异 token 与平台默认绑定 决定实际配色、边界、形状、文字和间距；圆角、三种状态边框和选中阴影先写入设计，再按 [命令与参数](../../yida-design/references/application-style-library.md#命令与参数) 重新生成 CSS 并上传；布局仍由 `--layout` 设置。自定义导航的 `variant=top/side/mixed/dock` 描述页面内菜单，不用于设置平台布局；自定义导航仍使用 `--hide-app-nav`。
+
+`navType` 是兼容字段：CLI 查询应用后将已有值原样带回；缺失时不补造，也不根据新布局改写。没有 `--nav-type` 参数。旧主题未传 `--layout` 时保留已有 `slide/ver/hoz`，现代值按旧协议转换；新版或能力未知应用继续使用原有归一化规则：现代 `side/top/l_shape` 优先；旧 `hoz + top_side` 为 L 型，其他 `hoz` 为顶部，`ver` 为侧边；布局缺失时用 `navType=top_fold/top_side` 分别恢复顶部/L 型，其余回退侧边。
+
+Shell 渲染阶段才把顶部、侧边、L 型转换为 `top_fold`、`side_only`、`top_side`。详情/提交页的 `top_fold` 强制顶部、`none` 保持无导航属于页面运行态规则，不能反向写入应用配置。
+
+保存后读取 CLI 的 `navigationVerification`：`verified=true` 且其中本次请求的 `navTheme`、`layoutDirection`、`hideAppNav`、`logoSource` 与目标一致，表示导航设置回读通过。旧主题按实际保存的 `ver/hoz/slide` 比较，新版主题沿用布局归一化；缺少回读证据时保持未验证。CLI 最多重试三次只读查询，失败返回 `APP_NAVIGATION_NOT_PERSISTED`，按返回的期望值、实际值和查询错误核实应用设置。`updatedFields` 仍是提交值，`themeVerification` 仍只验证主题资源。发布后刷新应用，检查实际导航、内容布局与状态；设置回读通过与页面视觉验收分别记录。
 
 ## 产出
 
 - 真实目标 `appType`；
 - app 来源：显式资源、绑定上下文、workspace cache、会话历史或本轮新建；
-- 主题 key 是否已传入的结论。
+- 自定义主题文件、导航主题、Logo 来源、导航布局和 CSS 主色是否已联合保存的结论。
 
 ## Checklist
 
 - [ ] 已确认不会重复创建同类 app；
 - [ ] 已拿到真实 `appType`；
 - [ ] 已有 app 未被自动改名；
-- [ ] 主题 key 只在 PRD 和 `design.md` 同时允许时传入。
+- [ ] 符合应用层注入条件时主题分支已完成回读；禁止 `theme-file` 或旧主题未获注入确认时已保留平台主题并记录覆盖范围，未把“跳过”写成“已换肤”。
 
 ## 下一步
 
-→ [Step 4：创建或更新表单/流程](step-4-forms-processes.md)
+真实 `appType` 就绪即进入 → [Step 4：创建或更新表单/流程](step-4-forms-processes.md)，不等待主题分支完成；主题分支在输入就绪时立即更新，并在视觉验收及 Step 9 前汇合。

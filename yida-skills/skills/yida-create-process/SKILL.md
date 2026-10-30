@@ -32,6 +32,15 @@ description: 流程表单一体化创建（创建表单 → 转流程 → 配置
 - 流程定义中字段 ≥ 3 且审批节点 ≥ 2 时，必须自动配置字段权限
 - 字段定义和流程定义文件必须用 agent 的结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/`；不要在仓库根目录、系统临时目录或 `.cache/` 顶层生成 `fields.json`、`process-definition.json` 等临时文件
 - **本技能不读写 memory**：formUuid 和 processCode 输出到 stdout，通过 `.cache/<项目名>-schema.json` 持久化，不依赖跨会话的 memory 状态
+- 创建或转换任何远程资源前，CLI 必须先完成字段和流程定义的纯本地编译；本地编译失败时远程写入数必须为 0
+- 复用普通表单时由 `configure-process` 统一执行表单模式只读 preflight、必要转换、发布与平台 view 回读，不要在外层先手动转换表单
+
+## 配置失败后的原表恢复
+
+- `create-process` 返回 `success:false` 且包含 `formUuid` 时，该表单已经存在，失败的是后续配置；新建模式与复用模式均适用。保存返回的 `appType/formUuid`，禁止去掉 `--formUuid`、再次 `create-form` 或另建同名表作为恢复手段。
+- 先按错误中的 `stage`、`nextStep` 和 `recovery` 检查原表状态及权限。修正明确原因后只能复用原 `formUuid`，使用返回的完整 `retryCommand`；不得自动补 `--replace` 绕过已绑定流程的保护。
+- `noWriteRetry:true`、`NON_IDEMPOTENT_RESULT_UNKNOWN` 或 `PUBLISHED_UNVERIFIED` 表示远程结果未确认：只读核实原表/流程，不能执行写重试，也不能新建替代资源。
+- 无法安全恢复时保留原表，并向用户报告原表链接、失败阶段和需处理的问题；不要宣称流程已完成。
 
 ## 适用场景
 
@@ -54,13 +63,13 @@ description: 流程表单一体化创建（创建表单 → 转流程 → 配置
 ## 用法 1：全新创建
 
 ```bash
-openyida create-process <appType> <formTitle> <fieldsJsonFile> <processDefinitionFile>
+openyida create-process <appType> <formTitle> <fieldsJsonFile> <processDefinitionFile> [--replace]
 ```
 
 ## 用法 2：复用已有表单（推荐）
 
 ```bash
-openyida create-process <appType> --formUuid <formUuid> <processDefinitionFile>
+openyida create-process <appType> --formUuid <formUuid> <processDefinitionFile> [--replace]
 ```
 
 > **推荐用法 2**：先用 `openyida create-form create` 创建表单获取字段 ID，再用 `--formUuid` 转流程表单。
@@ -72,16 +81,23 @@ openyida create-process <appType> --formUuid <formUuid> <processDefinitionFile>
 | `fieldsJsonFile` | 用法 1 必填 | 字段定义文件（格式同 `yida-create-form-page`） |
 | `--formUuid` | 用法 2 必填 | 已有表单 UUID |
 | `processDefinitionFile` | 是 | 流程定义文件（格式同 `yida-process-rule`） |
+| `--replace` | 条件必填 | 仅当目标已存在 PUBLISHED 流程或 SAVED 草稿，并已获得用户对整图替换的明确确认时传入 |
+
+参数不确定时先看 `openyida create-process --help`。缺参、重复参数或未知选项会在读文件和登录前返回 `CREATE_PROCESS_INVALID_ARGUMENTS`；按 `details.argument` 定位参数、`details.reason` 判断原因，修正后重试。复用参数写作 `--formUuid`。
 
 ## 输出
 
 ```json
-{"success":true,"formUuid":"FORM-YYY","formTitle":"订单处理表","appType":"APP_XXX","fieldCount":6,"processCode":"TPROC--XXX","url":"{base_url}/APP_XXX/workbench/FORM-YYY"}
+{"success":true,"formUuid":"FORM-YYY","formMode":"create","formTitle":"订单处理表","appType":"APP_XXX","fieldCount":6,"processCode":"TPROC--XXX","processId":"83145794990","processVersion":2,"verificationLevel":"PLATFORM_VIEW_VERIFIED","platformViewVerified":true,"url":"{base_url}/APP_XXX/workbench/FORM-YYY"}
 ```
+
+`formMode` 区分新建（`create`）和复用（`reuse`）。复用模式不读取表单名称和字段数，`formTitle`、`fieldCount` 返回 `null`，表示未查询，不代表字段为空或转换失败；新建模式返回传入名称和创建结果中的字段数。配置失败时返回的表单信息也遵循此约定。流程是否成功以 `success` 和 `verificationLevel` 为准，不能根据字段数判断。
 
 ## 流程定义最小 DSL 合约
 
 `processDefinitionFile` 只描述发起和结束之间的业务节点。OpenYida 编译器会自动注入发起节点和结束节点，`nodes` 数组里不要手写任何 start/end 节点。
+
+节点参数按需加载 `use_skill("yida-flow-node-config", "流程；所需节点类别或配置项")`。发起页字段权限用顶层 `startFormConfig`；谁能发起用表单 START 权限组。保存发布和整图替换仍遵循 `yida-process-rule`，不必为简单人员配置加载全部高级节点。
 
 合法基础节点类型只使用这些值：
 
@@ -92,6 +108,7 @@ openyida create-process <appType> --formUuid <formUuid> <processDefinitionFile>
 | 条件分支 | `route` |
 | 并行分支 | `parallel` |
 | 抄送 | `carbon` |
+| 多人审批 | `multiApproval`，并设置 `mode: all\|or\|oneByOne` 与必填 `approver` |
 
 常见误写必须修正：
 
@@ -184,6 +201,7 @@ openyida create-process "APP_XXX" --formUuid "FORM-YYY" .cache/openyida/order/pr
 1. **🔐 字段权限**：当字段 ≥ 3 且审批节点 ≥ 2 时，每个节点只允许编辑相关字段
 2. **🔄 跳转规则**：存在回退/循环语义时，自动配置 `routeRules`
 3. **🔀 并行/办理/高级组件**：需要并行会审、办理节点或连接器/数据/消息等官方组件节点时，流程定义格式直接参考 `yida-process-rule`
+4. **加签/转交操作权限**：用户要求开启时，加载 `use_skill("yida-flow-node-config", "操作按钮")`，生成 `nodes[].actions.normalActions/appendActions`；未要求时保持默认关闭。`create-process` 与 `configure-process` 共用编译器，无需新增命令或手写运行字段。禁止仅修改 `hidden` 后提交原始运行 JSON。
 
 需要流程规则细节时，调用 `use_skill("yida-process-rule", "配置已有流程节点、分支和字段权限")`。
 
@@ -194,12 +212,17 @@ openyida create-process "APP_XXX" --formUuid "FORM-YYY" .cache/openyida/order/pr
 | 命令返回失败 | 检查 appType 和 formUuid 是否正确，确认登录态有效 |
 | processCode 获取失败 | 确认表单已成功转为流程表单类型，重新执行 |
 | 流程定义 JSON 格式错误 | 加载 `yida-process-rule` 子技能，按其中的 JSON 格式说明修正 |
+| `PROCESS_COMPILE_ACTION_CONFIG_INVALID` | 本地编译已拦截无效操作权限，修正报错节点的加签位置、结果或按钮配置后再执行；不要通过删除校验或手动补运行 JSON 绕过 |
 | 返回 JSON 中无 processCode | 不要猜测 processCode，重新执行命令获取 |
 | 流程发布失败 | 检查流程定义中的 fieldId 是否为真实 ID（先 get-schema 获取） |
 | 登录态失效 | 执行 `openyida login` 重新登录后再试 |
 | appType 格式错误 | 确认格式为 `APP_` 开头的字符串 |
 | formUuid 格式错误 | 确认格式为 `FORM-` 开头的字符串 |
-| 网络超时 | 检查网络连接，等待后重试 |
+| `CONFIGURE_PROCESS_REPLACE_REQUIRED` | 展示完整替换摘要并再次取得用户明确确认；确认后才可补 `--replace` 执行一次 |
+| `CONFIGURE_PROCESS_OWNERSHIP_UNVERIFIED` | 停止；核对 appType、formUuid 和 binding，不得猜测 processCode |
+| `NON_IDEMPOTENT_RESULT_UNKNOWN` | 写入结果未知；不得自动重试，先只读查询目标版本和平台状态 |
+| `PUBLISHED_UNVERIFIED` | 发布可能已生效但平台 view 未完整验证；不得宣称成功或 processJson verified，不得直接重试写入 |
+| 网络超时 | 若发生在只读 preflight 可检查网络后重试；若发生在写入边界按结果未知处理，先只读核对状态 |
 
 ## Agent 错误处理策略
 
@@ -211,6 +234,8 @@ openyida create-process "APP_XXX" --formUuid "FORM-YYY" .cache/openyida/order/pr
 | 参数格式错误 | 停止执行，提示正确的参数格式，引导用户修正 |
 | 登录态失效 | 提示用户执行 `openyida login` 重新登录 |
 | processCode 缺失 | 停止执行，不得编造，提示用户重新执行命令 |
+| 已有流程或草稿但缺少 `--replace` | 展示替换摘要并请求明确确认；未确认不执行写入 |
+| 写入结果未知或发布未验证 | 停止自动重试，只读核对平台状态并报告机器码 |
 | fieldId 不存在 | 停止执行，提示用户先执行 `yida-get-schema` 获取真实 ID |
 | 用户拒绝确认 | 停止执行，询问用户是否需要调整配置 |
 | 未知错误 | 停止执行，完整展示错误信息，建议用户反馈问题 |

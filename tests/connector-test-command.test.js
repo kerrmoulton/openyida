@@ -1,93 +1,125 @@
 'use strict';
 
 const {
-  buildOperationUrl,
   buildTestParams,
-  normalizeTestResponse,
-  normalizeInvokeResponse,
-  redactResponseHeaders,
+  parseArgs,
+  resolveOwnedConnection,
 } = require('../lib/connector/connector-test');
 
-describe('connector test command', () => {
-  test('builds the same absolute operation URL used by the designer', () => {
-    expect(buildOperationUrl(
-      { scheme: 'https', host: 'api.example.com', baseUrl: '/service/' },
-      { url: '/v1/users' }
-    )).toBe('https://api.example.com/service/v1/users');
-  });
+const operation = {
+  operationId: 'echoOwned',
+  method: 'post',
+  inputs: [
+    { name: 'Path', paramLocation: 'path', childList: [{ name: 'id', paramLocation: 'path' }] },
+    { name: 'Query', paramLocation: 'query', childList: [{ name: 'trace', paramLocation: 'query' }] },
+    { name: 'Headers', paramLocation: 'header', childList: [{ name: 'X-E2E', paramLocation: 'header' }] },
+    { name: 'Body', paramLocation: 'body', childList: [{ name: 'message', paramLocation: 'body' }] },
+  ],
+  parameters: {
+    path: [{ name: 'id', value: '' }],
+    query: [{ name: 'trace', value: '' }],
+    header: [{ name: 'X-E2E', value: '' }],
+    body: { default: '{"message":"default"}' },
+  },
+};
 
-  test('places structured parameters in their explicit request locations', () => {
-    expect(buildTestParams({ parameters: {} }, JSON.stringify({
-      query: { pageNo: 1 },
-      path: { id: 'A/B' },
-      header: { 'X-Tenant': 'demo' },
-      body: { name: 'Ada' },
-    }))).toEqual({
-      query: { pageNo: 1 },
-      path: { id: 'A/B' },
-      header: { 'X-Tenant': 'demo' },
-      body: { name: 'Ada' },
+describe('connector test command parameter contract', () => {
+  test('parses explicit per-location JSON flags', () => {
+    expect(parseArgs([
+      '--connector-id', '101',
+      '--action', 'echoOwned',
+      '--path-json', '{"id":"42"}',
+      '--query-json', '{"trace":"q"}',
+      '--header-json', '{"X-E2E":"h"}',
+      '--body-json', '{"message":"b"}',
+      '--account-id', '7',
+      '--system-token-app', 'APP_TARGET',
+    ])).toMatchObject({
+      connectorId: '101',
+      actionId: 'echoOwned',
+      pathJson: '{"id":"42"}',
+      queryJson: '{"trace":"q"}',
+      headerJson: '{"X-E2E":"h"}',
+      bodyJson: '{"message":"b"}',
+      accountId: '7',
+      systemTokenApp: 'APP_TARGET',
     });
-    expect(buildOperationUrl(
-      { scheme: 'https', host: 'api.example.com', baseUrl: '/' },
-      { url: 'users/{id}' },
-      { id: 'A/B' }
-    )).toBe('https://api.example.com/users/A%2FB');
   });
 
-  test('normalizes the current testOperation response envelope', () => {
-    expect(normalizeTestResponse({
-      success: true,
-      errorCode: '',
-      content: {
-        statusLine: 'HTTP/1.1 200 ',
-        responseHeaders: [{ _1: 'Content-Type', _2: 'application/json' }],
-        content: '{"code":"200"}',
-      },
+  test('parses the ignore-defaults flag', () => {
+    expect(parseArgs(['--ignore-defaults'])).toMatchObject({ ignoreDefaults: true });
+    expect(parseArgs(['--json']).ignoreDefaults).toBeUndefined();
+  });
+
+  test('ignore-defaults starts from empty sets and keeps explicit values only', () => {
+    expect(buildTestParams(operation, {
+      ignoreDefaults: true,
+      bodyJson: '{"appType":"APP_X"}',
     })).toEqual({
-      ok: true,
-      statusLine: 'HTTP/1.1 200 ',
-      statusCode: undefined,
-      headers: [{ _1: 'Content-Type', _2: 'application/json' }],
-      body: '{"code":"200"}',
-      executeTime: undefined,
+      path: {},
+      query: {},
+      header: {},
+      body: { appType: 'APP_X' },
     });
   });
 
-  test('does not report a platform error as a successful action test', () => {
-    expect(normalizeTestResponse({
-      success: true,
-      errorCode: 404,
-      errorMsg: 'No handler found',
-      content: {},
-    })).toEqual({ ok: false, error: 'No handler found', details: {} });
+  test('keeps flat params compatible but dispatches only by action schema', () => {
+    expect(buildTestParams(operation, {
+      params: '{"id":"42","trace":"q","X-E2E":"h","message":"b"}',
+    })).toEqual({
+      path: { id: '42' },
+      query: { trace: 'q' },
+      header: { 'X-E2E': 'h' },
+      body: { message: 'b' },
+    });
   });
 
-  test('does not report an upstream 401 as success', () => {
-    expect(normalizeTestResponse({
-      success: true,
-      content: { statusLine: 'HTTP/1.1 401 Unauthorized', content: '{}' },
-    })).toMatchObject({ ok: false, error: 'HTTP 401' });
+  test('structured values override defaults without crossing locations', () => {
+    expect(buildTestParams(operation, {
+      pathJson: '{"id":"42"}',
+      queryJson: '{"trace":"q"}',
+      headerJson: '{"X-E2E":"h"}',
+      bodyJson: '{"message":"b"}',
+    })).toEqual({
+      path: { id: '42' },
+      query: { trace: 'q' },
+      header: { 'X-E2E': 'h' },
+      body: { message: 'b' },
+    });
   });
 
-  test('normalizes a saved-connection runtime response', () => {
-    expect(normalizeInvokeResponse({
-      success: true,
-      content: { serviceReturnValue: { code: '200', data: { count: 1 } } },
-    })).toEqual({ ok: true, body: { code: '200', data: { count: 1 } } });
-    expect(normalizeInvokeResponse({
-      success: false,
-      errorMsg: 'Unauthorized',
-    })).toMatchObject({ ok: false, error: 'Unauthorized' });
+  test('flat params fail closed for unknown or ambiguous schema fields', () => {
+    expect(() => buildTestParams(operation, { params: '{"unknown":1}' }))
+      .toThrow(expect.objectContaining({ code: 'CONNECTOR_TEST_PARAM_UNKNOWN' }));
+    expect(() => buildTestParams({
+      ...operation,
+      inputs: [
+        { name: 'Query', paramLocation: 'query', childList: [{ name: 'shared' }] },
+        { name: 'Body', paramLocation: 'body', childList: [{ name: 'shared' }] },
+      ],
+    }, { params: '{"shared":1}' }))
+      .toThrow(expect.objectContaining({ code: 'CONNECTOR_TEST_PARAM_AMBIGUOUS' }));
   });
 
-  test('redacts credential-bearing tuple response headers', () => {
-    expect(redactResponseHeaders([
-      { _1: 'Content-Type', _2: 'application/json' },
-      { _1: 'Set-Cookie', _2: 'session=secret' },
-    ])).toEqual([
-      { _1: 'Content-Type', _2: 'application/json' },
-      { _1: 'Set-Cookie', _2: '***' },
-    ]);
+  test('requires an owned account whenever auth is configured', () => {
+    const accounts = [{ id: 7, connectorName: 'Http_owned' }];
+    expect(() => resolveOwnedConnection({
+      requiresAuth: true,
+      accountId: null,
+      accounts: [],
+      connectorName: 'Http_owned',
+    })).toThrow(expect.objectContaining({ code: 'CONNECTOR_AUTH_ACCOUNT_REQUIRED' }));
+    expect(() => resolveOwnedConnection({
+      requiresAuth: true,
+      accountId: '8',
+      accounts,
+      connectorName: 'Http_owned',
+    })).toThrow(expect.objectContaining({ code: 'CONNECTOR_AUTH_ACCOUNT_NOT_OWNED' }));
+    expect(resolveOwnedConnection({
+      requiresAuth: true,
+      accountId: '7',
+      accounts,
+      connectorName: 'Http_owned',
+    })).toMatchObject({ id: 7 });
   });
 });

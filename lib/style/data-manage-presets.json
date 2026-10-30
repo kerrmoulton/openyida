@@ -1,0 +1,146 @@
+[
+  {
+    "id": "grid",
+    "name": "标准网格",
+    "group": "线条实验",
+    "description": "完整横纵网格，作为原生对照基线"
+  },
+  {
+    "id": "horizontal",
+    "name": "仅横线",
+    "group": "线条实验",
+    "description": "保留行分隔，去除全部竖线"
+  },
+  {
+    "id": "borderless",
+    "name": "无分割线",
+    "group": "线条实验",
+    "description": "用行距和悬停反馈区分记录"
+  },
+  {
+    "id": "zebra",
+    "name": "斑马横线",
+    "group": "线条实验",
+    "description": "隔行浅底加横线，便于长表阅读"
+  },
+  {
+    "id": "flat",
+    "name": "融入画布",
+    "group": "容器实验",
+    "description": "透明内容容器与页面同底"
+  },
+  {
+    "id": "outline",
+    "name": "轻边框面板",
+    "group": "容器实验",
+    "description": "薄边框、适度圆角与内边距"
+  },
+  {
+    "id": "shadow",
+    "name": "柔和阴影",
+    "group": "容器实验",
+    "description": "以轻投影区分内容面层次"
+  },
+  {
+    "id": "double",
+    "name": "双层描边",
+    "group": "容器实验",
+    "description": "细外框与内描边形成双层边界"
+  },
+  {
+    "id": "integrated",
+    "name": "一体操作栏",
+    "group": "操作栏实验",
+    "description": "操作栏与表格组成一个整体"
+  },
+  {
+    "id": "toolbar-card",
+    "name": "独立操作卡",
+    "group": "操作栏实验",
+    "description": "独立操作栏卡片，与表格分开"
+  },
+  {
+    "id": "toolbar-tint",
+    "name": "浅色工具带",
+    "group": "操作栏实验",
+    "description": "工具栏以浅品牌色强调"
+  },
+  {
+    "id": "toolbar-dark",
+    "name": "深色工具带",
+    "group": "操作栏实验",
+    "description": "深色操作栏搭配浅色表格"
+  },
+  {
+    "id": "plain-header",
+    "name": "素雅表头",
+    "group": "表头与密度",
+    "description": "白底表头、重点底线、紧凑阅读"
+  },
+  {
+    "id": "tint-header",
+    "name": "品牌表头",
+    "group": "表头与密度",
+    "description": "浅品牌色表头与横线记录"
+  },
+  {
+    "id": "dark-header",
+    "name": "深色表头",
+    "group": "表头与密度",
+    "description": "深表头、浅色记录，拉开层级"
+  },
+  {
+    "id": "reading",
+    "name": "阅读型列表",
+    "group": "表头与密度",
+    "description": "阅读优先的留白与工具分组，保留原生行高和虚拟布局"
+  },
+  {
+    "id": "paper",
+    "name": "米纸档案",
+    "group": "配色实验",
+    "description": "暖米色低对比表面与棕色强调"
+  },
+  {
+    "id": "sage",
+    "name": "鼠尾草轻表",
+    "group": "配色实验",
+    "description": "低饱和绿底、细横线"
+  },
+  {
+    "id": "ice",
+    "name": "冰蓝台账",
+    "group": "配色实验",
+    "description": "冷蓝表头与清晰行分隔"
+  },
+  {
+    "id": "rose",
+    "name": "玫瑰灰档案",
+    "group": "配色实验",
+    "description": "暖灰粉表面与克制描边"
+  },
+  {
+    "id": "dark-grid",
+    "name": "曜石网格",
+    "group": "深色实验",
+    "description": "深色内容面配完整网格"
+  },
+  {
+    "id": "dark-horizontal",
+    "name": "曜石横线",
+    "group": "深色实验",
+    "description": "深色内容面，仅保留横线"
+  },
+  {
+    "id": "dark-zebra",
+    "name": "深色斑马",
+    "group": "深色实验",
+    "description": "深浅交替行底与横线"
+  },
+  {
+    "id": "dark-flat",
+    "name": "深色无框",
+    "group": "深色实验",
+    "description": "去掉内容外框与表格网格，保留交互反馈"
+  }
+]

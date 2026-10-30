@@ -9,9 +9,11 @@
 | --- | --- | --- |
 | 触发节点 | `trigger` | `StartNode` |
 | 消息通知节点 | `sendMessage` | `SendMessageNode` |
-| 新增数据节点 | `dataCreate` | `AddDataNode` |
+| 新增数据节点（单条或批量） | `dataCreate` | `AddDataNode` |
 | 获取单条数据节点 | `dataRetrieve` | `GetSingleDataNode` |
 | 更新数据节点 | `dataUpdate` | `UpdateDataNode` |
+| 调用连接器节点 | `innerConnector` / `httpConnector` | `ConnectorNode` |
+| 发起审批节点 | `initiateApproval` | `InitiateApprovalNode` |
 | 条件分支容器 | `route` | `ConditionContainer` |
 | 条件分支子节点 | `condition` | `ConditionNode` |
 | 结束节点 | `finish` | `EndNode` |
@@ -99,6 +101,7 @@ trigger
 ```
 
 - `toUsers`：指定接收人（userId + userName），可为空数组
+- `toRoles`：指定角色（`roleCode` + `roleName`）；NORMAL 消息可与成员、成员字段同时使用。自动化 spec 直接在节点上配置，完整格式加载 `use_skill("yida-flow-node-config", "消息通知指定角色")`。
 - `userFields`：引用触发表单中的成员字段 ID，该字段的值也会收到通知
 - 标题/内容中引用字段变量格式：`#{fieldId-ComponentType}#`（注意带组件类型后缀）
 - 按钮 URL 中用 `${formInstId}` 引用当前触发的表单实例 ID
@@ -141,6 +144,24 @@ trigger
   }
 }
 ```
+
+结构化 `--spec` 在子表中新增一行时，运行态和画布的 `formUuid` 都是上游节点 id，不是目标表单 UUID：
+
+```json
+{
+  "type": "dataCreate",
+  "insertType": "sub_table",
+  "source": "school",
+  "subFormUuid": "tableField_history",
+  "assignments": [
+    { "column": "textField_dealer_code", "valueType": "processVar", "value": "textField_selected_dealer_code" }
+  ]
+}
+```
+
+- `insertType: "sub_table"` 时 `source` 和 `subFormUuid` 必填；`source` 必须是拓扑上游的 `getSelf` 或 `dataRetrieve` 节点；赋值字段必须是该子表字段
+- 编译后 `props.formUuid` / `addDataRules.formUuid` 为上游 `nodeId`，`subFormUuid` 为子表 fieldId
+- 可选 `parentFormUuid` 只用于读取主表 Schema；不写时：来源是 `getSelf` 则回退触发表单 UUID，否则从上游节点的 `formUuid` 推断
 
 ---
 
@@ -185,6 +206,9 @@ trigger
 - `quantity: "1"` 表示只取一条
 - 过滤条件中 `extValue: "processVar"` 表示右侧值来自触发表单的流程变量
 - 该节点的 `nodeId`（如 `node_ocmmzsdai63`）在后续节点中通过 `${nodeId}.fieldId` 引用其查询结果
+- 从上游节点子表取数时，spec 写 `originalType: "sub_table"`、`source` 为拓扑上游的 `getSelf` 或 `dataRetrieve` 别名、`subSourceId` 为子表 fieldId；不要再填目标表 `formUuid`
+- 编译后运行态 `sourceId` 为上游 `nodeId`；画布 `targetItem.value` 也是该 `nodeId`，`relativeItem` 指向子表，且没有 `targetItem.formItem.formUuid`
+- 来源为流程表单时，运行态 `processJson` 的实例条件字段使用 `pid`，设计器 `viewJson` 的对应字段使用 `proc_inst_id`；普通表单两侧均使用 `form_inst_id`。
 
 流程表单来源使用 `originalType: "process_form"`（不是普通表单的 `form`）。获取当前审批实例时，唯一条件为 `proc_inst_id Equal processVar procInstId`；普通表单才使用 `pid Equal processVar __masterdata_form_inst_id`。显式覆盖只适用于已核实的环境。
 
@@ -222,7 +246,7 @@ trigger
 
 - `type: "node"` 表示更新来源是上游节点查询到的那条记录（无需额外过滤条件）
 - `sourceId` 填写上游 `dataRetrieve` 节点的 `nodeId`
-- `__display` 和 `__source` 仅用于前端展示，不影响执行逻辑
+- `value` 用于执行；`__source` 保存公式编辑器内容，`__display` 保存显示文字。新增、更新字段及取数公式的完整格式见 [自动化中的公式](../../yida-formula/references/automation-formulas.md)。
 
 - 按节点更新时，执行 `props.description` 与设计器 `props.updateDataRules.description` 应包含 `在 [来源节点名称] 中更新数据`。仅设置外层 `props.description` 不足以生成正常卡片摘要。
 - `saveProcess` 是原始传输 API，不自动回填字段或重写现有设计器配置。共享生成器使用 `hydrateDataNodeMetadata` 补齐元数据；调用方应在保存前以 strict 模式校验，保存/发布后调用 `validateSavedDataView` 校验来源类型、实例过滤、输出字段、更新赋值和摘要。不得以 `success: true` 单独认定配置验收通过。
@@ -230,9 +254,29 @@ trigger
 
 ---
 
+### 发起审批节点（initiateApproval）
+
+结构化 `--spec` 使用以下最小合同；目标必须是流程表单，`assignments` 不能为空。`current_user` 会在首个远端写入前解析为当前认证用户。若显式使用 `select_user`，`value` 必须是包含非空 `id` 与 `type: "employee"` 的 JSON 字符串。
+
+```json
+{
+  "type": "initiateApproval",
+  "formUuid": "FORM-PROCESS-XXX",
+  "initiator": {
+    "type": "select_user",
+    "value": "{\"id\":\"user-id\",\"label\":\"发起人\",\"type\":\"employee\"}"
+  },
+  "assignments": [
+    { "column": "textField_title", "valueType": "literal", "value": "自动发起审批" }
+  ]
+}
+```
+
 ### 条件分支节点（route + condition）
 
 条件分支由一个 `route` 容器节点 + 多个 `condition` 子节点组成：
+
+使用 CLI spec 配置公式分支时，在 `route.branches[]` 中写 `expression: {value, __source, __display}`。CLI 会生成平台的 `calculate: "expression"` 和公式内容；完整示例见 [分支按公式判断](../../yida-formula/references/automation-formulas.md)。普通 `conditions` 与 `expression` 选择一种。
 
 ```json
 {
@@ -304,7 +348,7 @@ trigger
 | --- | --- | --- |
 | `processVar` | 引用触发表单的字段值 | `"textField_mmq4ldti"`（直接写字段 ID） |
 | `literal` | 固定值（字符串/数字） | `"固定文本"` 或 `0` |
-| `column` | 公式计算 | `"CONCATENATE(#{fieldId_a},#{fieldId_b})"` |
+| `column` | 公式计算 | 执行文本及编辑器内容按赋值位置保存，见 [节点表达式](../../yida-formula/references/automation-formulas.md) |
 | `column` | 引用上游节点字段值 | `"${nodeId}.fieldId"` |
 | `column` | 引用上游节点字段并运算 | `"${nodeId}.numberField_xxx+1"` |
 
@@ -345,7 +389,7 @@ trigger
 | `processCode` | String | 是 | 逻辑流唯一标识，格式 `LPROC-xxx` |
 | `needReportLine` | String | 是 | 固定 `"y"` |
 
-- **返回值**：`{ "success": true }`
+- **返回值**：`{ "success": true }` 只表示写请求被接受，不是最终发布状态证据。发布后必须按 `formUuid + processCode` 完成全量 list、`status=y` 与 `getProcess` 详情存在性回读；任一项无法证明都失败。详情未携带可验证 identity 时不得宣称 detail exact。
 
 ---
 
@@ -366,6 +410,13 @@ trigger
 
 > ⚠️ `totalCount` 是表单分组数（不是自动化总数），每个分组内的 `flowList` 才是具体的自动化列表。
 > ⚠️ 应用级列表对同一表单只返回首批 `flowList`；当分组 `hasMore=true` 时，需要继续调用 `/query/formLogicflowBinding/listflow.json` 拉取该表单下的剩余自动化。
+> CLI 公共 `integration list` 与写后回读必须复用同一安全 paginator，不得只读第一页。
+
+### getLogicflowDetail（按 processCode 查询设计详情）
+
+- **地址**：`GET /alibaba/web/{appType}/query/simpleProcess/getProcess.json`
+- **精确参数**：`appType`、`formUuid`、`processCode`
+- **证据边界**：已观测返回可包含 `schema/globalSetting` 等 view 内容且不携带已证 identity，只可与精确列表结果组合为 `PLATFORM_LIST_EXACT_DETAIL_PRESENT`。若详情顶层出现 `processCode/formUuid`，CLI 会投影校验并在冲突时失败，但这不提升为 detail exact。完整 runtime graph wrapper 仍为 `PLATFORM_PROBE_REQUIRED`。
 
 ---
 
@@ -383,7 +434,13 @@ trigger
 | `enable` | String | 是 | `"y"`=开启，`"n"`=关闭 |
 | `type` | String | 是 | 固定 `"1"` |
 
-> ⚠️ 若目标逻辑流已处于目标状态，接口仍返回 `success: true`，不会报错。
+> ⚠️ 写响应不能证明最终状态。CLI 必须在写后按 `formUuid + processCode` 精确匹配唯一列表项、校验 `status=y/n`，并完成详情回读；否则启停命令失败。
+
+### ConnectorNode schema 证据
+
+- action 的 `inputs/outputs` 只能来自平台只读 connector detail 的 exact action 匹配，或仓库固定已证 preset。
+- 未知连接器、未知 action、缺失/malformed operations、assignment 字段不在已验证 inputs 中时，必须在首个远端写之前失败。
+- 禁止把未知输入合成为 `TextField`，也禁止把调用方 `--connector-inputs` 文件当成平台 schema 证据。
 
 ---
 
@@ -403,3 +460,5 @@ trigger
 | `endTime` | Number | 否 | 时间范围终点，毫秒时间戳 |
 | `pageIndex` | Number | 是 | 页码，从 1 开始 |
 | `pageSize` | Number | 是 | 每页条数 |
+
+批量查询和新增的 spec 参数、来源行绑定及子表复制示例见 [批量数据配置](batch-data.md)。

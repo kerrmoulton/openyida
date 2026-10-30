@@ -24,8 +24,8 @@ function build(formType = 'process', extra = {}) {
 }
 
 test.each([
-  ['process', 'process_form', 'proc_inst_id', 'procInstId'],
-  ['receipt', 'form', 'pid', '__masterdata_form_inst_id'],
+  ['process', 'process_form', 'pid', '__masterdata_form_inst_id'],
+  ['receipt', 'form', 'form_inst_id', '__masterdata_form_inst_id'],
 ])('compiles %s identity and editable designer metadata together', (type, originalType, id, value) => {
   const built = build(type);
   expect(() => assertDataNodeMetadata(built.processJson, built.viewJson)).not.toThrow();

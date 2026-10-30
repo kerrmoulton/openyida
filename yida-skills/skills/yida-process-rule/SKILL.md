@@ -1,103 +1,94 @@
 ---
 name: yida-process-rule
-description: 配置已有流程表单审批规则。
+description: 配置已有宜搭流程的节点、分支、人员、字段权限、跳转规则、操作按钮及官方组件高级透传；共用节点参数按需加载 yida-flow-node-config。
 ---
 
-# 宜搭流程规则配置技能
+# 流程规则配置
 
-> 资源边界：本技能只处理普通 OpenYida 流程规则配置；目标不明时先只读确认或询问用户。
+本技能负责已有流程的读取、完整定义、保存发布和结果核对。目标不明时先只读确认或询问用户；使用前必须按以下门槛确定目标和操作入口。
 
 ## Resource-First 使用门槛
 
-本技能是已有流程/表单上下文的默认流程修改入口：
+本技能是已有流程／表单上下文的默认流程修改入口，必须遵守以下限制：
 
-- 已有流程表单、`processCode`、流程 URL、bound process 或可确认的 workflow form 时，审批节点、条件分支、字段权限、抄送、跳转规则等诉求默认使用本技能。
-- 已有普通表单 `formUuid` 且用户要“配置审批 / 转为审批流程”，先确认是否对该表单启用流程；如果只是转流程且尚无流程，可由 `yida-create-process --formUuid` 复用该表单，不要新建同名表单。
-- 没有目标表单/流程，且用户明确从零创建审批系统时，才改用 `yida-create-process`。
-- 多个流程候选按根技能来源优先级选择；同级冲突或无法判断目标流程时才问用户。
+- 已有流程表单、`processCode`、流程 URL、已绑定流程或可确认的 workflow form 时，审批节点、条件分支、字段权限、抄送、跳转规则等配置默认使用本技能；不得另建同类流程表单。
+- 已有普通表单 `formUuid`，用户要求“配置审批／转为审批流程”时，先确认是否对该表单启用流程。只有尚无流程且已确认转流程时，才由 `yida-create-process --formUuid` 复用该表单；已有流程则继续使用本技能，不得新建同名表单。
+- 只有没有目标表单／流程，且用户明确要求从零创建审批系统时，才改用 `yida-create-process` 新建；目标不明不能作为新建理由。
+- 多个流程候选按根技能的资源来源优先级选择；同级冲突或仍无法确定目标时，必须先询问用户，目标确认前不得写入。
 
 ## 严格禁止 (NEVER DO)
 
-- 不要在流程定义中使用猜测的 fieldId，必须先用 `yida-get-schema` 获取
-- 不要在未加载本技能内容的情况下编写流程定义 JSON，格式复杂且易出错
-- 不要用此技能创建流程表单，应使用 `yida-create-process`
-- 不要用 shell heredoc、`cat`/`echo`/`printf`/`tee` 或重定向生成流程定义 JSON
-- 已有 process/form context 时不要新建同类流程表单；在原流程上配置/更新。
+- 不要在流程定义中使用猜测的 `fieldId`，必须先用 `yida-get-schema` 获取。
+- 不要在未加载本技能内容的情况下编写流程定义 JSON，格式复杂且易出错。
+- 不要用此技能创建流程表单，应使用 `yida-create-process`。
+- 不要用 shell heredoc、`cat`/`echo`/`printf`/`tee` 或重定向生成流程定义 JSON。
+- 已有 process/form context 时不要新建同类流程表单；在原流程上配置或更新。
+- 不要把 `configure-process` 当作局部 patch；它会替换完整流程图。已有 PUBLISHED 流程或 SAVED 草稿时，未获得用户对替换摘要的明确确认，不得传 `--replace`。
+- `NON_IDEMPOTENT_RESULT_UNKNOWN` 或 `PUBLISHED_UNVERIFIED` 后不得自动重试 draft/save/publish；先只读核对平台状态。
 
 ## 严格要求 (MUST DO)
 
-- **发布前必须确认**：执行流程发布操作前，必须向用户展示流程配置摘要（节点数、审批人、条件分支），获得用户明确同意后再发布
-- 字段 ≥ 3 且审批节点 ≥ 2 时，必须为每个节点配置字段权限
-- 存在回退/循环语义时，必须配置 `routeRules` 跳转规则
-- 配置前先用 `yida-get-schema` 获取所有字段 ID
-- 流程定义 JSON 必须用结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/`，不要在仓库根目录、系统临时目录或 `.cache/` 顶层生成 `process-definition.json` 等临时文件
+- **发布前必须确认**：执行流程发布操作前，必须向用户展示流程配置摘要（节点数、审批人、条件分支），获得用户明确同意后再发布。
+- 字段 ≥ 3 且审批节点 ≥ 2 时，必须为每个节点配置字段权限。
+- 存在回退/循环流转语义时，必须配置 `routeRules` 跳转规则。
+- 根据需求生成流程定义时，必须阅读并遵守 [AI 自动生成流程规范](references/process-ai-rules.md)；达到上述字段和节点数量时，`behaviorList` 必须覆盖所有字段，未明确归属的字段默认只读。
+- 嵌套条件分支不超过 3 层；超过时拆分流程结构，不得省略条件。条件分支由 CLI 补“其他情况”默认分支，不手写猜测底层 `conditionNode`。
+- 流程必须先保存再发布，由 CLI 按顺序执行。本技能不读写 memory，资源 ID 以真实命令返回与当前平台查询为准。
+- 配置前先用 `yida-get-schema` 获取所有字段 ID。
+- 流程定义 JSON 必须用结构化文件写入工具创建到 `<projectRoot>/.cache/openyida/<项目名或任务名>/`；不要写仓库根目录、系统临时目录或 `.cache/` 顶层。
+- 必须以表单 binding 只读结果证明 `processCode` 属于目标 `formUuid`；`CONFIGURE_PROCESS_OWNERSHIP_UNVERIFIED` 时停止，不得换一个 `processCode` 猜测重试。
+- 命令成功必须同时返回 `verificationLevel: "PLATFORM_VIEW_VERIFIED"` 和 `platformViewVerified: true`；它证明平台可见 view 的节点、组件、名称、顺序、审批模式、按钮权限及加签参数等已启用检查通过，不代表完整 `processJson` 已独立回读，也不代表运行结果已经验证。
 
-## 适用场景
+## 节点选择
 
-| 用户意图 | 触发条件 |
-|---------|---------|
-| 配置/修改审批流程 | "配置审批"、"审批节点"、"条件分支"、"字段权限" |
-| 从零创建流程表单 | 仅无既有 form/process context 时 → 改用 `yida-create-process` |
+配置节点时加载 `use_skill("yida-flow-node-config", "流程；所需节点类别或配置项")`，只读取任务需要的参考。
 
-## 触发条件
+| 类别 | 流程中的节点 | 本入口保留的差异 |
+| --- | --- | --- |
+| 发起 | 自动生成的 ApplyNode | 字段权限用顶层 `startFormConfig`；谁能发起用 START 权限组 |
+| 人工处理 | `approval`、`operator`、`multiApproval`、`carbon` | 审批用 `approver`，办理用 `executor`，抄送用 `receiver` |
+| 流转控制 | `route`、`parallel`、循环 | 条件/并行可直接生成；循环需已有真实配置 |
+| 数据操作 | 查询、新增、更新、删除 | 流程内采用原生组件配置，不接收自动化 spec |
+| 通知 | 消息、邮件、卡片 | 消息可按通用说明生成；邮件/卡片需已有真实配置 |
+| 扩展执行 | 连接器、子流程、代码、AI | 使用真实节点配置；不得猜测动作、输入输出结构 |
 
-**正向触发**：
-- "配置审批流程"、"设置审批节点"、"配置条件分支"
-- "设置字段权限"、"配置抄送节点"、"设置跳转规则"
-- 已有流程表单（processCode 已知），需要修改或配置审批规则
-- `yida-create-process` 完成后，需要进一步配置复杂流程规则
+“可直接生成配置”指 CLI 有已明确的输入契约；“需要已有真实配置才能透传”只说明编译器可接收该结构，不代表能从一句需求补齐全部参数。按金额等条件选择审批人、办理人或抄送人，统一读取 [人员选择](../yida-flow-node-config/references/actors.md#按条件选人)。同一节点选谁处理，与改变处理路线的条件分支分别配置。
 
----
+## 基本步骤
 
+涉及原生校验、业务关联或节点公式时，先通过 `use_skill` 加载 `yida-formula`，查看“写配置前先处理这些易错点”。校验保留原文、预处理内容、提示和阻断设置；节点表达式保留真实上游引用及编辑器内容。普通字段取值公式仍通过表单配置处理；当前简化 DSL 没有覆盖的全局规则或节点属性，沿用已读取的真实配置及明确支持的入口。
 
-## 概述
-
-本技能描述如何通过流程设计器 API 为宜搭流程表单配置审批流程。支持审批节点、办理节点、条件分支、并行分支、嵌套分支、字段权限、抄送节点、跳转规则；同时支持宜搭 `yida-simple-flow` 官方组件节点的配置透传和 `processJson` 适配，用于连接器、数据、消息、邮件、Groovy/JavaScript、子流程、卡片、循环、AI 等高级节点。
-
-## 何时使用
-
-当以下场景发生时使用此技能：
-- 用户需要为已有的流程表单配置审批流程
-- 用户需要修改已有流程的审批规则
-- 用户需要配置条件分支、嵌套分支等复杂流程
-- 已有流程表单需要补充或固化流程规则
-
-## 前提
-
-| 场景 | 使用技能 |
-|------|---------|
-| **已有流程表单**：只需修改/配置已有表单的审批流程规则 | **本技能（yida-process-rule）** |
-| **已有普通表单**：要启用/转换审批流程 | 先确认目标表单，再用 `yida-create-process --formUuid` 复用表单或回到本技能配置 |
-| **从零创建**：没有目标表单/流程，需要新建表单 + 配置审批流程 | **yida-create-process** |
-
-> 简单判断：有没有现成的流程表单？有 → 本技能；没有 → `yida-create-process`。
-
-执行本技能前需要已经有目标流程表单、`appType`、`formUuid`、字段 ID 和必要的审批人 / 条件信息。
-
-## 使用方式
+1. 确认目标 `appType/formUuid` 和当前流程 binding，证明 `processCode` 属于该表单；不猜测 ID。
+2. 字段 ID 由 `yida-get-schema` 获取。配置字段权限或诊断字段来源时，先执行 `process fields`。
+3. 按需读取通用节点说明，组织完整的 `nodes` 与分支；保留未修改部分。字段 ≥ 3 且审批节点 ≥ 2 时，为每个处理节点配置字段权限。
+4. 用结构化文件写入工具创建 `<projectRoot>/.cache/openyida/<任务名>/process-definition.json`。不要用 shell heredoc 或重定向生成配置。
+5. 展示节点、处理人、条件、字段权限及替换范围，按上方严格要求获得用户明确同意后执行。CLI 负责本地编译、保存、发布和平台 view 回读。
+6. 保存真实资源 ID 与返回的验证等级。配置回读通过不代表实际审批、字段编辑或通知送达已验证。
 
 ```bash
-openyida configure-process <appType> <formUuid> <processDefinitionFile> [processCode]
+openyida process fields <appType> <formUuid> --json
+openyida configure-process <appType> <formUuid> <processDefinitionFile> [processCode] [--replace]
 ```
 
-**参数说明**：
+文件路径按实际 project 根目录解析。已有流程不要通过更换 `processCode` 绕过归属或替换检查。
+
+## 命令参数与输出
 
 | 参数 | 必填 | 说明 |
 | --- | --- | --- |
-| `appType` | 是 | 应用 ID，如 `APP_XXX` |
-| `formUuid` | 是 | 表单 UUID，如 `FORM-XXX` |
-| `processDefinitionFile` | 是 | 流程定义 JSON 文件路径 |
-| `processCode` | 否 | 流程 Code，如 `TPROC--XXX`。不传则自动获取 |
-
-**示例**：
+| `appType` | 是 | 目标应用 ID |
+| `formUuid` | 是 | 目标流程表单 UUID |
+| `processDefinitionFile` | 是 | 完整流程定义 JSON 文件路径 |
+| `processCode` | 否 | 流程 Code；不传时 CLI 从目标表单 binding 获取，仍须验证归属 |
+| `--replace` | 条件必填 | 已有 PUBLISHED 流程或 SAVED 草稿时，须先获得整图替换确认；未确认时零写入退出 |
 
 ```bash
-openyida configure-process "APP_XXX" "FORM-YYY" .cache/openyida/order/process-definition.json
+openyida configure-process APP_XXX FORM_XXX .cache/openyida/order/process-definition.json
 ```
 
-> 上方路径默认从 OpenYida project 工作目录执行；从 workspace 根执行命令时传 `project/.cache/openyida/order/process-definition.json`。
+示例中的 ID 使用查询结果替换。上方路径从 OpenYida project 工作目录执行；从 workspace 根执行时加 `project/` 前缀。执行前确认有效 token session；Node.js 版本按 OpenYida 包要求（当前 ≥ 18）。
 
-**输出**：日志输出到 stderr，JSON 结果输出到 stdout：
+日志写入 stderr，JSON 结果写入 stdout。成功结果示例：
 
 ```json
 {
@@ -106,350 +97,58 @@ openyida configure-process "APP_XXX" "FORM-YYY" .cache/openyida/order/process-de
   "processId": "83145794990",
   "processVersion": 2,
   "appType": "APP_XXX",
-  "formUuid": "FORM-YYY"
+  "formUuid": "FORM_XXX",
+  "verificationLevel": "PLATFORM_VIEW_VERIFIED",
+  "platformViewVerified": true
 }
 ```
 
-## 流程定义 JSON 格式
+## 最小定义与发起设置
 
-流程定义文件描述审批流程的节点结构，脚本会自动转换为宜搭平台需要的 `processJson` 和 `viewJson`。
-
-### 节点类型
-
-| 类型 | 说明 | 必填属性 |
-| --- | --- | --- |
-| `approval` | 审批节点 | `name`, `approver` |
-| `operator` | 办理 / 填写节点，审批人 DSL 相同，可用 `executor` 代替 `approver` | `name`, `executor` 或 `approver` |
-| `route` | 条件分支路由 | `conditions` |
-| `parallel` | 并行分支，满足条件的分支都会执行 | `branches` |
-| `carbon` | 抄送节点 | `name`, `approver` |
-| 官方组件节点 | 连接器、数据、消息、邮件、代码、子流程、卡片、循环、AI 等 | `type` 或 `componentName`，以及对应真实 props |
-
-### 节点别名
-
-OpenYida 会自动兼容常见别名：
-
-| 写法 | 归一化类型 |
-| --- | --- |
-| `approval`, `ApprovalNode` | `approval` |
-| `operator`, `executor`, `OperatorNode` | `operator` |
-| `multiApproval`, `MultiApprovalNode` | `approval` 类型的多人审批组件 |
-| `carbon`, `cc`, `CarbonNode` | `carbon` |
-| `route`, `branch`, `ConditionContainer` | `route` |
-| `parallel`, `parallelBranch` | `parallel` |
-
-### 审批节点属性
-
-| 属性 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `type` | String | 是 | 固定 `"approval"` |
-| `name` | String | 是 | 节点名称 |
-| `approver` | String/Object | 是 | 审批人。`"originator"` 表示发起人；Object 支持 `user`、`role`、`deptLeader`、`directLeader`，也可传入宜搭流程设计器的原始审批人配置 |
-| `description` | String | 否 | 节点描述 |
-| `formConfig` | Object | 否 | 字段权限配置 |
-| `routeRules` | Array | 否 | 跳转规则 |
-
-### 办理 / 填写节点（operator）
-
-办理节点底层仍是宜搭流程的 `approval` 类型，但 `viewJson` 使用 `OperatorNode`，适合“资料补充”“填写处理结果”“业务办理”等非审批动作。
+CLI 自动生成发起和结束节点；`nodes` 只写中间节点，不添加 `start/end`。
 
 ```json
 {
-  "type": "operator",
-  "name": "资料补充",
-  "executor": {
-    "type": "user",
-    "users": [
-      { "id": "operator001", "name": "运营同学" }
+  "startFormConfig": {
+    "behaviorList": [
+      {"fieldId":"<真实申请说明字段ID>","fieldBehavior":"NORMAL"},
+      {"fieldId":"<真实成本字段ID>","fieldBehavior":"HIDDEN"}
     ]
   },
-  "formConfig": {
-    "behaviorList": [
-      { "fieldId": "textareaField_material", "fieldBehavior": "NORMAL" },
-      { "fieldId": "numberField_amount", "fieldBehavior": "READONLY" }
-    ]
-  }
-}
-```
-
-### 条件分支属性
-
-| 属性 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `type` | String | 是 | 固定 `"route"` |
-| `conditions` | Array | 是 | 条件列表 |
-
-### 并行分支属性
-
-```json
-{
-  "type": "parallel",
-  "name": "并行会审",
-  "branches": [
-    {
-      "name": "法务会审",
-      "childNodes": [
-        { "type": "approval", "name": "法务审批", "approver": "originator" }
-      ]
-    },
-    {
-      "name": "财务会审",
-      "rules": [
-        {
-          "fieldId": "numberField_amount",
-          "fieldName": "金额",
-          "componentType": "NumberField",
-          "op": "GreaterThan",
-          "value": 10000
-        }
-      ],
-      "childNodes": [
-        { "type": "approval", "name": "财务审批", "approver": "originator" }
-      ]
-    }
-  ]
-}
-```
-
-| 属性 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `branches` | Array | 是 | 并行分支列表，也兼容 `conditions` / `parallelBranches` |
-| `branches[].name` | String | 否 | 分支名称 |
-| `branches[].rules` | Array | 否 | 分支条件；不配置时表示所有数据进入该分支 |
-| `branches[].logic` | String | 否 | `"AND"`（默认）或 `"OR"` |
-| `branches[].childNodes` | Array | 否 | 分支内节点 |
-
-### 条件定义
-
-| 属性 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `name` | String | 是 | 条件名称 |
-| `rules` | Array | 是 | 条件规则列表 |
-| `logic` | String | 否 | 规则逻辑，`"AND"`（默认）或 `"OR"` |
-| `childNodes` | Array | 否 | 条件满足时执行的子节点列表 |
-
-### 条件规则
-
-| 属性 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `fieldId` | String | 是 | 字段 ID，如 `selectField_xxx` |
-| `fieldName` | String | 是 | 字段名称 |
-| `op` | String | 是 | 操作符 |
-| `value` | String/Array | 是 | 比较值 |
-| `componentType` | String | 是 | 字段组件类型 |
-
-### 支持的操作符
-
-| 操作符 | 说明 | 适用类型 |
-| --- | --- | --- |
-| `Equal` | 等于 | 所有类型 |
-| `NotEqual` | 不等于 | 所有类型 |
-| `Contains` | 包含 | TextField |
-| `NotContain` | 不包含 | TextField |
-| `IsEmpty` | 为空 | 所有类型 |
-| `IsNotEmpty` | 不为空 | 所有类型 |
-| `GreaterThan` | 大于 | NumberField |
-| `GreaterThanOrEqual` | 大于等于 | NumberField |
-| `LessThan` | 小于 | NumberField |
-| `LessThanOrEqual` | 小于等于 | NumberField |
-| `In` | 属于 | SelectField, RadioField |
-| `NotIn` | 不属于 | SelectField, RadioField |
-
-### 字段权限配置（formConfig）
-
-```json
-{
-  "formConfig": {
-    "behaviorList": [
-      { "fieldId": "textField_xxx", "fieldBehavior": "READONLY" },
-      { "fieldId": "radioField_xxx", "fieldBehavior": "NORMAL" }
-    ]
-  }
-}
-```
-
-| fieldBehavior | 说明 |
-| --- | --- |
-| `NORMAL` | 可编辑 |
-| `READONLY` | 只读 |
-| `HIDDEN` | 隐藏 |
-
-### 跳转规则（routeRules）
-
-```json
-{
-  "routeRules": [
-    { "when": "disagree", "jumpTo": "部门主管审核" }
-  ]
-}
-```
-
-`jumpTo` 的值为目标审批节点的 `name`，或 `"结束"` 表示跳到流程结束。
-
-### 审批人配置
-
-#### 发起人本人
-
-```json
-{
-  "type": "approval",
-  "name": "发起人确认",
-  "approver": "originator"
-}
-```
-
-#### 指定成员
-
-`id` 使用宜搭/钉钉通讯录中的 userId。可通过组织成员查询、应用成员配置或已知人员表获取。
-
-```json
-{
-  "type": "approval",
-  "name": "主管审批",
-  "approver": {
-    "type": "user",
-    "users": [
-      { "id": "manager7350", "name": "九神" }
-    ],
-    "multiApproverType": "all"
-  }
-}
-```
-
-#### 指定角色
-
-`roleType` 默认为 `"YIDA"`；钉钉角色可传 `"DINGTALK"`。多个角色会按 `roleType` 生成宜搭流程需要的 `multiRoles`。
-
-```json
-{
-  "type": "approval",
-  "name": "财务审批",
-  "approver": {
-    "type": "role",
-    "roles": [
-      { "id": "ROLE-FINANCE", "name": "财务", "roleType": "YIDA" }
-    ],
-    "multiApproverType": "or"
-  }
-}
-```
-
-#### 部门主管 / 直属主管
-
-```json
-{
-  "type": "approval",
-  "name": "部门主管审批",
-  "approver": {
-    "type": "deptLeader",
-    "source": "originator",
-    "level": 1,
-    "needLeaderReplace": true,
-    "ignoreNoLeaderDept": false
-  }
-}
-```
-
-直属主管使用 `"type": "directLeader"`，其余参数相同。`multiApproverType` 可选 `"all"`、`"or"`、`"oneByOne"`。
-
-### 原始审批人配置（高级）
-
-当 DSL 不能覆盖某个租户/版本的特殊审批规则时，可在节点上提供原始审批配置，OpenYida 会透传到 `processJson` 和 `viewJson`：
-
-```json
-{
-  "type": "approval",
-  "name": "部门负责人审批",
-  "approver": {
-    "approvalType": "ext_target_approval_originator",
-    "approvals": [["originator"]],
-    "approverRules": {
-      "type": "ext_target_approval_originator",
-      "mode": "ApprovalNode_rules_only",
-      "approverList": [{ "type": "ext_target_approval" }],
-      "multiApproverType": "all",
-      "conditionalMode": "conditional",
-      "description": "发起人本人"
-    }
-  }
-}
-```
-
-说明：不同租户/版本下某些高级规则（接口人、第三方服务、连接器、权限矩阵等）的 `approverRules` 结构可能不同。遇到 DSL 暂未覆盖的类型时，先在宜搭流程设计器中配置一个样例并导出/抓取对应结构，再用该对象固化到流程定义中。
-
-## 官方组件节点（高级透传）
-
-完整支持清单、连接器示例、数据 / 消息 / 代码节点示例和透传规则详见 [references/official-component-nodes.md](references/official-component-nodes.md)。
-
-透传规则：
-
-- 常规审批/办理/抄送、条件/并行分支优先用本文件中的简化 DSL。
-- 连接器、数据、消息、邮件、Groovy/JavaScript、子流程、卡片、循环、AI 等节点使用真实组件 props 透传，并按线上设计器规则转换 `processJson.props`。
-- 不认识的节点类型会直接报错，不会静默跳过，避免生成断链流程。
-
-## AI 自动生成流程特性（必须遵守）
-
-> 📖 AI 生成流程定义的完整规范（字段权限自动生成、回退规则识别、检查清单）详见 [references/process-ai-rules.md](references/process-ai-rules.md)。
-
----
-
-## 使用示例
-
-### 示例 1：简单审批流程
-
-```json
-{
   "nodes": [
-    {
-      "type": "approval",
-      "name": "主管审批",
-      "approver": "originator"
-    }
+    {"type":"approval","name":"负责人审批","approver":"originator"}
   ]
 }
 ```
 
-流程：`发起 → 主管审批 → 结束`
+发起、审批、办理等节点的字段权限共用 `NORMAL/READONLY/HIDDEN`；具体位置与子表规则统一见 `use_skill("yida-flow-node-config", "字段权限")`。控制谁能发起时，查询 `get-permission --package-type FORM_PACKAGE_START`，再交给 `yida-form-permission`。
 
-> 📖 更多示例（条件分支、嵌套分支、字段权限、跳转规则、自定义详情页等）详见 [references/examples.md](references/examples.md)。
+## 结果与异常
 
-## 注意事项
+成功需同时返回 `verificationLevel: "PLATFORM_VIEW_VERIFIED"` 和 `platformViewVerified: true`，这只证明平台 view 与本次目标配置匹配，不代表完整运行定义已独立回读。
 
-- 所有 `fieldId` 必须通过 `openyida get-schema` 获取，不能手写猜测
-- 条件分支会自动补一个“其他情况”默认分支；不要手写猜测低层 `conditionNode` 结构
-- 嵌套分支不超过 3 层
-- 流程发布前必须先保存
-- **本技能不读写 memory**：流程定义通过 CLI 命令写入宜搭平台，processCode 等信息输出到 stdout，不依赖跨会话的 memory 状态
+配置前必须取得真实字段、人员和条件信息；保存失败时只读核对 binding、版本及登录态，字段或分支错误按对应参考修正，不能猜 ID。发布未生效时核对保存和发布阶段与流程版本，结果未知时不得重放写入。
 
-## 异常处理
+| 结果 | 处理 |
+| --- | --- |
+| `CONFIGURE_PROCESS_REPLACE_REQUIRED` | 未获得整图替换授权时先展示摘要；已授权后补 `--replace` |
+| `CONFIGURE_PROCESS_OWNERSHIP_UNVERIFIED` | 只读核对表单 binding，停止写入 |
+| `PROCESS_PERMISSION_FIELD_NOT_FOUND` / 字段来源错误 | 修正真实字段或绑定，不覆盖表单 |
+| `PROCESS_PLATFORM_VIEW_*_MISMATCH` | 保留已返回资源，报告配置未验证 |
+| `NON_IDEMPOTENT_RESULT_UNKNOWN` / `PUBLISHED_UNVERIFIED` | 先只读核对平台状态，不自动重试保存或发布 |
+| 权益不足 | 保留平台错误；根据明确提示说明所需版本或权益包，不修改权益 |
 
-| 异常场景 | 处理方式 |
-|---------|----------|
-| 流程保存失败 | 检查 processCode 是否正确，确认登录态有效 |
-| 条件分支报错 | 确认最后一个 conditionNode 的 `conditionType` 为 `"else"` |
-| fieldId 不存在 | 先执行 `openyida get-schema` 获取真实 fieldId，不能手写猜测 |
-| 流程发布后未生效 | 确认已执行发布步骤（save 后还需 publish），检查流程版本 |
-| 嵌套分支超过 3 层 | 重新设计流程结构，将复杂条件拆分为多个节点 |
-## 前置依赖
+普通指定角色不需要配置权限矩阵。涉及矩阵时，先按 `yida-form-permission` 的 CLI 步骤检查可用性；其他配置按 CLI 返回处理，明确提示权益不足时再引导开通。
 
-- Node.js ≥ 16
-- 项目根目录存在有效 token session（通过 `openyida login` 获取）
-
-## 文件结构
-
-```
-yida-process-rule/
-└── SKILL.md                    # 本文档
-```
+需要完整业务流程示例时读 [流程示例](references/examples.md)；配置官方组件时读 [高级透传规则与节点示例](references/official-component-nodes.md)。根据需求生成流程时必须遵守上方严格要求和 [生成规则](references/process-ai-rules.md)。新建流程仍由 `yida-create-process` 编排，本技能不创建应用或维护数据记录。
 
 ## 与其他技能配合
 
-| 步骤 | 技能 | 说明 |
-| --- | --- | --- |
-| 1 | 已有 app 或 `yida-create-app` | 复用已解析 `appType`；仅无 app 且允许创建时新建 |
-| 2 | 已有表单或 `yida-create-form-page` | 复用已解析 `formUuid`；仅缺表单且允许创建时新建，并获取字段 ID |
-| 3 | **本技能** | 配置表单的流程规则 |
-| 4 | `yida-canvas-custom-page` | 编写或更新自定义页面源码 |
-| 5 | `yida-publish-page` | 发布自定义页面 |
+| 需要处理的资源 | 使用方式 |
+| --- | --- |
+| 应用 | 复用已解析的 `appType`；仅无应用且用户允许创建时使用 `yida-create-app` |
+| 表单 | 复用已解析的 `formUuid`；普通表单字段由 `yida-create-form-page` 维护，首次转流程按使用门槛调用 `yida-create-process --formUuid` |
+| 流程规则 | 已有流程使用本技能；`yida-create-process` 完成后仍可回到本技能补充复杂规则 |
+| 自定义页面 | 用户需要时才用 `yida-canvas-custom-page` 编写或更新源码，再用 `yida-publish-page` 发布 |
 
-> **快捷方式**：使用 `yida-create-process` 技能可一键完成步骤 2-3（创建表单 + 配置流程）。
+从零创建流程表单可由 `yida-create-process` 编排表单与流程两步；该快捷入口不能绕过已有资源的复用限制。

@@ -18,6 +18,116 @@ describe('agent-capabilities summary', () => {
     jest.dontMock('../lib/core/utils');
   });
 
+  test('exposes non-cloud search and QwenWork generation runtime defaults', () => {
+    const { buildAssetCapabilities } = require('../lib/core/agent-capabilities');
+    const local = buildAssetCapabilities({ tool: 'codex', runtime: 'desktop_shell', subtype: 'codex' }, {});
+    expect(local).toMatchObject({
+      host: { tool: 'codex', class: 'non_cloud' },
+      online_search: { status: 'available', available: true },
+      image_search: { status: 'available', available: true },
+      image_generation: { status: 'unknown', available: null },
+      requires_host_tool_inventory_check: true,
+    });
+
+    const qwenwork = buildAssetCapabilities(
+      { tool: 'qwenwork', runtime: 'desktop_shell', subtype: 'qwenwork_desktop' },
+      {}
+    );
+    expect(qwenwork).toMatchObject({
+      host: { tool: 'qwenwork', class: 'non_cloud' },
+      online_search: { status: 'available', available: true },
+      image_search: { status: 'available', available: true },
+      image_generation: { status: 'available', available: true },
+      requires_host_tool_inventory_check: true,
+    });
+
+    const declared = buildAssetCapabilities(
+      { tool: 'qwenwork', runtime: 'web_sandbox', subtype: 'qwenwork_web' },
+      {
+        OPENYIDA_AGENT_ONLINE_SEARCH: '1',
+        OPENYIDA_AGENT_IMAGE_SEARCH: '1',
+        OPENYIDA_AGENT_IMAGE_GENERATION: '0',
+      }
+    );
+    expect(declared).toMatchObject({
+      online_search: { status: 'available', available: true },
+      image_search: { status: 'available', available: true },
+      image_generation: { status: 'unavailable', available: false },
+      requires_host_tool_inventory_check: true,
+    });
+  });
+
+  test('application entry policy includes developer admin regardless of injected auth or host signals', () => {
+    const { buildApplicationEntryPolicy } = require('../lib/core/agent-capabilities');
+
+    expect(buildApplicationEntryPolicy({
+      auth: { auth_runtime: 'env_token_bootstrap', can_auto_use: true },
+      runtime: { runtime: 'desktop_shell' },
+    }, { CODEX_SHELL: '1', CODEX_CI: '1' })).toMatchObject({
+      environment: 'managed_cloud_agent',
+      entries: { admin: 'include' },
+    });
+
+    expect(buildApplicationEntryPolicy({
+      auth: { auth_runtime: 'token_oauth_session', can_auto_use: true },
+      runtime: { runtime: 'web_sandbox', tool: 'mulerun' },
+    }, { OPENYIDA_MANAGED_RUNTIME: 'cloud' })).toMatchObject({
+      environment: 'non_cloud_agent',
+      entries: { admin: 'include' },
+    });
+
+    expect(buildApplicationEntryPolicy({
+      auth: { auth_runtime: 'env_token_bootstrap', can_auto_use: false },
+      runtime: { runtime: 'web_sandbox', tool: 'mulerun' },
+    }, {})).toMatchObject({
+      environment: 'non_cloud_agent',
+      entries: { admin: 'include' },
+    });
+
+    expect(buildApplicationEntryPolicy({
+      runtime: { runtime: 'web_sandbox', tool: 'mulerun' },
+    }, { OPENYIDA_MANAGED_RUNTIME: 'cloud' })).toMatchObject({
+      environment: 'non_cloud_agent',
+      entries: { admin: 'include' },
+    });
+  });
+
+  test.each([
+    ['qwenwork_desktop', 'token_oauth_session'],
+    ['codex', 'token_oauth_session'],
+    ['mulerun', 'env_token_bootstrap'],
+  ])('reports verified runtime and developer entries with host-managed presentation for %s', (tool, authRuntime) => {
+    const { buildApplicationEntryPolicy } = require('../lib/core/agent-capabilities');
+    const { buildCommandManifest } = require('../lib/core/command-manifest');
+    const policy = buildApplicationEntryPolicy({
+      auth: { auth_runtime: authRuntime, can_auto_use: true },
+      runtime: { tool },
+    });
+    const manifestPolicy = buildCommandManifest().summary.core_workflows.full_app_build.application_entry_policy;
+
+    expect(policy.delivery_unit).toBe('application_entries');
+    expect(policy.entries.admin).toBe('include');
+    expect(policy.entry_delivery).toEqual(manifestPolicy.entry_delivery);
+    expect(policy.entry_delivery).toEqual({
+      max_count: 3,
+      deduplicate_by: 'verified_url',
+      order: ['frontend', 'management', 'admin'],
+      by_scope: {
+        'service-management': ['frontend', 'management', 'admin'],
+        'frontend-only': ['frontend', 'admin'],
+        'backend-only': ['management', 'admin'],
+        unified: ['management', 'admin'],
+      },
+      explicit_user_exclusions: 'take_precedence',
+      resource_only: 'current_resource_only',
+      missing_entry: 'report_incomplete_without_guessing',
+    });
+    // 消费方调整本次结果时，不能污染后续能力查询或其他宿主。
+    policy.entry_delivery.by_scope['service-management'].pop();
+    expect(buildApplicationEntryPolicy({}).entry_delivery.by_scope['service-management'])
+      .toEqual(['frontend', 'management', 'admin']);
+  });
+
   test('YIDA_AUTH_ENABLED does not skip environment snapshot or auth status checks', () => {
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openyida-agent-cap-fast-'));
     const buildEnvironmentSnapshot = jest.fn(() => ({
@@ -47,6 +157,7 @@ describe('agent-capabilities summary', () => {
     jest.doMock('../lib/core/utils', () => ({ findProjectRoot, getAuthStatus }));
 
     process.env.YIDA_AUTH_ENABLED = 'true';
+    process.env.OPENYIDA_MANAGED_RUNTIME = 'cloud';
     process.env.OPENYIDA_ACCESS_TOKEN = 'runtime-access-token';
     process.env.OPENYIDA_TOKEN_CORP_ID = 'corpRuntime';
     process.env.OPENYIDA_TOKEN_CORP_NAME = '运行时组织';
@@ -103,9 +214,53 @@ describe('agent-capabilities summary', () => {
       expect(JSON.stringify(summary)).not.toContain('host_token');
       expect(JSON.stringify(summary)).not.toContain('runtime_auth_provisioned');
       expect(summary.command_manifest_digest).toMatch(/^[a-f0-9]{64}$/);
+      expect(summary.build_identity).toEqual({
+        schema_version: 1,
+        package_version: expect.any(String),
+        build_id: expect.any(String),
+        commit_sha: 'unknown',
+        bundle_digest: 'unknown',
+        command_manifest_digest: summary.command_manifest_digest,
+      });
+      expect(summary.application_entry_policy).toEqual({
+        schema_version: 1,
+        environment: 'managed_cloud_agent',
+        delivery_unit: 'application_entries',
+        presentation: 'host_managed',
+        entry_delivery: expect.objectContaining({ max_count: 3 }),
+        resource_delivery: 'summary_only',
+        internal_artifact_delivery: 'never',
+        frontend_delivery: expect.stringContaining('verified publish/get-form-config standaloneUrl'),
+        entries: {
+          workbench: 'when_workspace_in_scope',
+          custom: 'when_entry_mode_standalone_and_is_render_nav_false_readback',
+          admin: 'include',
+        },
+      });
     } finally {
       fs.rmSync(projectRoot, { recursive: true, force: true });
     }
+  });
+
+  test('reports immutable CI build identity in summary and full diagnostics', () => {
+    process.env.OPENYIDA_BUILD_ID = 'openyida-phase6-build';
+    process.env.OPENYIDA_COMMIT_SHA = 'abc123def456';
+    process.env.OPENYIDA_BUNDLE_DIGEST = 'sha256:bundle123';
+
+    const capabilities = require('../lib/core/agent-capabilities');
+    const summary = capabilities.buildAgentCapabilitiesSummary();
+    const full = capabilities.buildAgentCapabilities();
+
+    expect(summary.build_identity).toEqual({
+      schema_version: 1,
+      package_version: expect.any(String),
+      build_id: 'openyida-phase6-build',
+      commit_sha: 'abc123def456',
+      bundle_digest: 'sha256:bundle123',
+      command_manifest_digest: summary.command_manifest_digest,
+    });
+    expect(full.build_identity).toEqual(summary.build_identity);
+    expect(full.openyida.build_identity).toEqual(summary.build_identity);
   });
 
   test('non-runtime access token path still uses existing summary checks', () => {
@@ -195,6 +350,14 @@ describe('agent-capabilities summary', () => {
           'openyida auth profiles',
           'openyida auth profile switch <auth_profile>',
         ],
+      });
+      expect(summary.application_entry_policy).toMatchObject({
+        environment: 'non_cloud_agent',
+        entries: {
+          workbench: 'when_workspace_in_scope',
+          custom: 'when_entry_mode_standalone_and_is_render_nav_false_readback',
+          admin: 'include',
+        },
       });
       expect(summary.builder_path.auth).not.toHaveProperty('runtime_auth_provisioned');
     } finally {

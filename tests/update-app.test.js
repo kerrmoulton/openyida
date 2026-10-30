@@ -1,7 +1,11 @@
 'use strict';
 
+const querystring = require('querystring');
+const { buildCommandManifest } = require('../lib/core/command-manifest');
+
 const {
   assertPresetThemeKey,
+  assertAppThemeKey,
   APP_THEME_TOKEN_PRESETS,
   APP_THEME_TOKEN_PRESET_KEYS,
   getAppThemeTokenPreset,
@@ -13,25 +17,103 @@ const {
   hasShellUpdate,
   buildUpdateAppNamePostData,
   buildUpdateAppPostData,
+  normalizeThemeColor,
+  assertNavTheme,
+  assertLogoSource,
+  normalizeLayoutDirection,
+  syncSystemIconColor,
 } = require('../lib/app/update-app');
 
 describe('update-app helpers', () => {
+  test('manifest covers every parsed option and alias with matching values', () => {
+    const command = buildCommandManifest().commands.find(entry => entry.id === 'update-app');
+    expect(command.args.find(arg => arg.name === 'appType')).toMatchObject({ required: true, source: 'positional', position: 0 });
+    const options = command.args.filter(arg => arg.source === 'option');
+    const parserOptions = [...parseArgs.toString().matchAll(/case '([^']+)':/g)].map(match => match[1]);
+    expect(options.flatMap(arg => arg.builder_options).sort()).toEqual(parserOptions.sort());
+    const values = {
+      name: '测试应用', desc: '业务说明', icon: 'xian-yingyong', iconColor: '#0089FF',
+      colour: 'custom', themeColor: '#123456', themeFile: './app-theme.css',
+      navTheme: 'white', logoSource: 'appIcon', layoutDirection: 'side',
+    };
+    for (const arg of options) {
+      const boolean = arg.type === 'boolean';
+      const expected = boolean ? (['hideAppNav', 'showAppNav'].includes(arg.name)
+        ? { hideAppNav: arg.name === 'hideAppNav' ? 'y' : 'n' } : { [arg.name]: true }) : { [arg.name]: values[arg.name] };
+      if (!boolean) { expect(values).toHaveProperty(arg.name); }
+      for (const option of arg.builder_options) {
+        expect(parseArgs(['APP_1', option, ...(boolean ? [] : [values[arg.name]])])).toMatchObject({ appType: 'APP_1', ...expected });
+      }
+    }
+  });
+  test('all manifest value options reject missing values and visibility flags are exclusive', () => {
+    const command = buildCommandManifest().commands.find(entry => entry.id === 'update-app');
+    for (const arg of command.args.filter(arg => arg.source === 'option' && arg.type !== 'boolean')) {
+      for (const option of arg.builder_options) {
+        expect(() => parseArgs(['APP_1', option])).toThrow();
+        expect(() => parseArgs(['APP_1', option, '--show-app-nav'])).toThrow();
+      }
+    }
+    expect(() => parseArgs(['APP_1', '--border-radius', '12px'])).toThrow();
+    expect(() => parseArgs(['APP_1', '--hide-app-nav', '--show-app-nav'])).toThrow();
+    expect(() => parseArgs(['APP_1', '--show-app-nav', '--hide-app-nav'])).toThrow();
+  });
+  test('colour accepts only platform keys or custom, never CSS colors or invented keys', () => {
+    ['podBlue', 'podGreen', 'podOrange', 'black', 'custom'].forEach((key) => expect(() => assertAppThemeKey(key)).not.toThrow());
+    ['#C89B5A', 'rgb(200,155,90)', 'desertWarm', 'podBXXXX'].forEach((key) => expect(() => assertAppThemeKey(key)).toThrow());
+  });
+
+  test('explicit custom preserves existing CSS and color while preset switches clear them', () => {
+    const current = { colour: 'custom', themeColor: '#C89B5A', customThemeStyle: '{"enabled":true,"cssUrl":"https://example.com/theme.css"}' };
+    expect(buildUpdateAppPostData(parseArgs(['APP_1', '--colour', 'custom']), current, {})).toMatchObject(current);
+    expect(() => buildUpdateAppPostData(parseArgs(['APP_1', '--colour', 'custom']), {}, {})).toThrow();
+    expect(() => buildUpdateAppPostData(parseArgs(['APP_1', '--colour', 'podBlue', '--theme-file', './theme.css']), current, {})).toThrow();
+  });
   test('parseArgs supports app shell theme flags', () => {
     expect(parseArgs([
       'APP_1',
       '--theme', 'podBlue',
       '--nav-theme', 'light',
-      '--layout', 'ver',
+      '--layout', 'side',
+      '--logo-source', 'appIcon',
       '--icon', 'xian-yingyong',
       '--icon-color', '#0089FF',
     ])).toMatchObject({
       appType: 'APP_1',
       colour: 'podBlue',
       navTheme: 'light',
-      layoutDirection: 'ver',
+      layoutDirection: 'side',
+      logoSource: 'appIcon',
       icon: 'xian-yingyong',
       iconColor: '#0089FF',
     });
+  });
+
+  test('parseArgs supports a custom theme file, theme color, and modern nav theme together', () => {
+    expect(parseArgs([
+      'APP_1',
+      '--theme-color', '#1677ff',
+      '--theme-file', './app-theme.css',
+      '--nav-theme', 'white',
+    ])).toMatchObject({
+      appType: 'APP_1',
+      themeColor: '#1677ff',
+      themeFile: './app-theme.css',
+      navTheme: 'white',
+    });
+    expect(hasShellUpdate(parseArgs(['APP_1', '--theme-file', './app-theme.css']))).toBe(true);
+  });
+
+  test('validates the custom theme color and nav theme contract', () => {
+    expect(normalizeThemeColor('#1677ff')).toBe('#1677FF');
+    expect(normalizeThemeColor('rgb(22, 119, 255)')).toBe('rgb(22, 119, 255)');
+    expect(() => normalizeThemeColor('blue')).toThrow('#RGB, #RRGGBB, rgb(a), or hsl(a)');
+    expect(() => assertNavTheme('brand')).toThrow('light, dark, white, gray');
+    expect(() => assertLogoSource('logo')).toThrow('appIcon, customImage');
+    expect(normalizeLayoutDirection('ver')).toBe('side');
+    expect(normalizeLayoutDirection('hoz')).toBe('top');
+    expect(normalizeLayoutDirection('l_shape')).toBe('l_shape');
+    expect(() => normalizeLayoutDirection('vertical')).toThrow('side, top, l_shape');
   });
 
   test('parseArgs supports app nav visibility flags', () => {
@@ -43,6 +125,56 @@ describe('update-app helpers', () => {
       appType: 'APP_1',
       hideAppNav: 'n',
     });
+  });
+
+  test.each(['top', 'side', 'l_shape'])('platform %s reaches the request body and restores hidden navigation', (layout) => {
+    const params = parseArgs(['APP_1', '--layout', layout, '--show-app-nav']);
+    params.layoutDirection = normalizeLayoutDirection(params.layoutDirection);
+    const payload = buildUpdateAppPostData(params, {
+      layoutDirection: layout === 'side' ? 'top' : 'side',
+      hideAppNav: 'y',
+      navType: 'top_side',
+      config: { LAY_OUT_DIRECTION: 'side', HIDE_APP_NAV: 'y' },
+    }, { csrfToken: 'csrf' });
+    const body = querystring.parse(querystring.stringify(payload));
+    expect(body).toMatchObject({ layoutDirection: layout, hideAppNav: 'n', navType: 'top_side' });
+  });
+
+  // Application normalization from yc-utils trunk-master-gray b21b02d7.
+  // Shell page overrides (top_fold/none) are not application-save rules.
+  test.each([
+    ['top', 'top_side', 'top'],
+    ['side', 'top_fold', 'side'],
+    ['l_shape', 'side_only', 'l_shape'],
+    ['hoz', 'top_side', 'l_shape'],
+    ['hoz', 'top_fold', 'top'],
+    ['ver', 'top_side', 'side'],
+    ['slide', undefined, 'side'],
+    ['slide', 'top_side', 'l_shape'],
+    [undefined, 'top_side', 'l_shape'],
+    [undefined, 'top_fold', 'top'],
+    [undefined, 'side_only', 'side'],
+    [undefined, 'none', 'side'],
+    [undefined, undefined, 'side'],
+  ])('updating color preserves app layout %s / legacy navType %s as %s', (layoutDirection, navType, expected) => {
+    for (const current of [
+      { layoutDirection, navType },
+      { config: { LAY_OUT_DIRECTION: layoutDirection, NAVTYPE: navType } },
+    ]) {
+      const body = querystring.parse(querystring.stringify(buildUpdateAppPostData(
+        parseArgs(['APP_1', '--nav-theme', 'dark']), current, { csrfToken: 'csrf' }
+      )));
+      expect(body.layoutDirection).toBe(expected);
+      if (navType) {expect(body.navType).toBe(navType);}
+      else {expect(body).not.toHaveProperty('navType');}
+    }
+  });
+
+  test('an explicit layout overrides legacy app data without rewriting navType', () => {
+    const body = buildUpdateAppPostData(parseArgs(['APP_1', '--layout', 'side', '--show-app-nav']), {
+      layoutDirection: 'hoz', navType: 'top_side', hideAppNav: 'y',
+    }, {});
+    expect(body).toMatchObject({ layoutDirection: 'side', navType: 'top_side', hideAppNav: 'n' });
   });
 
   test('theme presets list documents the only values accepted by --theme', () => {
@@ -119,7 +251,8 @@ describe('update-app helpers', () => {
         navTheme: 'light',
         navType: 'top_side',
         navLayout: 'auto',
-        layoutDirection: 'ver',
+        layoutDirection: 'side',
+        logoSource: 'appIcon',
         showIcon: 'n',
         showNav: 'y',
         showCrumb: 'y',
@@ -139,13 +272,65 @@ describe('update-app helpers', () => {
       type: 'single',
       navType: 'top_side',
       navLayout: 'auto',
-      layoutDirection: 'ver',
+      layoutDirection: 'side',
+      logoSource: 'appIcon',
     });
     expect(payload).not.toHaveProperty('appMode');
     expect(payload).not.toHaveProperty('hideAppNav');
     expect(JSON.parse(payload.appName)).toMatchObject({
       zh_CN: 'OpenYida官方Samples展示0716',
     });
+  });
+
+  test('buildUpdateAppPostData does not invent a light navigation theme', () => {
+    const payload = buildUpdateAppPostData(
+      parseArgs(['APP_1', '--theme', 'podBlue']),
+      {
+        appName: { zh_CN: '应用' },
+        description: { zh_CN: '描述' },
+        mode: 'normal',
+        type: 'single',
+      },
+      { csrfToken: 'csrf' }
+    );
+    expect(payload).not.toHaveProperty('navTheme');
+  });
+
+  test('buildUpdateAppPostData preserves security settings without inventing defaults', () => {
+    const params = parseArgs(['APP_1', '--nav-theme', 'light']);
+    const currentApp = {
+      appName: { zh_CN: '应用' },
+      description: { zh_CN: '描述' },
+      mode: 'normal',
+      type: 'single',
+    };
+
+    const empty = buildUpdateAppPostData(
+      params,
+      { ...currentApp, addWaterMark: '', sentryMode: '' },
+      { csrfToken: 'csrf' }
+    );
+    expect(empty).toMatchObject({ addWaterMark: '', sentryMode: '' });
+    expect(querystring.stringify(empty)).toContain('addWaterMark=&sentryMode=');
+
+    const explicit = buildUpdateAppPostData(
+      params,
+      { ...currentApp, addWaterMark: 'n', sentryMode: 'y' },
+      { csrfToken: 'csrf' }
+    );
+    expect(explicit).toMatchObject({ addWaterMark: 'n', sentryMode: 'y' });
+
+    const configFallback = buildUpdateAppPostData(
+      params,
+      { ...currentApp, config: { ADDWATERMARK: 'y', SENTRY_MODE: 'n' } },
+      { csrfToken: 'csrf' }
+    );
+    expect(configFallback).toMatchObject({ addWaterMark: 'y', sentryMode: 'n' });
+
+    const absent = buildUpdateAppPostData(params, currentApp, { csrfToken: 'csrf' });
+    expect(absent).not.toHaveProperty('addWaterMark');
+    expect(absent).not.toHaveProperty('sentryMode');
+    expect(querystring.stringify(absent)).not.toMatch(/addWaterMark|sentryMode/);
   });
 
   test('buildUpdateAppPostData writes hideAppNav as y/n only when requested', () => {
@@ -177,4 +362,189 @@ describe('update-app helpers', () => {
       hideAppNav: 'n',
     });
   });
+
+  test('buildUpdateAppPostData saves custom theme fields together and preserves existing theme files', () => {
+    const customThemeStyle = JSON.stringify({
+      enabled: true,
+      iframePropagation: false,
+      cssUrl: 'https://example.com/app-theme.css',
+      cssFileName: 'app-theme.css',
+    });
+    const payload = buildUpdateAppPostData(
+      {
+        ...parseArgs(['APP_1', '--theme-color', '#1677FF', '--nav-theme', 'dark', '--logo-source', 'appIcon', '--layout', 'l_shape']),
+        themeColor: '#1677FF',
+        customThemeStyle,
+      },
+      {
+        appName: { zh_CN: '应用' },
+        description: { zh_CN: '描述' },
+        mode: 'normal',
+        type: 'single',
+      },
+      { csrfToken: 'csrf' }
+    );
+
+    expect(payload).toMatchObject({
+      colour: 'custom',
+      themeColor: '#1677FF',
+      navTheme: 'dark',
+      logoSource: 'appIcon',
+      layoutDirection: 'l_shape',
+      customThemeStyle,
+    });
+
+    const preserved = buildUpdateAppPostData(
+      parseArgs(['APP_1', '--nav-theme', 'white']),
+      {
+        appName: { zh_CN: '应用' },
+        description: { zh_CN: '描述' },
+        themeColor: '#334455',
+        customThemeStyle: JSON.parse(customThemeStyle),
+        mode: 'normal',
+        type: 'single',
+      },
+      { csrfToken: 'csrf' }
+    );
+    expect(preserved).toMatchObject({
+      themeColor: '#334455',
+      customThemeStyle,
+      navTheme: 'white',
+    });
+  });
+
+  test('custom theme files synchronize system app icon color to --color-brand1-6', () => {
+    const payload = buildUpdateAppPostData(
+      {
+        ...parseArgs(['APP_1', '--theme-file', './app-theme.css']),
+        themeColor: 'rgb(22, 119, 255)',
+        customThemeStyle: JSON.stringify({ cssUrl: 'https://example.com/app-theme.css', enabled: true }),
+      },
+      {
+        appName: { zh_CN: '法律服务应用' },
+        description: { zh_CN: '描述' },
+        icon: 'xian-falv%%#111827',
+        mode: 'normal',
+        type: 'single',
+      },
+      { csrfToken: 'csrf' }
+    );
+
+    expect(payload).toMatchObject({
+      icon: 'xian-falv%%#1677FF',
+      iconUrl: 'xian-falv%%#1677FF',
+      themeColor: 'rgb(22, 119, 255)',
+    });
+  });
+
+  test('custom theme files do not rewrite uploaded image app icons', () => {
+    const imageIcon = 'https://cdn.example.com/app-icon.png';
+    const payload = buildUpdateAppPostData(
+      {
+        ...parseArgs(['APP_1', '--theme-file', './app-theme.css']),
+        themeColor: '#B421FD',
+        customThemeStyle: JSON.stringify({ cssUrl: 'https://example.com/app-theme.css', enabled: true }),
+      },
+      {
+        appName: { zh_CN: '品牌应用' },
+        description: { zh_CN: '描述' },
+        icon: imageIcon,
+        mode: 'normal',
+        type: 'single',
+      },
+      { csrfToken: 'csrf' }
+    );
+
+    expect(payload).toMatchObject({ icon: imageIcon, iconUrl: imageIcon });
+    expect(syncSystemIconColor('data:image/png;base64,AAAA', '#B421FD'))
+      .toBe('data:image/png;base64,AAAA');
+  });
+
+  test('switching to a preset theme clears the previously uploaded custom CSS', () => {
+    const payload = buildUpdateAppPostData(
+      parseArgs(['APP_1', '--theme', 'podGreen']),
+      {
+        appName: { zh_CN: '应用' },
+        description: { zh_CN: '描述' },
+        mode: 'normal',
+        type: 'single',
+        themeColor: '#8F66FF',
+        customThemeStyle: JSON.stringify({ cssUrl: 'https://example.com/old.css', enabled: true }),
+      },
+      { csrfToken: 'csrf' }
+    );
+
+    expect(payload).toMatchObject({
+      colour: 'podGreen',
+      themeColor: '',
+      customThemeStyle: '',
+    });
+  });
 });
+
+
+describe('legacy app navigation persistence', () => {
+  const legacy = { appThemeEnable: 'n', appThemeMode: 'legacy', navType: 'top_side_fold' };
+  test.each([['side', 'ver'], ['l_shape', 'ver'], ['top', 'hoz']])(
+    '%s saves as %s on a disabled legacy app', (layout, expected) => {
+      const payload = buildUpdateAppPostData(parseArgs(['APP_1', '--layout', layout]), legacy, {});
+      expect(payload).toMatchObject({ layoutDirection: expected, navType: 'top_side_fold' });
+      const modern = buildUpdateAppPostData(parseArgs(['APP_1', '--layout', layout]),
+        { ...legacy, appThemeEnable: 'y', appThemeMode: 'modern' }, {});
+      expect(modern.layoutDirection).toBe(layout);
+    });
+  test.each(['slide', 'ver', 'hoz'])('unrelated updates preserve legacy %s', (layoutDirection) => {
+    const payload = buildUpdateAppPostData(parseArgs(['APP_1', '--nav-theme', 'dark']),
+      { ...legacy, layoutDirection }, {});
+    expect(payload.layoutDirection).toBe(layoutDirection);
+  });
+  test.each([['white', 'light'], ['gray', 'light'], ['light', 'light'], ['dark', 'dark']])(
+    'maps legacy navigation color %s to %s', (input, expected) => {
+      const payload = buildUpdateAppPostData(parseArgs(['APP_1', '--nav-theme', input]), legacy, {});
+      expect(payload.navTheme).toBe(expected);
+      expect(buildUpdateAppPostData(parseArgs(['APP_1', '--nav-theme', input]),
+        { appThemeEnable: 'y', appThemeMode: 'modern' }, {}).navTheme).toBe(input);
+    });
+  test('config fallback and disabled modern candidate use the legacy protocol', () => {
+    expect(buildUpdateAppPostData(parseArgs(['APP_1', '--layout', 'side', '--nav-theme', 'white']),
+      { config: { APP_THEME_MODE: 'legacy' } }, {})).toMatchObject({ layoutDirection: 'ver', navTheme: 'light' });
+    expect(buildUpdateAppPostData(parseArgs(['APP_1', '--layout', 'l_shape']),
+      { appThemeEnable: 'n', appThemeMode: 'modern' }, {}).layoutDirection).toBe('ver');
+  });
+});
+
+
+test('application CSS disabling preserves resource, navigation and color and rejects other updates', () => {
+  const current = { appThemeMode: 'legacy', appThemeEnable: 'n', colour: 'custom', themeColor: '#C89B5A',
+    layoutDirection: 'side', navTheme: 'gray', customThemeStyle: '{"enabled":true,"cssUrl":"https://example.com/theme.css"}' };
+  const params = parseArgs(['APP_1', '--disable-custom-theme']);
+  expect(hasShellUpdate(params)).toBe(true);
+  expect(buildUpdateAppPostData(params, current, {})).toMatchObject({
+    colour: 'custom', themeColor: '#C89B5A', layoutDirection: 'side', navTheme: 'gray', customThemeStyle: JSON.stringify({ enabled: false, cssUrl: 'https://example.com/theme.css', iframePropagation: false }),
+  });
+  expect(() => parseArgs(['APP_1', '--disable-custom-theme', '--theme-file', './app.css'])).toThrow();
+  expect(() => buildUpdateAppPostData({ appType: 'APP_1', disableCustomTheme: true, customThemeStyle: '{}' }, current, {})).toThrow();
+  expect(hasShellUpdate(parseArgs(['APP_1', '--confirm-legacy-app-style']))).toBe(false);
+});
+
+
+test('disable preserves empty basic settings instead of inserting defaults', () => {
+  const current = { config: { COLOUR: 'podBlue', THEME_COLOR: '', LOGO_SOURCE: '', HOMEPAGELOGO: '',
+    LAY_OUT_DIRECTION: 'slide', NAV_THEME: 'light', SHOWICON: '', SHOWNAV: '',
+    CUSTOM_THEME_STYLE: { cssUrl: 'https://example.com/app.css', cssFileName: 'app.css', enabled: true, iframePropagation: true, extension: 1 } } };
+  const payload = buildUpdateAppPostData(parseArgs(['APP_1', '--disable-custom-theme']), current, {});
+  expect(payload).toMatchObject({ colour: 'podBlue', themeColor: '', logoSource: '', homepageLogo: '',
+    layoutDirection: 'slide', navTheme: 'light', showIcon: '', showNav: '' });
+  expect(JSON.parse(payload.customThemeStyle)).toEqual({ ...current.config.CUSTOM_THEME_STYLE, enabled: false, iframePropagation: false });
+});
+
+test.each([null, '', '{}', '[]', 'null', '{broken', { enabled: true }, { cssUrl: '' }])(
+  'invalid existing style %j is never replaced by an empty disable configuration', customThemeStyle => {
+    expect(() => buildUpdateAppPostData(parseArgs(['APP_1', '--disable-custom-theme']), { customThemeStyle }, {}))
+      .toThrow();
+  });
+
+test.each([['--colour', 'podBlue'], ['--theme-color', '#123456'], ['--name', 'test'], ['--layout', 'side'], ['--show-app-nav']])(
+  'disable cannot be combined with %j', args => {
+    expect(() => parseArgs(['APP_1', '--disable-custom-theme', ...args])).toThrow();
+  });

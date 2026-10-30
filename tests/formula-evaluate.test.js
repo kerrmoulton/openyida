@@ -21,6 +21,10 @@ describe('formula evaluate parseArgs', () => {
       json: true,
       strict: true,
       help: false,
+      context: undefined,
+      contract: undefined,
+      metadataPath: '',
+      targetType: '',
     });
   });
 });

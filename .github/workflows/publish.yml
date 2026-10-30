@@ -19,6 +19,11 @@ jobs:
         node-version: '20'
         cache: 'npm'
 
+    - name: Validate release notes for this tag
+      run: node scripts/release-notes.js "$RELEASE_TAG"
+      env:
+        RELEASE_TAG: ${{ github.ref_name }}
+
     - name: Install dependencies
       run: npm install --ignore-scripts
 
@@ -30,9 +35,6 @@ jobs:
 
     - name: Validate skills
       run: npm run check:skills
-
-    - name: Build Wukong skills package
-      run: npm run build:skills
 
     - name: Run tests
       run: npm test
@@ -75,7 +77,9 @@ jobs:
       id: npm-tag
       run: |
         VERSION="${{ github.ref_name }}"
-        if [[ "$VERSION" == *"-beta"* ]] || [[ "$VERSION" == *"-alpha"* ]] || [[ "$VERSION" == *"-rc"* ]]; then
+        if [[ "$VERSION" == *"-snapshot"* ]]; then
+          echo "tag=snapshot" >> $GITHUB_OUTPUT
+        elif [[ "$VERSION" == *"-beta"* ]] || [[ "$VERSION" == *"-alpha"* ]] || [[ "$VERSION" == *"-rc"* ]]; then
           echo "tag=beta" >> $GITHUB_OUTPUT
         else
           echo "tag=latest" >> $GITHUB_OUTPUT
@@ -93,42 +97,22 @@ jobs:
           echo "exists=false" >> $GITHUB_OUTPUT
         fi
 
+    - name: Prepare user-facing release notes
+      run: node scripts/release-notes.js "$RELEASE_TAG" "$RUNNER_TEMP/openyida-release-notes.md"
+      env:
+        RELEASE_TAG: ${{ github.ref_name }}
+
     - name: Publish to npm
       if: steps.npm-version.outputs.exists != 'true'
       run: npm publish --access public --tag ${{ steps.npm-tag.outputs.tag }}
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-    - name: Build Wukong skills package
-      run: npm run build:skills
-
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ github.ref_name }}
         name: ${{ github.ref_name }}
-        files: openyida-skills.zip
-        prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-rc') }}
-        body: |
-          ## 安装 / 更新
-
-          Beta / RC 预发布：
-
-          ```bash
-          npm install -g openyida@beta
-          ```
-
-          正式版：
-
-          ```bash
-          npm install -g openyida
-          ```
-
-          安装后即可在 Claude Code / OpenCode / Aone Copilot / Cursor / Qoder / 悟空 中直接使用，零配置。
-
-          ## OpenYida 技能包
-
-          在本 Release 页面底部的 **Assets** 中下载 `openyida-skills.zip`，然后可在对应 Agent 技能中心通过「上传技能」导入。
-          根目录为 `openyida/`，只包含一个根 `SKILL.md`，长文档和子能力放在 `references/` 中。
-
-        generate_release_notes: true
+        prerelease: ${{ contains(github.ref_name, '-snapshot') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-rc') }}
+        body_path: ${{ runner.temp }}/openyida-release-notes.md
+        generate_release_notes: false
