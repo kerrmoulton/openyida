@@ -1,0 +1,47 @@
+{
+  "source": "Anonymized yida-simple-flow/0.2.313 workflow designer save, 2026-10-30",
+  "connector": {
+    "key": "lookup",
+    "componentName": "ConnectorNode",
+    "name": "Read account",
+    "props": {
+      "connectorRules": {
+        "connectorId": "Http_native",
+        "actionId": "operation-1",
+        "connectionId": 42,
+        "connector": { "mode": 5 },
+        "url": "https://api.example.invalid/user/get",
+        "method": "post",
+        "body": "",
+        "inputs": [{ "name": "Query", "paramType": "Object", "childList": [{ "name": "userid", "componentName": "TextField" }] }],
+        "rules": [{
+          "name": "Query", "id": "Query", "paramType": "Object",
+          "childList": [{ "name": "userid", "id": "Query%userid", "rules": [] }],
+          "rules": [{
+            "name": "userid", "id": "Query%userid", "componentName": "TextField",
+            "valueType": "column", "value": "ARRAYGET(#{employeeField_owner},1)",
+            "__source": "ARRAYGET(#{employeeField_owner},1)",
+            "__display": "ARRAYGET(示例人员,1)"
+          }]
+        }]
+      }
+    }
+  },
+  "runtimeConnectorInputs": {
+    "url": "https://api.example.invalid/user/get",
+    "method": "post", "body": "", "connection": 42,
+    "connectorId": "Http_native", "actionId": "operation-1",
+    "assignments": [{ "column": "Query", "valueType": "Object", "value": "", "assignments": [
+      { "column": "userid", "valueType": "column", "value": "ARRAYGET(#{employeeField_owner},1)", "assignments": [] }
+    ] }]
+  },
+  "code": {
+    "key": "stop",
+    "componentName": "JavaScriptNode", "name": "Stop on error",
+    "JavaScript": {
+      "inputs": [], "scriptType": "JavaScript",
+      "action": { "code": "throw new Error('Account lookup failed');", "exceptionStrategy": "" },
+      "outputs": null, "testInputs": []
+    }
+  }
+}

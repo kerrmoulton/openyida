@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  process_node: {
+    invalid: 'वर्कफ़्लो नोड का कॉन्फ़िगरेशन अमान्य है: {0}; अपेक्षित: {1}.',
+    formula_invalid: '{0} पर नोड सूत्र का सत्यापन विफल हुआ। समर्थित फ़ंक्शन और फ़ील्ड संदर्भ उपयोग करें।',
+    connector_unavailable: 'वर्कफ़्लो डिज़ाइनर कनेक्टर कार्रवाई {0}/{1} लोड नहीं कर सकता। फ़ैक्टरी परीक्षण की सफलता वर्कफ़्लो में उपलब्धता सिद्ध नहीं करती। सहेजने का अनुरोध नहीं भेजा गया है।',
+  },
   formula_profile: {
     not_allowed: 'फ़ंक्शन "{0}" {1} के डिफ़ॉल्ट सूत्र की सत्यापित अनुमति सूची में नहीं है।',
     canonical_case: '"{0}" के बजाय आधिकारिक नाम "{1}" का उपयोग करें।',

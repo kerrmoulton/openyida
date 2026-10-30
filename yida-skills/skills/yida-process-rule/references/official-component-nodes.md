@@ -35,6 +35,8 @@
 
 ## 连接器节点示例
 
+原生 `connectorRules.inputs` 数组是编辑器的参数 Schema，不是运行参数。运行配置必须由分组规则转换为 `props.inputs.assignments`（例如 `Query → userid`），不能把 Schema 数组展开成对象，也不能直接打平为没有 `column` 的编辑器规则。工厂详情、测试或 `invokeService` 成功均不能证明应用流程设计器可加载动作；保存入口会先只读检查该应用的 `connector/getAction.json`，失败时必须停止，不能绕过预检继续保存或发布。
+
 以下展示规则对象的放置方式。连接器、动作、鉴权连接及参数路径须以真实 action schema 为准，示例 ID 不能直接提交。
 
 ```json
@@ -59,6 +61,30 @@
 
 保存时，`connectorRules.inputs` 和连接器标识会转换到 `processJson.props.inputs`；鉴权连接取自 `connectorRules.connectionId` 或 `connection`。只有接口证据表明运行类型不同，才传 `processType`（兼容 `processNodeType`）覆盖。
 
+上例为内置连接器的兼容参数形式，不能作为 HTTP 原生编辑器的 Schema。HTTP 节点（mode 5）需保留真实动作的 `inputs` 数组和独立的 `rules`，例如以下结构片段；标识、字段及完整元数据仍须从实际动作回读：
+
+```json
+{
+  "connectorRules": {
+    "connectorId": "<真实HTTP连接器标识>",
+    "actionId": "<真实动作标识>",
+    "connectionId": 123,
+    "connector": { "mode": 5 },
+    "inputs": [{ "name": "Query", "paramType": "Object", "childList": [
+      { "name": "userid", "componentName": "TextField" }
+    ] }],
+    "rules": [{ "name": "Query", "id": "Query", "rules": [
+      { "name": "userid", "id": "Query%userid", "valueType": "column",
+        "value": "#{textField_example}",
+        "__source": "#{textField_example}",
+        "__display": "用户标识" }
+    ] }]
+  }
+}
+```
+
+示例中的字段 ID、参数名和公式须按实际接口及表单配置替换，不代表固定业务映射。
+
 ## 数据／消息／代码节点示例
 
 下面是节点结构片段，说明每类规则放在哪里。查询条件、代码输入输出、消息对象等须从真实配置中补齐或保留；不能用片段覆盖已有完整规则。
@@ -79,6 +105,8 @@
       "componentName": "JavaScriptNode",
       "name": "执行脚本",
       "JavaScript": {
+        "inputs": [],
+        "scriptType": "JavaScript",
         "action": { "code": "return inputs;" },
         "outputs": []
       }
@@ -102,6 +130,10 @@
 `getData` 转为运行层的查询参数，`quantity` 转为字符串；`JavaScript/groovy` 转为 `inputs/action/scriptType/outputsSchema`；`sendMessageRules` 转为消息运行参数。代码的执行环境和输入输出仍按真实节点配置确定，编译通过不代表脚本已执行。
 
 ## 透传规则
+
+- 代码节点的 `inputs` 是数组，不能写成连接器运行参数的 `{ "assignments": [] }`。缺省输入会编译为 `[]`，JavaScript 的原生 `scriptType` 为 `JavaScript`；不合法的结构在任何远程写入前报错。
+- 节点公式使用 automation 上下文进行校验，不沿用人员组件专用函数。通过 `__source` 保留编辑器引用（例如 `#{lookup//errcode}`），运行式转换为 `#{lookup}.errcode`；不改动字符串字面量内的相似文本。不要手工拼接两份不同来源的执行式和显示式。
+- 新增高级节点须通过共享流程编译器和保存入口。保存、回读一致只证明持久化；未检查原生界面或真实流程运行时，不得声称已验证可编辑或流转成功。
 
 - `props` 保留在 `viewJson` 节点中；缺少的 `name/nodeName/description` 由 CLI 补齐。也可把表中规则对象放在节点顶层，CLI 仅在 `props` 未配置同名项时补入；`viewProps` 最后覆盖视图参数。
 - `processJson.props` 按组件转换规则生成，并移除 `name/nodeName/description/title` 等视图字段。连接器、代码、取数、新增数据和 AI 各有转换，不能直接把视图 props 当作运行参数。

@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  process_node: {
+    invalid: 'إعداد عقدة سير العمل غير صالح: {0}؛ التنسيق المطلوب: {1}.',
+    formula_invalid: 'فشل التحقق من صيغة العقدة عند {0}. استخدم الدوال ومراجع الحقول المدعومة.',
+    connector_unavailable: 'تعذر على مصمم سير العمل تحميل إجراء الموصل {0}/{1}. نجاح اختبار المصنع لا يضمن إتاحته في سير العمل. لم يُرسل طلب الحفظ.',
+  },
   formula_profile: {
     not_allowed: 'الدالة "{0}" ليست ضمن قائمة السماح المتحققة للصيغة الافتراضية في {1}.',
     canonical_case: 'استخدم الاسم الرسمي "{1}" بدلاً من "{0}".',

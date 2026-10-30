@@ -61,13 +61,20 @@ describe('process version query', () => {
     const authRef = { csrfToken: 'csrf-runtime-only' };
     await queryProcessVersions(authRef, 'APP_TEST', 'TPROC_TEST', '', { oneShot: true });
     await newDraftProcess(authRef, 'APP_TEST', 'TPROC_TEST', 'FORM_TEST', '1', 2, { oneShot: true });
-    await saveProcessById(authRef, 'APP_TEST', 'FORM_TEST', 'TPROC_TEST', '2', 2, '{}', '{}', { oneShot: true });
+    await saveProcessById(authRef, 'APP_TEST', 'FORM_TEST', 'TPROC_TEST', '2', 2,
+      JSON.stringify({ nodes: [] }), JSON.stringify({ schema: { children: [] } }), { oneShot: true });
     await publishProcessById(authRef, 'APP_TEST', 'FORM_TEST', 'TPROC_TEST', '2', 2, { oneShot: true });
 
     expect(mockGetOnce).toHaveBeenCalledTimes(1);
     expect(mockPostFormOnce).toHaveBeenCalledTimes(3);
     expect(mockGet).not.toHaveBeenCalled();
     expect(mockPostForm).not.toHaveBeenCalled();
+  });
+
+  test('does not send empty JSON objects as workflow definitions', async () => {
+    await expect(saveProcessById({}, 'APP_TEST', 'FORM_TEST', 'TPROC_TEST', '2', 2, '{}', '{}', { oneShot: true }))
+      .rejects.toMatchObject({ code: 'PROCESS_NODE_CONTRACT_INVALID' });
+    expect(mockPostFormOnce).not.toHaveBeenCalled(); expect(mockPostForm).not.toHaveBeenCalled();
   });
 
   test('preserves confirmed view-only readback without fabricating processJson', async () => {

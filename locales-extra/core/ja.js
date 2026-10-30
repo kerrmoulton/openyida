@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  process_node: {
+    invalid: 'ワークフローノードの設定が無効です：{0}。必要な形式：{1}。',
+    formula_invalid: 'ノード数式の検証に失敗しました：{0}。対応する関数とフィールド参照を使用してください。',
+    connector_unavailable: 'アプリの設計画面でコネクタ操作 {0}/{1} を読み込めません。ファクトリーテストの成功はフローでの利用を保証しません。保存は送信されていません。',
+  },
   formula_profile: {
     not_allowed: '関数「{0}」は {1} の既定値数式の検証済み許可リストにありません。',
     canonical_case: '「{0}」の代わりに公式表記「{1}」を使用してください。',

@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  process_node: {
+    invalid: '워크플로 노드 설정이 잘못되었습니다: {0}. 필요한 형식: {1}.',
+    formula_invalid: '노드 수식 검증에 실패했습니다: {0}. 지원되는 함수와 필드 참조를 사용하세요.',
+    connector_unavailable: '앱의 워크플로 디자이너에서 커넥터 작업 {0}/{1}을 로드할 수 없습니다. 팩토리 테스트 성공은 워크플로 사용 가능 여부를 보장하지 않습니다. 저장 요청은 전송되지 않았습니다.',
+  },
   formula_profile: {
     not_allowed: '함수 "{0}"은(는) {1} 기본값 수식의 검증된 허용 목록에 없습니다.',
     canonical_case: '"{0}" 대신 공식 표기 "{1}"을(를) 사용하세요.',

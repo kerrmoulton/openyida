@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  process_node: {
+    invalid: 'Cấu hình nút không hợp lệ: {0}; yêu cầu: {1}.',
+    formula_invalid: 'Không thể xác thực công thức tại {0}. Hãy dùng hàm và tham chiếu trường được hỗ trợ.',
+    connector_unavailable: 'Trình thiết kế không tải được thao tác kết nối {0}/{1}. Kiểm thử tại nhà máy thành công không đảm bảo dùng được trong quy trình. Yêu cầu lưu chưa được gửi.',
+  },
   formula_profile: {
     not_allowed: 'Hàm "{0}" không nằm trong danh sách cho phép đã xác minh của công thức mặc định {1}.',
     canonical_case: 'Dùng tên hàm chính thức "{1}" thay cho "{0}".',

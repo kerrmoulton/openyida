@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  process_node: {
+    invalid: 'Ungültige Workflow-Knotenkonfiguration: {0}; erwartet: {1}.',
+    formula_invalid: 'Die Formelauswertung bei {0} ist ungültig. Verwenden Sie unterstützte Funktionen und Feldverweise.',
+    connector_unavailable: 'Der Workflow-Designer kann die Connector-Aktion {0}/{1} nicht laden. Ein erfolgreicher Factory-Test bestätigt keine Workflow-Verfügbarkeit. Die Speicherung wurde nicht gesendet.',
+  },
   formula_profile: {
     not_allowed: 'Funktion „{0}“ steht nicht in der geprüften Zulassungsliste für {1}-Standardformeln.',
     canonical_case: 'Verwenden Sie die offizielle Schreibweise „{1}“ statt „{0}“.',

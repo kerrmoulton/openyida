@@ -5,6 +5,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  process_node: {
+    invalid: 'Configuración de nodo no válida: {0}; se esperaba {1}.',
+    formula_invalid: 'Error al validar la fórmula del nodo en {0}. Use funciones y referencias de campos compatibles.',
+    connector_unavailable: 'El diseñador no puede cargar la acción del conector {0}/{1}. La prueba de fábrica no garantiza su disponibilidad en el flujo. No se ha enviado el guardado.',
+  },
   formula_profile: {
     not_allowed: 'La función «{0}» no está en la lista verificada de fórmulas predeterminadas de {1}.',
     canonical_case: 'Use la escritura oficial «{1}» en lugar de «{0}».',

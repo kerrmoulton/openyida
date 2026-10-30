@@ -6,6 +6,11 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  process_node: {
+    invalid: '流程節點配置無效：{0}，應為 {1}。',
+    formula_invalid: '流程節點公式驗證失敗：{0}。請使用節點公式支援的函數和欄位引用。',
+    connector_unavailable: '目前應用的流程設計器無法載入連接器動作：{0}/{1}。工廠測試成功不代表流程可用；尚未送出本次儲存。',
+  },
   formula_profile: {
     not_allowed: '函數「{0}」不在 {1} 預設值公式的已核驗允許清單中。',
     canonical_case: '函數「{0}」應使用官方大小寫「{1}」。',

@@ -89,6 +89,46 @@ describe('configure-process replacement and verification safety', () => {
     jest.dontMock('../lib/core/chalk');
   });
 
+  test('rejects malformed native scripts before any platform read or write', async () => {
+    const h = loadSubject({ definition: { nodes: [{ componentName: 'JavaScriptNode', JavaScript: {
+      inputs: { assignments: [] }, action: { code: 'return 1;' },
+    } }] } });
+    try {
+      await expect(h.subject.run(['APP_TEST', 'FORM_TEST', h.definitionFile])).rejects.toMatchObject({ code: 'PROCESS_NODE_CONTRACT_INVALID' });
+      expect(h.mockGet).not.toHaveBeenCalled(); expect(h.mockPostFormOnce).not.toHaveBeenCalled();
+    } finally { fs.rmSync(h.tempDir, { recursive: true, force: true }); }
+  });
+
+  test('a factory-valid action rejected by the application designer cannot create a draft', async () => {
+    const connector = require('./fixtures/process-native-nodes.json').connector;
+    const h = loadSubject({ definition: { nodes: [connector] } });
+    h.mockGet.mockResolvedValue({ success: false, errorCode: '500' });
+    try {
+      await expect(h.subject.run(['APP_TEST', 'FORM_TEST', h.definitionFile])).rejects.toMatchObject({
+        code: 'PROCESS_CONNECTOR_ACTION_UNAVAILABLE', details: { remoteWrites: 0 },
+      });
+      expect(h.mockGet).toHaveBeenCalledTimes(1);
+      expect(h.mockGet.mock.calls[0][0]).toContain('/APP_TEST/connector/getAction.json');
+      expect(h.mockPostFormOnce).not.toHaveBeenCalled(); expect(h.mockPostForm).not.toHaveBeenCalled();
+    } finally { fs.rmSync(h.tempDir, { recursive: true, force: true }); }
+  });
+
+  test('a late read-only preflight failure does not masquerade as an unknown save result', async () => {
+    const connector = require('./fixtures/process-native-nodes.json').connector;
+    const h = loadSubject({ definition: { nodes: [connector] } });
+    h.mockGet.mockResolvedValueOnce({ success: true, content: { connectorId: 'Http_native', actionId: 'operation-1' } });
+    queueExistingProcess(h);
+    h.mockGet.mockResolvedValueOnce({ success: false, errorCode: '500' });
+    h.mockPostFormOnce.mockResolvedValueOnce({ success: true, content: { processId: 101, processVersion: 3 } });
+    try {
+      await expect(h.subject.run(['APP_TEST', 'FORM_TEST', h.definitionFile, 'TPROC_TEST', '--replace'])).rejects.toMatchObject({
+        code: 'PROCESS_CONNECTOR_ACTION_UNAVAILABLE', details: { remoteWrites: 1, saveRequestSent: false },
+      });
+      expect(h.mockPostFormOnce).toHaveBeenCalledTimes(1);
+      expect(h.mockPostFormOnce.mock.calls[0][0]).toContain('/newDraftProcess.json');
+    } finally { fs.rmSync(h.tempDir, { recursive: true, force: true }); }
+  });
+
   test('rejects the Issue 651 guessed enum before any API call', async () => {
     const h = loadSubject({ definition: { nodes: [{ type: 'operator', executor: {
       approvalType: 'ext_target_approval_field', approvals: [['employeeField_owner']],
