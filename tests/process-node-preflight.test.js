@@ -70,3 +70,17 @@ test('rejects an extra runtime script hidden from the designer', async () => {
     JSON.stringify(b.processJson), JSON.stringify(b.viewJson))).rejects.toMatchObject({ code: 'PROCESS_NODE_CONTRACT_INVALID' });
   expect(client.get).not.toHaveBeenCalled(); expect(client.postFormOnce).not.toHaveBeenCalled();
 });
+
+test('raw save rejects serialized-field array access before network operations', async () => {
+  createYidaClient.mockClear();
+  const b = built();
+  const row = b.viewJson.schema.children.find(n => n.componentName === 'ConnectorNode').props.connectorRules.rules[0].rules[0];
+  row.value = row.__source = 'ARRAYGET(#{employeeField_owner},1)';
+  b.processJson.nodes.find(n => n.type === 'httpConnector').props.inputs.assignments[0].assignments[0].value = row.value;
+  await expect(saveProcessById({}, 'APP_TEST', 'FORM_TEST', 'TPROC_TEST', 1, 2,
+    JSON.stringify(b.processJson), JSON.stringify(b.viewJson)))
+    .rejects.toMatchObject({ code: 'PROCESS_NODE_FORMULA_INVALID', details: { remoteWrites: 0,
+      diagnostics: expect.arrayContaining([expect.objectContaining({ code: 'serialized_array_access', fieldId: 'employeeField_owner' })]) } });
+  expect(createYidaClient).not.toHaveBeenCalled();
+  expect(client.get).not.toHaveBeenCalled();expect(client.postFormOnce).not.toHaveBeenCalled();
+});

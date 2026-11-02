@@ -5,6 +5,10 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  workflow_values: {
+    serialized_array_access: 'قد يصل الحقل متعدد القيم {0} في سير العمل كنص JSON بدلاً من مصفوفة. استخدام ARRAYGET مباشرة ليس تحويلاً متحققاً منه.',
+    normalize: 'طبّع القيمة صراحةً وتحقق من المدخلات والمخرجات الفعلية في سير اختبار معزول. نوع المكوّن لا يضمن نوع القيمة وقت التشغيل.',
+  },
   process_node: {
     invalid: 'إعداد عقدة سير العمل غير صالح: {0}؛ التنسيق المطلوب: {1}.',
     formula_invalid: 'فشل التحقق من صيغة العقدة عند {0}. استخدم الدوال ومراجع الحقول المدعومة.',

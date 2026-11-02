@@ -5,6 +5,10 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  workflow_values: {
+    serialized_array_access: 'Trường đa giá trị {0} có thể được truyền vào quy trình dưới dạng văn bản JSON thay vì mảng. ARRAYGET trực tiếp chưa phải phép chuyển đổi đã xác minh.',
+    normalize: 'Chuẩn hóa giá trị rõ ràng và kiểm tra đầu vào, đầu ra thực tế trong quy trình thử riêng. Kiểu thành phần không bảo đảm kiểu khi chạy.',
+  },
   process_node: {
     invalid: 'Cấu hình nút không hợp lệ: {0}; yêu cầu: {1}.',
     formula_invalid: 'Không thể xác thực công thức tại {0}. Hãy dùng hàm và tham chiếu trường được hỗ trợ.',

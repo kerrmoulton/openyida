@@ -5,6 +5,10 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  workflow_values: {
+    serialized_array_access: 'El campo de varios valores {0} puede llegar al flujo como texto JSON y no como un arreglo. ARRAYGET directo no es una conversión verificada.',
+    normalize: 'Normalice el valor explícitamente y verifique las entradas y salidas reales en un flujo aislado. El tipo del componente no garantiza el tipo en ejecución.',
+  },
   process_node: {
     invalid: 'Configuración de nodo no válida: {0}; se esperaba {1}.',
     formula_invalid: 'Error al validar la fórmula del nodo en {0}. Use funciones y referencias de campos compatibles.',

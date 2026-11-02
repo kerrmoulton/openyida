@@ -5,6 +5,10 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  workflow_values: {
+    serialized_array_access: 'वर्कफ़्लो में बहु-मूल्य फ़ील्ड {0} Array के बजाय JSON पाठ हो सकता है। सीधे ARRAYGET से रूपांतरण सत्यापित नहीं है।',
+    normalize: 'मान को स्पष्ट रूप से सामान्यीकृत करें और अलग परीक्षण प्रवाह में वास्तविक इनपुट/आउटपुट जाँचें। घटक का प्रकार रनटाइम प्रकार की गारंटी नहीं है।',
+  },
   process_node: {
     invalid: 'वर्कफ़्लो नोड का कॉन्फ़िगरेशन अमान्य है: {0}; अपेक्षित: {1}.',
     formula_invalid: '{0} पर नोड सूत्र का सत्यापन विफल हुआ। समर्थित फ़ंक्शन और फ़ील्ड संदर्भ उपयोग करें।',

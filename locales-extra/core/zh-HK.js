@@ -6,6 +6,10 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  workflow_values: {
+    serialized_array_access: '流程多值欄位 {0} 可能以 JSON 文字而非陣列傳入，不能直接用 ARRAYGET 將它當作陣列取值。',
+    normalize: '請明確正規化資料，並透過隔離流程核對節點的實際輸入輸出；元件類型不等於流程執行時類型。',
+  },
   process_node: {
     invalid: '流程節點配置無效：{0}，應為 {1}。',
     formula_invalid: '流程節點公式驗證失敗：{0}。請使用節點公式支援的函數和欄位引用。',

@@ -35,6 +35,8 @@
 
 ## 连接器节点示例
 
+参数 Schema 与运行时实参的表示形式需要分别核对，源字段类型不能代替目标消费契约。配置表达式前读 [运行时类型边界](runtime-values.md)。
+
 原生 `connectorRules.inputs` 数组是编辑器的参数 Schema，不是运行参数。运行配置必须由分组规则转换为 `props.inputs.assignments`（例如 `Query → userid`），不能把 Schema 数组展开成对象，也不能直接打平为没有 `column` 的编辑器规则。工厂详情、测试或 `invokeService` 成功均不能证明应用流程设计器可加载动作；保存入口会先只读检查该应用的 `connector/getAction.json`，失败时必须停止，不能绕过预检继续保存或发布。
 
 以下展示规则对象的放置方式。连接器、动作、鉴权连接及参数路径须以真实 action schema 为准，示例 ID 不能直接提交。

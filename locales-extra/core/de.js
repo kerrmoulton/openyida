@@ -5,6 +5,10 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  workflow_values: {
+    serialized_array_access: 'Das Mehrfachwertfeld {0} kann im Workflow als JSON-Text statt als Array ankommen. Direktes ARRAYGET ist keine verifizierte Umwandlung.',
+    normalize: 'Normalisieren Sie den Wert explizit und prüfen Sie echte Knotenein- und -ausgaben in einem isolierten Lauf. Der Komponententyp garantiert keinen Laufzeittyp.',
+  },
   process_node: {
     invalid: 'Ungültige Workflow-Knotenkonfiguration: {0}; erwartet: {1}.',
     formula_invalid: 'Die Formelauswertung bei {0} ist ungültig. Verwenden Sie unterstützte Funktionen und Feldverweise.',

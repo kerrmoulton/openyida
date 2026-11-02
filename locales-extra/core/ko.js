@@ -5,6 +5,10 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  workflow_values: {
+    serialized_array_access: '워크플로의 다중 값 필드 {0}는 배열 대신 JSON 문자열로 전달될 수 있습니다. 직접 ARRAYGET 변환은 검증되지 않았습니다.',
+    normalize: '값을 명시적으로 정규화하고 격리된 흐름에서 실제 입력과 출력을 확인하세요. 구성 요소 유형이 실행 시 유형을 보장하지는 않습니다.',
+  },
   process_node: {
     invalid: '워크플로 노드 설정이 잘못되었습니다: {0}. 필요한 형식: {1}.',
     formula_invalid: '노드 수식 검증에 실패했습니다: {0}. 지원되는 함수와 필드 참조를 사용하세요.',

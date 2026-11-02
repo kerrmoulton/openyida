@@ -5,6 +5,10 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  workflow_values: {
+    serialized_array_access: 'Le champ multivaleur {0} peut arriver comme texte JSON plutôt que comme tableau. ARRAYGET direct ne constitue pas une conversion vérifiée.',
+    normalize: 'Normalisez explicitement la valeur et vérifiez les entrées et sorties réelles dans un flux isolé. Le type du composant ne garantit pas le type à l’exécution.',
+  },
   process_node: {
     invalid: 'Configuration du nœud invalide : {0} ; format attendu : {1}.',
     formula_invalid: 'Échec de validation de la formule au niveau de {0}. Utilisez les fonctions et références de champs prises en charge.',

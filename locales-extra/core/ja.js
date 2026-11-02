@@ -5,6 +5,10 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  workflow_values: {
+    serialized_array_access: 'フローの複数値フィールド {0} は配列ではなく JSON 文字列として渡される場合があります。直接 ARRAYGET での変換は検証されていません。',
+    normalize: '値を明示的に正規化し、隔離フローで実際の入出力を確認してください。コンポーネント型は実行時の型を保証しません。',
+  },
   process_node: {
     invalid: 'ワークフローノードの設定が無効です：{0}。必要な形式：{1}。',
     formula_invalid: 'ノード数式の検証に失敗しました：{0}。対応する関数とフィールド参照を使用してください。',

@@ -1,5 +1,5 @@
 {
-  "source": "Anonymized yida-simple-flow/0.2.313 workflow designer save, 2026-10-30",
+  "source": "Anonymized yida-simple-flow/0.2.313 designer structure with scalar parameter binding",
   "connector": {
     "key": "lookup",
     "componentName": "ConnectorNode",
@@ -19,9 +19,9 @@
           "childList": [{ "name": "userid", "id": "Query%userid", "rules": [] }],
           "rules": [{
             "name": "userid", "id": "Query%userid", "componentName": "TextField",
-            "valueType": "column", "value": "ARRAYGET(#{employeeField_owner},1)",
-            "__source": "ARRAYGET(#{employeeField_owner},1)",
-            "__display": "ARRAYGET(示例人员,1)"
+            "valueType": "column", "value": "#{textField_userid}",
+            "__source": "#{textField_userid}",
+            "__display": "用户标识"
           }]
         }]
       }
@@ -32,7 +32,7 @@
     "method": "post", "body": "", "connection": 42,
     "connectorId": "Http_native", "actionId": "operation-1",
     "assignments": [{ "column": "Query", "valueType": "Object", "value": "", "assignments": [
-      { "column": "userid", "valueType": "column", "value": "ARRAYGET(#{employeeField_owner},1)", "assignments": [] }
+      { "column": "userid", "valueType": "column", "value": "#{textField_userid}", "assignments": [] }
     ] }]
   },
   "code": {

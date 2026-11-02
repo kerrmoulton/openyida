@@ -5,6 +5,10 @@
  * Missing keys are completed from the core fallback language so optional packs stay schema-compatible.
  */
 module.exports = {
+  workflow_values: {
+    serialized_array_access: 'O campo de múltiplos valores {0} pode chegar ao fluxo como texto JSON em vez de um array. ARRAYGET direto não é uma conversão verificada.',
+    normalize: 'Normalize o valor explicitamente e verifique as entradas e saídas reais em um fluxo isolado. O tipo do componente não garante o tipo em execução.',
+  },
   process_node: {
     invalid: 'Configuração de nó inválida: {0}; esperado: {1}.',
     formula_invalid: 'Falha na validação da fórmula em {0}. Use funções e referências de campos compatíveis.',

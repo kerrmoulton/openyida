@@ -117,7 +117,7 @@ test.each(['numeric-schema-key', 'ungrouped', 'formula-drift', 'script-object', 
   const query = built.processJson.nodes.find(n => n.type === 'httpConnector');
   if (scenario === 'numeric-schema-key') { query.props.inputs[0] = {}; }
   if (scenario === 'ungrouped') { query.props.inputs.assignments = query.props.inputs.assignments[0].assignments; }
-  if (scenario === 'formula-drift') { query.props.inputs.assignments[0].assignments[0].value = 'ARRAYGET(#{employeeField_other},1)'; }
+  if (scenario === 'formula-drift') { query.props.inputs.assignments[0].assignments[0].value = 'CONCATENATE(#{textField_other})'; }
   if (scenario === 'script-object') { built.viewJson.schema.children.find(n => n.componentName === 'JavaScriptNode').props.JavaScript.inputs = { assignments: [] }; }
   if (scenario === 'exception-policy') { built.processJson.nodes.find(n => n.type === 'CodeExecutor').props.action.exceptionStrategy = 'CONTINUE'; }
   if (scenario === 'url-drift') { query.props.inputs.url = 'https://other.example.invalid/user/get'; }
